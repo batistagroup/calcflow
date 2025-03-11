@@ -46,7 +46,7 @@ Then open your browser at `http://127.0.0.1:8000`
 ├── docs/           # Documentation files (MkDocs)
 ├── scripts/        # Utility and automation scripts
 ├── src/            # Source code
-│   └── batistatemplate/
+│   └── calcflow/
 ├── tests/          # Test files
 ├── .github/        # GitHub Actions workflows
 ├── mkdocs.yml      # MkDocs configuration
