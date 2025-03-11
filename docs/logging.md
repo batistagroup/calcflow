@@ -4,15 +4,15 @@ This guide explains how to effectively use Python's logging module in our codeba
 
 ## Environment Variables
 
-The application's log level can be controlled using the `BATISTATEMPLATE_LOG_LEVEL` environment variable:
+The application's log level can be controlled using the `CALCFLOW_LOG_LEVEL` environment variable:
 
 ```bash
 # Set log level for the current session
-export BATISTATEMPLATE_LOG_LEVEL=DEBUG
+export CALCFLOW_LOG_LEVEL=DEBUG
 python your_script.py
 
 # Or set it for a single command
-BATISTATEMPLATE_LOG_LEVEL=DEBUG python your_script.py
+CALCFLOW_LOG_LEVEL=DEBUG python your_script.py
 ```
 
 Valid log levels are:
@@ -28,7 +28,7 @@ Valid log levels are:
 When writing a module, follow these guidelines:
 
 ```python
-from batistatemplate.utils.logging_config import logger
+from calcflow.utils.logging_config import logger
 
 def my_function():
     # Use appropriate log levels
@@ -42,7 +42,7 @@ def my_function():
 Key points:
 
 - Don't configure the logger in your modules
-- Always use `from batistatemplate.utils.logging_config import logger`
+- Always use `from calcflow.utils.logging_config import logger`
 - Choose appropriate log levels
 - Don't use print statements for debugging
 - Don't add parameters like `verbose` to your functions
@@ -52,7 +52,7 @@ Key points:
 For Jupyter notebooks, put this in your first cell:
 
 ```python
-from batistatemplate.utils.logging_config import logger
+from calcflow.utils.logging_config import logger
 
 logger.setLevel(logging.DEBUG)  # To see debug messages
 logger.setLevel(logging.INFO)   # Back to info only
