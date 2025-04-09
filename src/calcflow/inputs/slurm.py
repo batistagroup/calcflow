@@ -10,6 +10,8 @@ class SlurmArgs:
     n_cores: int
     memory_mb: int
     software: str | None = None
+    partition: str | None = None
+    custom_modules: dict[str, str] | None = None
 
     ALLOWED_SOFTWARE = {"orca", "qchem"}
 
@@ -48,6 +50,8 @@ export NUMEXPR_NUM_THREADS={self.n_cores}""",
     def get_modules(self) -> str:
         self._check_software()
         assert self.software is not None  # for mypy
+        if self.custom_modules and self.software in self.custom_modules:
+            return self.custom_modules[self.software]
         modules = {
             "orca": "module load ORCA",
             "qchem": "module load Q-Chem",
@@ -67,7 +71,9 @@ export NUMEXPR_NUM_THREADS={self.n_cores}""",
         if self.software is None:
             raise ValueError("Software not specified")
 
-        if "-" in self.time:
+        if self.partition:
+            time_spec = f"#SBATCH -p {self.partition}\n#SBATCH -t {self.time}:00"
+        elif "-" in self.time:
             time_spec = f"#SBATCH -p week\n#SBATCH -t {self.time}:00"
         else:
             time_spec = f"#SBATCH -t {self.time}:00"

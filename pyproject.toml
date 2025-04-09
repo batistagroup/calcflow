@@ -65,6 +65,10 @@ lint.ignore = [
 ]
 exclude = ["tests"]
 
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["E501"]  # Ignore line length in tests
+
+
 # Section below is pretty standard logger configuration
 
 [tool.logging]
