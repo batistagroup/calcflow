@@ -17,3 +17,7 @@ wheels/
 
 # Environment variables
 .env
+
+prd/
+
+old_*
