@@ -1,4 +1,7 @@
-site_name: Batista Template Docs
+repo_url: https://github.com/batistagroup/calcflow
+repo_name: batistagroup/calcflow
+copyright: CC-BY 4.0 &copy; 2025 Batista Group
+site_name: CalcFlow Docs
 theme:
   name: material
   features:
@@ -9,7 +12,15 @@ extra_css:
 
 plugins:
 - search
-- mkdocstrings
+- mkdocstrings:
+    handlers:
+      python:
+        options:
+          show_source: true  # Enable source code display
+          show_submodules: true
+          docstring_style: google  # Or your preferred style
+          show_signature: true
+          members_order: source  # Order methods as they appear in source
 
 markdown_extensions:
   - pymdownx.highlight:
@@ -22,3 +33,4 @@ markdown_extensions:
   - def_list
   - pymdownx.tasklist:
       custom_checkbox: true
+
