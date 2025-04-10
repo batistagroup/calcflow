@@ -17,3 +17,14 @@ wheels/
 
 # Environment variables
 .env
+
+prd/
+qual.sh
+
+meoq/
+meoq-examples/
+
+data/calculations/meoq
+
+# ignore all .sh files in data/calculations/examples
+data/calculations/examples/**/*.sh

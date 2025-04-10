@@ -1,3 +1,3 @@
-from calcflow.utils.logging_config import setup_logging
+from calcflow.utils import setup_logging
 
 setup_logging()

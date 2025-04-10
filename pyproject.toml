@@ -1,21 +1,25 @@
 [project]
 name = "calcflow"
 version = "0.1.0"
-description = "Add your description here"
-readme = "README.md"
-requires-python = ">=3.12"
-dependencies = [
-    "numpy>=2.2.3",
-    "tomli>=2.2.1",
-    "tqdm>=4.67.1",
-]
 authors = [{ name = "Anton Morgunov", email = "anton@ischemist.com" }]
-license = { text = "MIT" }
+description = "A package to simplify preparing and parsing quantum chemistry calculations."
+readme = "README.md"
+license = { text = "MIT" } # Or choose another license
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Typing :: Typed",
+]
+dependencies = [
+]
 
 [project.urls]
-Homepage = "https://github.com/batistagroup/calcflow"
-Issues = "https://github.com/batistagroup/calcflow/issues"
-
+Homepage = "https://github.com/yourusername/calcflow"      # Add your repo URL
+Issues = "https://github.com/yourusername/calcflow/issues"
 
 [tool.setuptools]
 packages = ["calcflow"]
@@ -34,6 +38,7 @@ dev = [
     "mkdocstrings-python>=1.15.0",
     "mkdocs-material>=9.6.4",
     "types-tqdm>=4.67.0.20241221",
+    "tomli>=2.2.1",
 ]
 
 [tool.mypy]
@@ -57,6 +62,14 @@ lint.select = [
     "SIM", # flake8-simplify
     "I",   # isort
 ]
+lint.ignore = [
+    "E501",   # o respect fmt off blocks
+    "SIM108", # disagree w/ https://docs.astral.sh/ruff/rules/if-else-block-instead-of-if-exp/
+]
+exclude = ["tests"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["E501"]  # Ignore line length in tests
 
 
 # Section below is pretty standard logger configuration
@@ -76,5 +89,5 @@ stream = "ext://sys.stdout"
 
 [tool.logging.loggers.calcflow]
 handlers = ["console"]
-propagate = false
+propagate = true
 level = "INFO"
