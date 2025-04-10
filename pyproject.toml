@@ -89,5 +89,5 @@ stream = "ext://sys.stdout"
 
 [tool.logging.loggers.calcflow]
 handlers = ["console"]
-propagate = false
+propagate = true
 level = "INFO"

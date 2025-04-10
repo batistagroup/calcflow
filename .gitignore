@@ -19,5 +19,12 @@ wheels/
 .env
 
 prd/
+qual.sh
 
-old_*
+meoq/
+meoq-examples/
+
+data/calculations/meoq
+
+# ignore all .sh files in data/calculations/examples
+data/calculations/examples/**/*.sh
