@@ -798,13 +798,21 @@ class DipoleParser:
                         total_debye = float(mag_debye_match.group(1))
                     except (ValueError, IndexError) as e:
                         raise ParsingError(f"Could not parse dipole magnitude (Debye): {line.strip()}") from e
-                    break  # Found all info
+                    continue  # Continue to check for terminators
 
-                if "Rotational spectrum" in line or "--------" in line:
+                # Refined termination condition: only break on clear end markers
+                # Removed 'or "--------" in line' check which caused premature exit
+                if "Rotational spectrum" in line:
                     # If we haven't found all components yet, log a warning but break
                     if None in [x_au, y_au, z_au, total_au, total_debye]:
                         logger.warning(f"Exiting dipole block prematurely due to terminator: '{line.strip()}'")
                     break  # End of dipole section
+
+                # Optional: Add a check to break if all values are found, just in case
+                # the 'Rotational spectrum' line is missing in some outputs.
+                if None not in [x_au, y_au, z_au, total_au, total_debye]:
+                    logger.debug("All dipole components found, breaking loop.")
+                    break
 
             if None in [x_au, y_au, z_au, total_au, total_debye]:
                 missing = [
