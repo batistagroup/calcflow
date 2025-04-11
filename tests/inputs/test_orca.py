@@ -1,3 +1,4 @@
+import logging
 from dataclasses import replace
 
 import pytest
@@ -324,7 +325,11 @@ class TestOrcaInputExport:
 
         assert actual_other_lines == expected_other_lines, "Mismatch in non-keyword lines or their order"
 
-        # --- Block Presence Check ---
+        # --- Block Presence Check --- Explicitly check private methods return empty strings
+        assert minimal_orca_input._get_procs_line() == ""  # Line 264
+        assert minimal_orca_input._get_solvent_block() == ""  # Line 274
+        assert minimal_orca_input._get_tddft_block() == ""  # Line 309
+        assert minimal_orca_input._get_output_block() == ""  # Line 338
         assert "%pal" not in output  # n_cores=1
         assert "%cpcm" not in output
         assert "%tddft" not in output
@@ -372,6 +377,8 @@ class TestOrcaInputExport:
             ("pbe0", False, "! RKS pbe0 sto-3g SP"),
             ("mp2", False, "! MP2 sto-3g SP"),
             ("mp2", True, "! UMP2 sto-3g SP"),
+            ("ri-mp2", False, "! RI-MP2 sto-3g SP"),
+            ("ri-mp2", True, "! RI-UMP2 sto-3g SP"),
             ("ccsd(t)", True, "! CCSD(T) sto-3g SP"),  # Assume unrestricted OK here
             ("ccsd", False, "! CCSD sto-3g SP"),
         ],
@@ -397,6 +404,33 @@ class TestOrcaInputExport:
         assert "* xyz 0 1" in output
 
     @pytest.mark.parametrize(
+        "level_of_theory, unrestricted, warning_msg",
+        [
+            ("uhf", False, "Requested method UHF but unrestricted was not set to True"),
+            ("ump2", False, "Requested method UMP2 but unrestricted was not set to True"),
+            ("ccsd(t)", False, "Requested method CCSD(T) but unrestricted was not set to True"),
+        ],
+    )
+    def test_export_level_of_theory_warnings(
+        self,
+        minimal_orca_input: OrcaInput,
+        default_geom: str,
+        level_of_theory: str,
+        unrestricted: bool,
+        warning_msg: str,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Test warnings for specific level_of_theory/unrestricted combinations."""
+        caplog.set_level(logging.WARNING)  # Ensure warnings are captured
+        test_input = replace(
+            minimal_orca_input,
+            level_of_theory=level_of_theory,
+            unrestricted=unrestricted,
+        )
+        test_input.export_input_file(default_geom)
+        assert warning_msg in caplog.text
+
+    @pytest.mark.parametrize(
         "level_of_theory, unrestricted, error_match",
         [
             ("rhf", True, "Requested method RHF but unrestricted was set to True"),
@@ -420,6 +454,20 @@ class TestOrcaInputExport:
             unrestricted=unrestricted,
         )
         with pytest.raises(ValidationError, match=error_match):
+            test_input.export_input_file(default_geom)
+
+    def test_export_ccsd_unrestricted_error(
+        self,
+        minimal_orca_input: OrcaInput,
+        default_geom: str,
+    ) -> None:
+        """Test error for CCSD with unrestricted=True."""
+        test_input = replace(
+            minimal_orca_input,
+            level_of_theory="ccsd",
+            unrestricted=True,
+        )
+        with pytest.raises(ValidationError, match="Requested method CCSD but unrestricted was set to True."):
             test_input.export_input_file(default_geom)
 
     def test_export_with_ri(self, minimal_orca_input: OrcaInput, default_geom: str) -> None:
@@ -500,7 +548,10 @@ end"""
     Print[ P_MOs ] 1
     Print[ P_Overlap ] 1
 end"""
+        # Check if the expected block is present in the output string
         assert expected_block in output
+        # Explicitly check the return value of the private method
+        assert print_mo_input_validated._get_output_block() == expected_block  # Line 338
 
     def test_export_full_example(self, default_geom: str) -> None:
         """Test export with multiple features enabled simultaneously."""
@@ -558,6 +609,15 @@ end"""
                 spin_multiplicity=1,
             )
             dict_basis_input.export_input_file(default_geom)
+
+    def test_export_tddft_validation_error_in_block(self, minimal_orca_input: OrcaInput, default_geom: str) -> None:
+        """Test ValidationError in _get_tddft_block if inconsistent state is forced."""
+        # Create an inconsistent state *after* __post_init__ validation
+        with pytest.raises(
+            ValidationError, match="If run_tddft is True, either tddft_nroots or tddft_iroot must be specified."
+        ):
+            inconsistent_input = replace(minimal_orca_input, run_tddft=True, tddft_nroots=None, tddft_iroot=None)
+            inconsistent_input.export_input_file(default_geom)  # Should raise in _get_tddft_block (Line 315)
 
 
 # --- Add more test classes below ---

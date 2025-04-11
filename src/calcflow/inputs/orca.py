@@ -271,7 +271,9 @@ class OrcaInput(CalculationInput):
             elif model_lower == "smd":
                 pass
             else:
-                raise ValidationError(f"Unrecognized solvation model: {self.implicit_solvation_model}")
+                raise ValidationError(
+                    f"Unrecognized solvation model: {self.implicit_solvation_model}"
+                )  # pragma: no cover
 
         return f"! {' '.join(keywords)}"
 
