@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, replace
 from typing import Literal, TypeVar
 
+from calcflow.exceptions import ValidationError
 from calcflow.utils import logger
 
 # Generic TypeVar for fluent methods in subclasses
@@ -49,9 +50,9 @@ class CalculationInput(ABC):
         Performs basic validation common to all calculation types after initialization.
 
         Raises:
-            ValueError: If spin_multiplicity is not a positive integer.
-            ValueError: If charge is not an integer.
-            ValueError: If `implicit_solvation_model` and `solvent` are not both provided or both None.
+            ValidationError: If spin_multiplicity is not a positive integer.
+            ValidationError: If charge is not an integer.
+            ValidationError: If `implicit_solvation_model` and `solvent` are not both provided or both None.
 
         Warns:
             UserWarning: If `memory_mb` is less than or equal to 512 MB.
@@ -61,11 +62,13 @@ class CalculationInput(ABC):
         """
         # Hard Errors
         if not isinstance(self.spin_multiplicity, int) or self.spin_multiplicity < 1:
-            raise ValueError("Spin multiplicity must be a positive integer (e.g., 1 for singlet, 2 for doublet).")
+            raise ValidationError("Spin multiplicity must be a positive integer (e.g., 1 for singlet, 2 for doublet).")
         if not isinstance(self.charge, int):
-            raise ValueError("Charge must be an integer.")
+            raise ValidationError("Charge must be an integer.")
         if (self.implicit_solvation_model is not None) != (self.solvent is not None):
-            raise ValueError("Both `implicit_solvation_model` and `solvent` must be provided together, or neither.")
+            raise ValidationError(
+                "Both `implicit_solvation_model` and `solvent` must be provided together, or neither."
+            )
 
         # Soft Warnings
         if self.memory_mb <= 512:
@@ -122,18 +125,18 @@ class CalculationInput(ABC):
         Returns:
             T_CalcInput: A new instance of the CalculationInput subclass with the solvation settings updated.
         Raises:
-            ValueError: If `model` and `solvent` are not consistently provided (both or neither).
-            ValueError: If the provided `model` is not one of the allowed models ("pcm", "smd", "cpcm").
+            ValidationError: If `model` and `solvent` are not consistently provided (both or neither).
+            ValidationError: If the provided `model` is not one of the allowed models ("pcm", "smd", "cpcm").
         """
         if (model is not None) != (solvent is not None):
-            raise ValueError("Both `model` and `solvent` must be provided together, or neither.")
+            raise ValidationError("Both `model` and `solvent` must be provided together, or neither.")
         # Basic normalization
         solvent_lower = solvent.lower() if solvent else None
         model_lower = model.lower() if model else None
 
         allowed_models = {"pcm", "smd", "cpcm"}
         if model_lower is not None and model_lower not in allowed_models:
-            raise ValueError(f"Solvation model '{model}' not recognized. Allowed: {allowed_models}")
+            raise ValidationError(f"Solvation model '{model}' not recognized. Allowed: {allowed_models}")
 
         return replace(self, implicit_solvation_model=model_lower, solvent=solvent_lower)  # type: ignore
 
