@@ -25,6 +25,7 @@ meoq/
 meoq-examples/
 
 data/calculations/meoq
+data/calculations/working
 
 # ignore all .sh files in data/calculations/examples
 data/calculations/examples/**/*.sh

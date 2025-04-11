@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, replace
 from typing import Literal, TypeVar
 
+from calcflow.exceptions import ValidationError
 from calcflow.utils import logger
 
 # Generic TypeVar for fluent methods in subclasses
@@ -10,6 +11,26 @@ T_CalcInput = TypeVar("T_CalcInput", bound="CalculationInput")
 
 @dataclass(frozen=True)
 class CalculationInput(ABC):
+    """
+    Abstract base class for all calculation input classes.
+
+    This class defines the common attributes and methods that all calculation input classes should have.
+    It is designed to be subclassed by program-specific input classes (e.g., QChemInput, OrcaInput).
+
+    Attributes:
+        charge (int): Molecular charge.
+        spin_multiplicity (int): Spin multiplicity (1 for singlet, 2 for doublet, etc.). Must be a positive integer.
+        task (Literal["energy", "geometry"]): Type of calculation to perform.
+        level_of_theory (str): Electronic structure method/functional (e.g., "B3LYP", "CCSD(T)").
+        basis_set (str | dict[str, str]): Basis set to use. Can be a string for standard basis sets
+            or a dictionary for program-specific basis set specifications.
+        unrestricted (bool): Whether to use an unrestricted method (e.g., UB3LYP vs B3LYP). Defaults to False.
+        memory_mb (int): Total memory to allocate for the calculation in MB. Defaults to 2000 MB.
+        memory_per_core_mb (int): Memory to allocate per core in MB. Defaults to 2000 MB.
+        implicit_solvation_model (Literal["pcm", "smd", "cpcm"] | None): Implicit solvation model to use (e.g., "pcm"). Defaults to None.
+        solvent (str | None): Solvent to use for implicit solvation (e.g., "water"). Must be provided if `implicit_solvation_model` is specified. Defaults to None.
+    """
+
     charge: int
     spin_multiplicity: int
     task: Literal["energy", "geometry"]
@@ -25,14 +46,29 @@ class CalculationInput(ABC):
     solvent: str | None = None
 
     def __post_init__(self) -> None:
-        """Basic validation common to all calculation types."""
+        """
+        Performs basic validation common to all calculation types after initialization.
+
+        Raises:
+            ValidationError: If spin_multiplicity is not a positive integer.
+            ValidationError: If charge is not an integer.
+            ValidationError: If `implicit_solvation_model` and `solvent` are not both provided or both None.
+
+        Warns:
+            UserWarning: If `memory_mb` is less than or equal to 512 MB.
+            UserWarning: If `memory_per_core_mb` is less than or equal to 256 MB.
+            UserWarning: If `spin_multiplicity` > 1 and `unrestricted` is False.
+            UserWarning: If `spin_multiplicity` == 1 and `unrestricted` is True.
+        """
         # Hard Errors
         if not isinstance(self.spin_multiplicity, int) or self.spin_multiplicity < 1:
-            raise ValueError("Spin multiplicity must be a positive integer (e.g., 1 for singlet, 2 for doublet).")
+            raise ValidationError("Spin multiplicity must be a positive integer (e.g., 1 for singlet, 2 for doublet).")
         if not isinstance(self.charge, int):
-            raise ValueError("Charge must be an integer.")
+            raise ValidationError("Charge must be an integer.")
         if (self.implicit_solvation_model is not None) != (self.solvent is not None):
-            raise ValueError("Both `implicit_solvation_model` and `solvent` must be provided together, or neither.")
+            raise ValidationError(
+                "Both `implicit_solvation_model` and `solvent` must be provided together, or neither."
+            )
 
         # Soft Warnings
         if self.memory_mb <= 512:
@@ -57,6 +93,17 @@ class CalculationInput(ABC):
 
     @abstractmethod
     def export_input_file(self, geom: str) -> str:
+        """
+        Abstract method to export the input file content as a string.
+
+        Subclasses must implement this method to generate the program-specific input file format.
+
+        Args:
+            geom (str): Molecular geometry in a program-agnostic format (e.g., XYZ string).
+
+        Returns:
+            str: Input file content as a string.
+        """
         pass
 
     # --- Fluent API methods for common concepts ---
@@ -64,24 +111,65 @@ class CalculationInput(ABC):
     def set_solvation(
         self: T_CalcInput, model: Literal["pcm", "smd", "cpcm"] | None, solvent: str | None
     ) -> T_CalcInput:
+        """
+        Set the implicit solvation model and solvent.
+
+        Both `model` and `solvent` must be provided together, or neither.
+
+        Args:
+            model (Literal["pcm", "smd", "cpcm"] | None): Implicit solvation model to use (e.g., "pcm").
+                If None, solvation is disabled.
+            solvent (str | None): Solvent to use for implicit solvation (e.g., "water").
+                If None, solvation is disabled.
+
+        Returns:
+            T_CalcInput: A new instance of the CalculationInput subclass with the solvation settings updated.
+        Raises:
+            ValidationError: If `model` and `solvent` are not consistently provided (both or neither).
+            ValidationError: If the provided `model` is not one of the allowed models ("pcm", "smd", "cpcm").
+        """
         if (model is not None) != (solvent is not None):
-            raise ValueError("Both `model` and `solvent` must be provided together, or neither.")
+            raise ValidationError("Both `model` and `solvent` must be provided together, or neither.")
         # Basic normalization
         solvent_lower = solvent.lower() if solvent else None
         model_lower = model.lower() if model else None
 
         allowed_models = {"pcm", "smd", "cpcm"}
         if model_lower is not None and model_lower not in allowed_models:
-            raise ValueError(f"Solvation model '{model}' not recognized. Allowed: {allowed_models}")
+            raise ValidationError(f"Solvation model '{model}' not recognized. Allowed: {allowed_models}")
 
         return replace(self, implicit_solvation_model=model_lower, solvent=solvent_lower)  # type: ignore
 
     def set_memory(self: T_CalcInput, memory_mb: int) -> T_CalcInput:
+        """
+        Set the total memory for the calculation.
+
+        Args:
+            memory_mb (int): Total memory to allocate in MB.
+
+        Returns:
+            T_CalcInput: A new instance of the CalculationInput subclass with the memory updated.
+
+        Warns:
+            UserWarning: If `memory_mb` is less than 256 MB.
+        """
         if memory_mb < 256:
             logger.warning("Memory allocation seems low (< 256 MB), please specify in MB.")
         return replace(self, memory_mb=memory_mb)
 
     def set_memory_per_core(self: T_CalcInput, memory_per_core_mb: int) -> T_CalcInput:
+        """
+        Set the memory per core for the calculation.
+
+        Args:
+            memory_per_core_mb (int): Memory per core to allocate in MB.
+
+        Returns:
+            T_CalcInput: A new instance of the CalculationInput subclass with the memory per core updated.
+
+        Warns:
+            UserWarning: If `memory_per_core_mb` is less than 256 MB.
+        """
         if memory_per_core_mb < 256:
             logger.warning("Memory per core allocation seems low (< 256 MB), please specify in MB.")
         return replace(self, memory_per_core_mb=memory_per_core_mb)
