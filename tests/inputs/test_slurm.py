@@ -273,6 +273,7 @@ def test_create_submit_script_minimal_orca(base_slurm_args: SlurmArgs) -> None:
 #SBATCH --output sbatch.out
 #SBATCH --error sbatch.err
 #SBATCH -J my_orca_job
+#SBATCH --time 01:00:00
 #SBATCH --ntasks 4
 #SBATCH --nodes 1
 
@@ -292,6 +293,7 @@ def test_create_submit_script_minimal_qchem_default(base_slurm_args: SlurmArgs) 
 #SBATCH --output sbatch.out
 #SBATCH --error sbatch.err
 #SBATCH -J my_qchem_job
+#SBATCH --time 01:00:00
 
 module load qchem
 
@@ -310,6 +312,7 @@ def test_create_submit_script_qchem_openmp(base_slurm_args: SlurmArgs) -> None:
 #SBATCH --output sbatch.out
 #SBATCH --error sbatch.err
 #SBATCH -J my_qchem_omp_job
+#SBATCH --time 01:00:00
 #SBATCH --ntasks 1
 #SBATCH --cpus-per-task 4
 
@@ -329,6 +332,7 @@ def test_create_submit_script_qchem_mpi(base_slurm_args: SlurmArgs) -> None:
 #SBATCH --output sbatch.out
 #SBATCH --error sbatch.err
 #SBATCH -J my_qchem_mpi_job
+#SBATCH --time 01:00:00
 #SBATCH -ntasks 4
 
 module load qchem
@@ -357,6 +361,7 @@ def test_create_submit_script_full_options(base_slurm_args: SlurmArgs) -> None:
 #SBATCH --output sbatch.out
 #SBATCH --error sbatch.err
 #SBATCH -J full_job
+#SBATCH --time 01:00:00
 #SBATCH --constraint=skylake
 #SBATCH --partition=high_mem
 #SBATCH --qos=priority
