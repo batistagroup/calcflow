@@ -43,7 +43,7 @@ class OrcaInput(CalculationInput):
     aux_basis: str | None = None
 
     run_tddft: bool = False
-    tddft_nroots: int | None = 6
+    tddft_nroots: int | None = None
     tddft_iroot: int | None = None
     tddft_triplets: bool = False
     tddft_method: Literal["TDDFT", "TDA"] = "TDDFT"
@@ -73,7 +73,7 @@ class OrcaInput(CalculationInput):
 
         if isinstance(self.basis_set, dict):
             raise NotSupportedError(
-                "Dictionary basis sets are defined but not yet fully implemented in export_input_file for ORCA."
+                "Dictionary basis sets are not yet fully implemented in export_input_file for ORCA."
             )
 
         if self.implicit_solvation_model and self.implicit_solvation_model.lower() not in ["cpcm", "smd"]:
@@ -174,8 +174,8 @@ class OrcaInput(CalculationInput):
         # Handle HF method variants
         hf_variants = {"uhf": "UHF", "rhf": "RHF", "hf": "UHF" if self.unrestricted else "RHF"}
         mp2_variants = {"ump2": "UMP2", "mp2": "MP2", "ri-mp2": "RI-MP2", "ri-ump2": "RI-UMP2"}
-        mp2_variants["MP2"] = "UMP2" if self.unrestricted else "MP2"
-        mp2_variants["RI-MP2"] = "RI-UMP2" if self.unrestricted else "RI-MP2"
+        mp2_variants["mp2"] = "UMP2" if self.unrestricted else "MP2"
+        mp2_variants["ri-mp2"] = "RI-UMP2" if self.unrestricted else "RI-MP2"
         cc_variants = {"ccsd": "CCSD", "ccsd(t)": "CCSD(T)"}
 
         # Common DFT functionals
@@ -198,9 +198,9 @@ class OrcaInput(CalculationInput):
                 keywords.append("UKS")
             else:
                 keywords.append("RKS")
-            keywords.append(method)
+            keywords.append(raw_method)
 
-        elif raw_method in ["RKS", "UKS", "KS"]:
+        elif raw_method in ["rks", "uks", "ks"]:
             raise ValidationError(
                 "If you want to run DFT, please specify a functional as the level_of_theory. RKS or UKS will be assumed from the setting of unrestricted."
             )
@@ -209,17 +209,14 @@ class OrcaInput(CalculationInput):
             if raw_method not in mp2_variants:
                 raise ValidationError(f"Unrecognized MP2 method: {raw_method}")
             method = mp2_variants[raw_method]
-            keywords.append(method)
+            print(f"Got {method=} for {raw_method=} and {self.unrestricted=}")
             if method in ["UMP2", "RI-UMP2"] and not self.unrestricted:
                 logger.warning(
                     "Requested method UMP2 but unrestricted was not set to True. Assuming UMP2 was intended."
                 )
-            elif method in ["MP2", "RI-MP2"] and self.unrestricted:
-                raise ValidationError("Requested method MP2 but unrestricted was set to True.")
+            keywords.append(method)
 
         elif raw_method in cc_variants:
-            if raw_method not in cc_variants:
-                raise ValidationError(f"Unrecognized CC method: {raw_method}")
             method = cc_variants[raw_method]
             keywords.append(method)
             if method == "CCSD(T)" and not self.unrestricted:
@@ -228,6 +225,9 @@ class OrcaInput(CalculationInput):
                 )
             elif method == "CCSD" and self.unrestricted:
                 raise ValidationError("Requested method CCSD but unrestricted was set to True.")
+        else:
+            raise ValidationError(f"Unsupported or unrecognized level_of_theory: '{self.level_of_theory}'")
+
         return keywords
 
     def _get_keywords_line(self) -> str:
