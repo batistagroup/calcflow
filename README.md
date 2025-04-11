@@ -1,5 +1,12 @@
 # CalcFlow
 
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/batistagroup/calcflow/blob/main/LICENSE)
+[![image](https://img.shields.io/pypi/v/calcflow.svg)](https://pypi.org/project/calcflow/)
+[![codecov](https://codecov.io/gh/batistagroup/calcflow/graph/badge.svg?token=bO5X75J8li)](https://codecov.io/gh/batistagroup/calcflow)
+
 A Python package to simplify preparing and parsing quantum chemistry calculations, with no external dependencies. Provides a clean, Pythonic API for interacting with QChem, ORCA, and potentially other quantum chemistry software.
 
 ## Features
