@@ -26,3 +26,9 @@ class ConfigurationError(CalcflowError):
     """Exception raised for configuration-related errors."""
 
     pass
+
+
+class ParsingError(CalcflowError):
+    """Exception raised for errors during file parsing."""
+
+    pass
