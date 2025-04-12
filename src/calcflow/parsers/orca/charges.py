@@ -9,7 +9,7 @@ from calcflow.utils import logger
 # --- Charges Parsers --- #
 MULLIKEN_CHARGES_START_PAT = re.compile(r"MULLIKEN ATOMIC CHARGES")
 LOEWDIN_CHARGES_START_PAT = re.compile(r"LOEWDIN ATOMIC CHARGES")
-CHARGE_LINE_PAT = re.compile(r"^\s*(\d+)\s+[A-Za-z]{1,3}\s+:\s+(-?\d+\.\d+)")
+CHARGE_LINE_PAT = re.compile(r"^\s*(\d+)\s+[A-Za-z]{1,3}\s+:\s+(\S+)")
 
 
 class ChargesParser:
@@ -57,6 +57,9 @@ class ChargesParser:
             results.atomic_charges.append(charge_data)
             logger.debug(f"Successfully parsed {self.method} charges: {repr(charge_data)}")
 
-        except Exception as e:
-            logger.error(f"Error parsing {self.method} charges block: {e}", exc_info=True)
-            # Allow parsing to continue
+        except ParsingError:  # Re-raise specific parsing errors
+            logger.error(f"Critical error parsing {self.method} charges block.", exc_info=True)
+            raise
+        except Exception as e:  # Catch other unexpected errors
+            logger.error(f"Unexpected error parsing {self.method} charges block: {e}", exc_info=True)
+            # Allow parsing to continue for unexpected errors, but not critical ParsingErrors
