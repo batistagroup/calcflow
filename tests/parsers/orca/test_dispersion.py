@@ -1,6 +1,5 @@
 import math
 from collections.abc import Iterator
-from pathlib import Path
 
 import pytest
 
@@ -108,19 +107,6 @@ def initial_data() -> _MutableCalculationData:
 def _list_to_iterator(lines: list[str]) -> Iterator[str]:
     """Helper to convert list of lines to an iterator."""
     return iter(lines)
-
-
-# --- Existing Integration Test ---
-
-# Load the example output file content once
-EXAMPLE_SP_OUT_PATH = Path(__file__).resolve().parents[3] / "data" / "calculations" / "examples" / "sp.out"
-EXAMPLE_SP_OUT = EXAMPLE_SP_OUT_PATH.read_text()
-
-
-@pytest.fixture(scope="module")
-def parsed_sp_data() -> orca.CalculationData:
-    """Fixture to parse the standard single point output file."""
-    return orca.parse_orca_output(EXAMPLE_SP_OUT)
 
 
 def test_integration_dispersion_correction(parsed_sp_data: orca.CalculationData) -> None:

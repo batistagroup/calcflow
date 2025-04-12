@@ -2,7 +2,6 @@ import logging
 import math
 import re
 import unittest.mock
-from pathlib import Path
 from typing import Literal
 
 import pytest
@@ -17,16 +16,6 @@ from calcflow.parsers.orca.charges import (
     ChargesParser,
 )
 from calcflow.parsers.orca.typing import LineIterator, _MutableCalculationData
-
-# Load the example output file content once
-EXAMPLE_SP_OUT_PATH = Path(__file__).resolve().parents[3] / "data" / "calculations" / "examples" / "sp.out"
-EXAMPLE_SP_OUT = EXAMPLE_SP_OUT_PATH.read_text()
-
-
-@pytest.fixture(scope="module")
-def parsed_sp_data() -> orca.CalculationData:
-    """Fixture to parse the standard single point output file."""
-    return orca.parse_orca_output(EXAMPLE_SP_OUT)
 
 
 def test_atomic_charges(parsed_sp_data: orca.CalculationData) -> None:

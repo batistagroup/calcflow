@@ -15,7 +15,8 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    
+    "nbformat>=5.10.4",
+    "plotly>=6.0.1",
 ]
 
 [project.urls]

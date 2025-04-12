@@ -1,6 +1,5 @@
 import math
 from collections.abc import Iterator
-from pathlib import Path
 
 import pytest
 
@@ -8,16 +7,6 @@ from calcflow.exceptions import ParsingError
 from calcflow.parsers import orca
 from calcflow.parsers.orca.geometry import GeometryParser
 from calcflow.parsers.orca.typing import Atom, _MutableCalculationData
-
-# Load the example output file content once
-EXAMPLE_SP_OUT_PATH = Path(__file__).resolve().parents[3] / "data" / "calculations" / "examples" / "sp.out"
-EXAMPLE_SP_OUT = EXAMPLE_SP_OUT_PATH.read_text()
-
-
-@pytest.fixture(scope="module")
-def parsed_sp_data() -> orca.CalculationData:
-    """Fixture to parse the standard single point output file."""
-    return orca.parse_orca_output(EXAMPLE_SP_OUT)
 
 
 def test_input_geometry(parsed_sp_data: orca.CalculationData) -> None:

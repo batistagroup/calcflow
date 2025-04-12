@@ -34,3 +34,6 @@ data/calculations/examples/**/*.sh
 # local scripts
 upload.sh
 request.sh
+
+# Jupyter Hellbooks
+*.ipynb
