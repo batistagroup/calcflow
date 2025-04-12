@@ -15,8 +15,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "nbformat>=5.10.4",
-    "plotly>=6.0.1",
+
 ]
 
 [project.urls]
@@ -42,6 +41,10 @@ dev = [
     "mkdocs-material>=9.6.4",
     "types-tqdm>=4.67.0.20241221",
     "tomli>=2.2.1",
+]
+visualize =[
+        "nbformat>=5.10.4",
+    "plotly>=6.0.1",
 ]
 
 [tool.mypy]
