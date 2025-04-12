@@ -1,7 +1,7 @@
 import re
 
 from calcflow.exceptions import ParsingError
-from calcflow.parsers.orca.typing import LineIterator, Orbital, OrbitalData, _MutableCalculationData
+from calcflow.parsers.orca.typing import LineIterator, Orbital, OrbitalData, SectionParser, _MutableCalculationData
 from calcflow.utils import logger
 
 # --- Orbitals Parser --- #
@@ -10,7 +10,7 @@ ORBITAL_LINE_PAT = re.compile(r"^\s*(\d+)\s+([\d\.]+)\s+(-?\d+\.\d+)\s+(-?\d+\.\
 OCC_THRESHOLD = 0.1  # Threshold to consider an orbital occupied
 
 
-class OrbitalsParser:
+class OrbitalsParser(SectionParser):
     """Parses the orbital energies block."""
 
     def matches(self, line: str, current_data: _MutableCalculationData) -> bool:

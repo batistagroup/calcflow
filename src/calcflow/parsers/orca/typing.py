@@ -151,6 +151,9 @@ class _MutableCalculationData:
     atomic_charges: list[AtomicCharges] = field(default_factory=list)
     dipole_moment: DipoleMomentData | None = None
     dispersion_correction: DispersionCorrectionData | None = None
+    # Track errors/warnings during parsing
+    parsing_errors: list[str] = field(default_factory=list)
+    parsing_warnings: list[str] = field(default_factory=list)
     # Flags to track if sections have been parsed (for sections expected once)
     parsed_geometry: bool = False
     parsed_scf: bool = False

@@ -1,7 +1,7 @@
 import re
 
 from calcflow.exceptions import ParsingError
-from calcflow.parsers.orca.typing import DipoleMomentData, LineIterator, _MutableCalculationData
+from calcflow.parsers.orca.typing import DipoleMomentData, LineIterator, SectionParser, _MutableCalculationData
 from calcflow.utils import logger
 
 # --- Dipole Moment Parser --- #
@@ -11,7 +11,7 @@ DIPOLE_MAG_AU_PAT = re.compile(r"Magnitude \(a\.u\.\)\s+:\s+(\d+\.\d+)")
 DIPOLE_MAG_DEBYE_PAT = re.compile(r"Magnitude \(Debye\)\s+:\s+(\d+\.\d+)")
 
 
-class DipoleParser:
+class DipoleParser(SectionParser):
     """Parses the dipole moment block."""
 
     def matches(self, line: str, current_data: _MutableCalculationData) -> bool:

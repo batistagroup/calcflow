@@ -3,7 +3,7 @@ from re import Pattern
 from typing import Literal
 
 from calcflow.exceptions import ParsingError
-from calcflow.parsers.orca.typing import AtomicCharges, LineIterator, _MutableCalculationData
+from calcflow.parsers.orca.typing import AtomicCharges, LineIterator, SectionParser, _MutableCalculationData
 from calcflow.utils import logger
 
 # --- Charges Parsers --- #
@@ -12,7 +12,7 @@ LOEWDIN_CHARGES_START_PAT = re.compile(r"LOEWDIN ATOMIC CHARGES")
 CHARGE_LINE_PAT = re.compile(r"^\s*(\d+)\s+[A-Za-z]{1,3}\s+:\s+(\S+)")
 
 
-class ChargesParser:
+class ChargesParser(SectionParser):
     """Parses atomic charges blocks (Mulliken, Loewdin)."""
 
     def __init__(self, method: Literal["Mulliken", "Loewdin"], start_pattern: Pattern[str]):

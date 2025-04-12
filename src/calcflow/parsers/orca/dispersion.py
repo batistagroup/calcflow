@@ -1,7 +1,7 @@
 import re
 
 from calcflow.exceptions import ParsingError
-from calcflow.parsers.orca.typing import DispersionCorrectionData, LineIterator, _MutableCalculationData
+from calcflow.parsers.orca.typing import DispersionCorrectionData, LineIterator, SectionParser, _MutableCalculationData
 from calcflow.utils import logger
 
 # --- Dispersion Correction Parser --- #
@@ -10,7 +10,7 @@ DISPERSION_METHOD_PAT = re.compile(r"(DFTD\d V\d.*?)(?:\n|$)")  # Basic capture
 DISPERSION_ENERGY_PAT = re.compile(r"Dispersion correction\s+(\S+)")
 
 
-class DispersionParser:
+class DispersionParser(SectionParser):
     """Parses the dispersion correction block."""
 
     def matches(self, line: str, current_data: _MutableCalculationData) -> bool:

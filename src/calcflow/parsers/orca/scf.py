@@ -1,4 +1,5 @@
 import re
+from collections.abc import Iterator
 
 from calcflow.exceptions import ParsingError
 from calcflow.parsers.orca.typing import (
@@ -6,6 +7,7 @@ from calcflow.parsers.orca.typing import (
     ScfData,
     ScfEnergyComponents,
     ScfIteration,
+    SectionParser,
     _MutableCalculationData,
 )
 from calcflow.utils import logger
@@ -30,306 +32,389 @@ SCF_XC_PAT = re.compile(r"^\s*E\(XC\)\s*:\s*(-?\d+\.\d+)")
 
 
 # Moved _parse_scf_block logic here
-class ScfParser:
+class ScfParser(SectionParser):
     """Parses the SCF calculation block."""
+
+    def __init__(self) -> None:
+        self.converged: bool = False
+        self.n_iterations: int = 0
+        self.last_scf_energy_eh: float | None = None
+        self.nuclear_rep_eh: float | None = None
+        self.electronic_eh: float | None = None
+        self.one_electron_eh: float | None = None
+        self.two_electron_eh: float | None = None
+        self.xc_eh: float | None = None
+        self.iteration_history: list[ScfIteration] = []
+        self.latest_iter_num: int = 0
+        self._current_table_type: str | None = None
 
     def matches(self, line: str, current_data: _MutableCalculationData) -> bool:
         # Trigger on the iteration table headers, only if SCF not already parsed
         return not current_data.parsed_scf and ("D-I-I-S" in line or "S-O-S-C-F" in line)
 
-    def parse(self, iterator: LineIterator, current_line: str, results: _MutableCalculationData) -> None:
-        logger.debug(f"Starting SCF block parsing triggered by: {current_line.strip()}")
-        converged = False
-        n_iterations = 0
-        last_scf_energy_eh: float | None = None
-        nuclear_rep_eh: float | None = None
-        electronic_eh: float | None = None
-        one_electron_eh: float | None = None
-        two_electron_eh: float | None = None
-        xc_eh: float | None = None
-        latest_iter_num = 0
-        iteration_history: list[ScfIteration] = []
+    def _reset_state(self) -> None:
+        """Resets parser state for a new parsing run."""
+        self.converged = False
+        self.n_iterations = 0
+        self.last_scf_energy_eh = None
+        self.nuclear_rep_eh = None
+        self.electronic_eh = None
+        self.one_electron_eh = None
+        self.two_electron_eh = None
+        self.xc_eh = None
+        self.iteration_history = []
+        self.latest_iter_num = 0
+        self._current_table_type = None
 
-        in_iteration_table = True
-        current_table_type = None
-        in_scf_component_section = False
-        found_all_mandatory_components = False
+    def _parse_iteration_line(self, line_stripped: str) -> bool:
+        """Parses a single line potentially belonging to an iteration table."""
+        iter_data: ScfIteration | None = None
+        parsed_iter_line = False
 
-        # Determine table type from the initial trigger line
-        if "D-I-I-S" in current_line:
-            current_table_type = "DIIS"
+        if self._current_table_type == "DIIS":
+            diis_match = SCF_DIIS_ITER_PAT.match(line_stripped)
+            if diis_match:
+                vals = diis_match.groups()
+                try:
+                    iter_data = ScfIteration(
+                        iteration=int(vals[0]),
+                        energy_eh=float(vals[1]),
+                        delta_e_eh=float(vals[2]),
+                        rmsdp=float(vals[3]),
+                        maxdp=float(vals[4]),
+                        diis_error=float(vals[5]),
+                        damping=float(vals[6]),
+                        time_sec=float(vals[7]),
+                    )
+                    parsed_iter_line = True
+                except (ValueError, IndexError) as e:
+                    raise ParsingError(f"Could not parse DIIS iteration: {line_stripped}") from e
+        elif self._current_table_type == "SOSCF":
+            soscf_match = SCF_SOSCF_ITER_PAT.match(line_stripped)
+            if soscf_match:
+                vals = soscf_match.groups()
+                try:
+                    iter_data = ScfIteration(
+                        iteration=int(vals[0]),
+                        energy_eh=float(vals[1]),
+                        delta_e_eh=float(vals[2]),
+                        rmsdp=float(vals[3]),
+                        maxdp=float(vals[4]),
+                        max_gradient=float(vals[5]),
+                        time_sec=float(vals[6]),
+                    )
+                    parsed_iter_line = True
+                except (ValueError, IndexError) as e:
+                    raise ParsingError(f"Could not parse SOSCF iteration: {line_stripped}") from e
+
+        if iter_data:
+            self.iteration_history.append(iter_data)
+            self.latest_iter_num = max(self.latest_iter_num, iter_data.iteration)
+            self.last_scf_energy_eh = iter_data.energy_eh
+
+        return parsed_iter_line
+
+    def _parse_iteration_tables(self, iterator: LineIterator, initial_line: str) -> tuple[Iterator[str], str | None]:
+        """Parses the DIIS and SOSCF iteration tables."""
+        logger.debug("Parsing SCF iteration tables...")
+
+        # Determine initial table type and consume header/dashes
+        if "D-I-I-S" in initial_line:
+            self._current_table_type = "DIIS"
             next(iterator, None)  # Consume dashed line
-        elif "S-O-S-C-F" in current_line:
-            current_table_type = "SOSCF"
+        elif "S-O-S-C-F" in initial_line:
+            self._current_table_type = "SOSCF"
             next(iterator, None)  # Consume dashed line
         else:
-            # This case should not happen due to `matches` logic
-            logger.error("SCF Parser called with unexpected initial line.")
-            return
+            # Should not happen based on `matches`
+            raise ParsingError("Unexpected initial line for iteration table parsing.")
 
-        try:
-            # Use loop_iterator = iter([current_line] + list(iterator)) ? No, iterator is stateful
-            # Need to process lines *from* the iterator
-            for line in iterator:
-                line_stripped = line.strip()
+        last_line = None
+        for line in iterator:
+            last_line = line
+            line_stripped = line.strip()
 
-                # --- State 1: Parsing Iteration Tables --- #
-                if in_iteration_table:
-                    if "D-I-I-S" in line:
-                        current_table_type = "DIIS"
-                        next(iterator, None)  # Header
-                        next(iterator, None)  # Dashes
-                        continue
-                    if "S-O-S-C-F" in line:
-                        current_table_type = "SOSCF"
-                        next(iterator, None)  # Header
-                        next(iterator, None)  # Dashes
-                        continue
+            # Check for table type change
+            if "D-I-I-S" in line:
+                self._current_table_type = "DIIS"
+                next(iterator, None)  # Header
+                next(iterator, None)  # Dashes
+                continue
+            if "S-O-S-C-F" in line:
+                self._current_table_type = "SOSCF"
+                next(iterator, None)  # Header
+                next(iterator, None)  # Dashes
+                continue
 
-                    iter_data: ScfIteration | None = None
-                    if current_table_type == "DIIS":
-                        diis_match = SCF_DIIS_ITER_PAT.match(line_stripped)
-                        if diis_match:
-                            vals = diis_match.groups()
-                            try:
-                                iter_data = ScfIteration(
-                                    iteration=int(vals[0]),
-                                    energy_eh=float(vals[1]),
-                                    delta_e_eh=float(vals[2]),
-                                    rmsdp=float(vals[3]),
-                                    maxdp=float(vals[4]),
-                                    diis_error=float(vals[5]),
-                                    damping=float(vals[6]),
-                                    time_sec=float(vals[7]),
-                                )
-                            except (ValueError, IndexError) as e:
-                                raise ParsingError(f"Could not parse DIIS iteration: {line_stripped}") from e
-                    elif current_table_type == "SOSCF":
-                        soscf_match = SCF_SOSCF_ITER_PAT.match(line_stripped)
-                        if soscf_match:
-                            vals = soscf_match.groups()
-                            try:
-                                iter_data = ScfIteration(
-                                    iteration=int(vals[0]),
-                                    energy_eh=float(vals[1]),
-                                    delta_e_eh=float(vals[2]),
-                                    rmsdp=float(vals[3]),
-                                    maxdp=float(vals[4]),
-                                    max_gradient=float(vals[5]),
-                                    time_sec=float(vals[6]),
-                                )
-                            except (ValueError, IndexError) as e:
-                                raise ParsingError(f"Could not parse SOSCF iteration: {line_stripped}") from e
+            # Try parsing as an iteration line
+            if self._parse_iteration_line(line_stripped):
+                continue
 
-                    if iter_data:
-                        iteration_history.append(iter_data)
-                        latest_iter_num = max(latest_iter_num, iter_data.iteration)
-                        last_scf_energy_eh = iter_data.energy_eh
-                        continue
-                    elif line_stripped.startswith(("*", " ")) and "SCF CONVERGED AFTER" in line:
-                        conv_match = SCF_CONVERGED_LINE_PAT.search(line)
-                        if conv_match:
-                            converged = True
-                            n_iterations = int(conv_match.group(1))
-                            in_iteration_table = False
-                            # Don't continue here, might be the start of components immediately
-                        # else: just a comment line, continue
-                        continue
-                    elif not line_stripped:  # Blank line can end the table
-                        in_iteration_table = False
-                        continue  # Process next line normally
-                    elif SCF_ENERGY_COMPONENTS_START_PAT.search(line):
-                        in_iteration_table = False
-                        in_scf_component_section = True
-                        # Fall through to component parsing for this line
+            # Check for convergence message
+            if line_stripped.startswith(("*", " ")) and "SCF CONVERGED AFTER" in line:
+                conv_match = SCF_CONVERGED_LINE_PAT.search(line)
+                if conv_match:
+                    self.converged = True
+                    self.n_iterations = int(conv_match.group(1))
+                    logger.debug("Found convergence line within iteration table.")
+                    # Convergence found, exit table parsing, let outer loop handle next step
+                    return iterator, last_line
+                continue  # Just a comment line
 
-                # --- State 2: Parsing SCF Energy Components --- #
-                if in_scf_component_section:  # Use 'if' not 'elif' to catch fall-through
-                    parsed_this_line = False
-                    nr_match = SCF_NUCLEAR_REP_PAT.search(line)
-                    if nr_match:
-                        nuclear_rep_eh = float(nr_match.group(1))
-                        parsed_this_line = True
+            # Check for end of table conditions (blank line or start of components)
+            if not line_stripped or SCF_ENERGY_COMPONENTS_START_PAT.search(line):
+                logger.debug("Iteration table parsing finished.")
+                return iterator, last_line  # Return the line that terminated the table
 
-                    el_match = SCF_ELECTRONIC_PAT.search(line)
-                    if el_match:
-                        electronic_eh = float(el_match.group(1))
-                        parsed_this_line = True
+        # Reached end of iterator
+        logger.debug("Iteration table parsing finished (end of file).")
+        return iterator, last_line  # Return the last line processed
 
-                    one_el_match = SCF_ONE_ELECTRON_PAT.search(line)
-                    if one_el_match:
-                        try:
-                            one_electron_eh = float(one_el_match.group(1))
-                            parsed_this_line = True
-                        except ValueError:
-                            logger.error(
-                                f"Could not convert One Electron Energy: {one_el_match.group(1)}", exc_info=True
-                            )
+    def _parse_energy_components(self, iterator: LineIterator, initial_line: str) -> tuple[Iterator[str], str | None]:
+        """Parses the 'TOTAL SCF ENERGY' component block."""
+        logger.debug("Parsing SCF energy components...")
+        found_all_mandatory = False
+        last_line: str | None = initial_line  # Start processing with the initial line
 
-                    two_el_match = SCF_TWO_ELECTRON_PAT.search(line)
-                    if two_el_match:
-                        try:
-                            two_electron_eh = float(two_el_match.group(1))
-                            parsed_this_line = True
-                        except ValueError:
-                            logger.error(
-                                f"Could not convert Two Electron Energy: {two_el_match.group(1)}", exc_info=True
-                            )
+        while last_line is not None:
+            line_stripped = last_line.strip()
 
-                    xc_match = SCF_XC_PAT.search(line)
-                    if xc_match:
-                        try:
-                            xc_eh = float(xc_match.group(1))
-                            parsed_this_line = True
-                        except ValueError:
-                            logger.error(f"Could not convert XC Energy: {xc_match.group(1)}", exc_info=True)
+            # Check for start again (might be the initial_line)
+            if SCF_ENERGY_COMPONENTS_START_PAT.search(last_line):
+                pass
 
-                    if not found_all_mandatory_components and None not in [
-                        nuclear_rep_eh,
-                        electronic_eh,
-                        one_electron_eh,
-                        two_electron_eh,
-                    ]:
-                        found_all_mandatory_components = True
+            nr_match = SCF_NUCLEAR_REP_PAT.search(last_line)
+            if nr_match:
+                self.nuclear_rep_eh = float(nr_match.group(1))
 
-                    # Check for termination conditions
-                    if not parsed_this_line or found_all_mandatory_components:
-                        strict_terminators = (
-                            "SCF CONVERGENCE",
-                            "ORBITAL ENERGIES",
-                            "MULLIKEN POPULATION ANALYSIS",
-                            "LOEWDIN POPULATION ANALYSIS",
-                            "MAYER POPULATION ANALYSIS",
-                            "DFT DISPERSION CORRECTION",
-                            "FINAL SINGLE POINT ENERGY",
-                            "TIMINGS",
-                            "------",
-                        )
-                        is_terminator = False
-                        if any(term in line for term in strict_terminators):
-                            if line.strip().startswith("------") and not found_all_mandatory_components:
-                                pass  # Ignore dashes before components found
-                            else:
-                                is_terminator = True
+            el_match = SCF_ELECTRONIC_PAT.search(last_line)
+            if el_match:
+                self.electronic_eh = float(el_match.group(1))
 
-                        if is_terminator:
-                            logger.debug(f"SCF component parsing finished due to terminator: {line.strip()}")
-                            in_scf_component_section = False
-                            break  # Exit SCF block parsing loop
+            one_el_match = SCF_ONE_ELECTRON_PAT.search(last_line)
+            if one_el_match:
+                self.one_electron_eh = float(one_el_match.group(1))
 
-                    continue  # Continue processing lines in component section
+            two_el_match = SCF_TWO_ELECTRON_PAT.search(last_line)
+            if two_el_match:
+                self.two_electron_eh = float(two_el_match.group(1))
 
-                # --- State 3: After iterations, before/after components --- #
-                else:
-                    # Check again if components start here
-                    if SCF_ENERGY_COMPONENTS_START_PAT.search(line):
-                        in_scf_component_section = True
-                        continue  # Go back to component parsing state for this line
+            xc_match = SCF_XC_PAT.search(last_line)
+            if xc_match:
+                self.xc_eh = float(xc_match.group(1))
 
-                    # Check for late convergence message if not found earlier
-                    if not converged:
-                        conv_match_late = SCF_CONVERGED_LINE_PAT.search(line)
-                        if conv_match_late:
-                            converged = True
-                            n_iterations = int(conv_match_late.group(1))
-                            continue  # Found convergence, process next line
+            # Check if we found all mandatory components
+            if not found_all_mandatory and None not in [
+                self.nuclear_rep_eh,
+                self.electronic_eh,
+                self.one_electron_eh,
+                self.two_electron_eh,
+            ]:
+                found_all_mandatory = True
+                logger.debug("Found all mandatory SCF components.")
 
-                    # Check for terminators that signal the end of anything related to SCF
-                    terminators_post_scf = (
-                        "ORBITAL ENERGIES",
-                        "MULLIKEN POPULATION ANALYSIS",
-                        "LOEWDIN POPULATION ANALYSIS",
-                        "MAYER POPULATION ANALYSIS",
-                        "DFT DISPERSION CORRECTION",
-                        "FINAL SINGLE POINT ENERGY",
-                        "TIMINGS",
-                    )
-                    if any(term in line for term in terminators_post_scf):
-                        logger.debug(f"SCF parsing loop finished due to post-SCF terminator: {line.strip()}")
-                        break  # Exit SCF block parsing loop
+            # --- Check for termination conditions ---
+            # 1. Found all mandatory components AND the current line wasn't parsed
+            # 2. Encountered a known strict terminator pattern
+            should_terminate = False
+            # if found_all_mandatory and not parsed_this_line: # Removed this condition
+            #      should_terminate = True
+            #      logger.debug(f"SCF component parsing finished: Found mandatory and non-component line: {line_stripped}")
 
-        except Exception as e:
-            logger.error(f"Error during SCF block parsing: {e}", exc_info=True)
-            raise ParsingError("Failed during SCF block parsing.") from e
+            strict_terminators = (
+                "SCF CONVERGENCE",  # Section start
+                "ORBITAL ENERGIES",
+                "MULLIKEN POPULATION ANALYSIS",
+                "LOEWDIN POPULATION ANALYSIS",
+                "MAYER POPULATION ANALYSIS",
+                "DFT DISPERSION CORRECTION",
+                "FINAL SINGLE POINT ENERGY",
+                "TIMINGS",
+                "------",
+            )
+            is_terminator_line = any(term in last_line for term in strict_terminators)
 
-        # --- Final Checks and Object Creation --- #
-        if not converged:
+            # Special case: dashes before mandatory components are found should be ignored
+            if is_terminator_line and line_stripped.startswith("------") and not found_all_mandatory:
+                is_terminator_line = False  # Ignore this terminator for now
+
+            if is_terminator_line:
+                should_terminate = True
+                logger.debug(f"SCF component parsing finished due to terminator: {line_stripped}")
+
+            if should_terminate:
+                return iterator, last_line  # Return the line that terminated parsing
+
+            # If not terminating, get the next line
+            last_line = next(iterator, None)
+
+        # Reached end of iterator
+        logger.debug("SCF component parsing finished (end of file).")
+        return iterator, last_line  # Return None as last line
+
+    def _finalize_scf_data(self, results: _MutableCalculationData) -> None:
+        """Validates parsed data and creates the ScfData object."""
+        logger.debug("Finalizing SCF data...")
+
+        # --- Final Checks ---
+        if not self.converged:
             logger.warning("SCF convergence line 'SCF CONVERGED AFTER ...' not found. Assuming not converged.")
 
-        if n_iterations == 0 and latest_iter_num > 0:
-            n_iterations = latest_iter_num
-        elif n_iterations > 0 and latest_iter_num > n_iterations:
+        # Correct n_iterations based on history if necessary
+        if self.n_iterations == 0 and self.latest_iter_num > 0:
+            self.n_iterations = self.latest_iter_num
+        elif self.n_iterations > 0 and self.latest_iter_num > self.n_iterations:
             logger.warning(
-                f"Convergence line reported {n_iterations} cycles, but found {latest_iter_num} in history. Using history count."
+                f"Convergence line reported {self.n_iterations} cycles, but found {self.latest_iter_num} in history. Using history count."
             )
-            n_iterations = latest_iter_num
-        elif n_iterations == 0 and not iteration_history:
+            self.n_iterations = self.latest_iter_num
+        elif self.n_iterations == 0 and not self.iteration_history:
             logger.warning("No SCF iterations found or parsed, and convergence line not found.")
 
-        if converged and not iteration_history and n_iterations > 0:
-            logger.warning(f"SCF convergence line reported {n_iterations} cycles, but no iteration history parsed.")
-            # Allow continuing if energy components are found, but log heavily.
+        if self.converged and not self.iteration_history and self.n_iterations > 0:
+            logger.warning(
+                f"SCF convergence line reported {self.n_iterations} cycles, but no iteration history parsed."
+            )
 
-        # Check mandatory components only if SCF seems to have run
-        if converged or n_iterations > 0 or iteration_history:
-            if not found_all_mandatory_components:
-                missing_comps = [
-                    comp
-                    for comp, val in zip(
-                        ["nuclear_rep_eh", "electronic_eh", "one_electron_eh", "two_electron_eh"],
-                        [nuclear_rep_eh, electronic_eh, one_electron_eh, two_electron_eh],
-                        strict=False,
-                    )
-                    if val is None
-                ]
-                logger.error(f"Missing mandatory SCF energy components after SCF ran/converged: {missing_comps}")
-                raise ParsingError("Could not parse all required SCF energy components after SCF execution.")
-        else:
-            # If SCF didn't run, components might be missing, which is okay, but log it.
-            if not found_all_mandatory_components:
-                logger.warning("SCF did not run or failed immediately; energy components not found.")
-            # We cannot create ScfData without components if it didn't run. Return without setting results.scf
+        # --- Check Mandatory Components ---
+        found_all_mandatory_components = None not in [
+            self.nuclear_rep_eh,
+            self.electronic_eh,
+            self.one_electron_eh,
+            self.two_electron_eh,
+        ]
+
+        # Only raise error if SCF seemed to run but components are missing
+        if (self.converged or self.n_iterations > 0 or self.iteration_history) and not found_all_mandatory_components:
+            missing_comps = [
+                comp
+                for comp, val in zip(
+                    ["nuclear_rep_eh", "electronic_eh", "one_electron_eh", "two_electron_eh"],
+                    [self.nuclear_rep_eh, self.electronic_eh, self.one_electron_eh, self.two_electron_eh],
+                    strict=False,
+                )
+                if val is None
+            ]
+            logger.error(f"Missing mandatory SCF energy components after SCF ran/converged: {missing_comps}")
+            raise ParsingError("Could not parse all required SCF energy components after SCF execution.")
+        elif not found_all_mandatory_components:
+            # SCF didn't run or failed early, components might be missing. This is not an error state.
+            logger.warning("SCF did not run or failed early; energy components not found.")
             results.parsed_scf = True  # Mark as parsed/attempted
             logger.warning("SCF block parsing finished without finding components (likely SCF did not run).")
-            return
+            return  # Cannot create ScfData without components if SCF didn't run
 
-        # Assertions only valid if components were expected and found
-        assert nuclear_rep_eh is not None
-        assert electronic_eh is not None
-        assert one_electron_eh is not None
-        assert two_electron_eh is not None
+        # Assertions are valid now because we expect components if we reached here
+        assert self.nuclear_rep_eh is not None
+        assert self.electronic_eh is not None
+        assert self.one_electron_eh is not None
+        assert self.two_electron_eh is not None
 
         components = ScfEnergyComponents(
-            nuclear_repulsion_eh=nuclear_rep_eh,
-            electronic_eh=electronic_eh,
-            one_electron_eh=one_electron_eh,
-            two_electron_eh=two_electron_eh,
-            xc_eh=xc_eh,
+            nuclear_repulsion_eh=self.nuclear_rep_eh,
+            electronic_eh=self.electronic_eh,
+            one_electron_eh=self.one_electron_eh,
+            two_electron_eh=self.two_electron_eh,
+            xc_eh=self.xc_eh,
         )
 
+        # --- Determine Final Energy ---
         final_scf_energy: float
-        if iteration_history:
-            final_scf_energy = iteration_history[-1].energy_eh
-        elif last_scf_energy_eh is not None:
-            # This case should ideally be covered by components being present if SCF converged
-            final_scf_energy = last_scf_energy_eh
+        if self.iteration_history:
+            final_scf_energy = self.iteration_history[-1].energy_eh
+        elif self.last_scf_energy_eh is not None:
+            final_scf_energy = self.last_scf_energy_eh
             logger.warning(
                 f"Using last parsed SCF energy {final_scf_energy} as iteration history is missing/incomplete."
             )
         else:
-            # If converged but somehow no energy found (unlikely given checks)
-            if converged:
-                raise ParsingError("SCF converged but failed to extract final energy.")
-            else:  # Not converged, no history, no components
-                raise ParsingError("Failed to determine final SCF energy (calculation may have failed early).")
+            # This path implies components were found, but no energy value was stored from iterations.
+            # This should only happen if the SCF converged in 0 iterations (unlikely) or parsing failed severely.
+            # Let's rely on the electronic energy + nuclear repulsion as a fallback ONLY if converged.
+            # This is a heuristic and might be inaccurate if xc_eh is significant or components aren't exact.
+            if self.converged:
+                final_scf_energy = self.electronic_eh + self.nuclear_rep_eh
+                logger.warning(
+                    f"No iteration energy found despite convergence. Using Electronic + Nuclear Repulsion: {final_scf_energy} Eh."
+                )
+                # Also update last_scf_energy_eh if it was None
+                if self.last_scf_energy_eh is None:
+                    self.last_scf_energy_eh = final_scf_energy
+            else:
+                # Not converged, no history, components found (implies failure after component printout?)
+                # This state is ambiguous. Raising an error is safer.
+                raise ParsingError("Failed to determine final SCF energy (calculation state unclear).")
 
+        # --- Create Result Object ---
         scf_result = ScfData(
-            converged=converged,
+            converged=self.converged,
             energy_eh=final_scf_energy,
             components=components,
-            n_iterations=n_iterations,
-            iteration_history=tuple(iteration_history),
+            n_iterations=self.n_iterations,
+            iteration_history=tuple(self.iteration_history),
         )
         results.scf = scf_result
         results.parsed_scf = True
-        logger.debug(f"Successfully parsed SCF data: {str(scf_result)}")
+        logger.debug(f"Successfully parsed SCF data: Converged={self.converged}, Energy={final_scf_energy:.8f} Eh")
+
+    def parse(self, iterator: LineIterator, current_line: str, results: _MutableCalculationData) -> None:
+        """Parses the entire SCF block by coordinating helper methods."""
+        self._reset_state()
+        logger.debug(f"Starting SCF block parsing triggered by: {current_line.strip()}")
+
+        try:
+            # --- Stage 1: Parse Iteration Tables ---
+            iterator, last_line_from_iter = self._parse_iteration_tables(iterator, current_line)
+            current_processing_line = last_line_from_iter  # Line that ended table parsing
+
+            # --- Stage 2: Search for and Parse Energy Components ---
+            found_components_start = False
+            while current_processing_line is not None:
+                if SCF_ENERGY_COMPONENTS_START_PAT.search(current_processing_line):
+                    found_components_start = True
+                    iterator, last_line_from_comp = self._parse_energy_components(iterator, current_processing_line)
+                    current_processing_line = last_line_from_comp  # Line that ended component parsing
+                    break  # Exit component search loop
+
+                # Check for late convergence message if not found during iteration parsing
+                if not self.converged:
+                    conv_match_late = SCF_CONVERGED_LINE_PAT.search(current_processing_line)
+                    if conv_match_late:
+                        self.converged = True
+                        self.n_iterations = int(conv_match_late.group(1))
+                        logger.debug("Found convergence line after iteration tables.")
+
+                # Check for terminators that signal the end of anything related to SCF *before* components start
+                terminators_post_scf = (
+                    "ORBITAL ENERGIES",
+                    "MULLIKEN POPULATION ANALYSIS",
+                    "LOEWDIN POPULATION ANALYSIS",
+                    "MAYER POPULATION ANALYSIS",
+                    "DFT DISPERSION CORRECTION",
+                    "FINAL SINGLE POINT ENERGY",
+                    "TIMINGS",
+                )
+                if any(term in current_processing_line for term in terminators_post_scf):
+                    logger.debug(
+                        f"SCF parsing loop finished before components due to terminator: {current_processing_line.strip()}"
+                    )
+                    break  # Exit search loop
+
+                # Get next line if components not started and no terminator hit
+                current_processing_line = next(iterator, None)
+
+            # If components never started, log it.
+            if not found_components_start:
+                logger.warning("SCF Energy Components section ('TOTAL SCF ENERGY') not found.")
+
+            # --- Stage 3: Finalize and Create Data Object ---
+            self._finalize_scf_data(results)
+
+        except ParsingError as e:
+            logger.error(f"ParsingError during SCF block processing: {e}", exc_info=False)  # Log only message
+            results.parsing_warnings.append(f"SCF Block: {e}")
+            results.parsed_scf = True  # Mark as attempted even on error
+        except Exception as e:
+            logger.error(f"Unexpected error during SCF block parsing: {e}", exc_info=True)
+            results.parsing_errors.append("SCF Block: Unexpected error during parsing.")
+            results.parsed_scf = True  # Mark as attempted even on error

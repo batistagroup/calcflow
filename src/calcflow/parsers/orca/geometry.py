@@ -1,7 +1,7 @@
 import re
 
 from calcflow.exceptions import ParsingError
-from calcflow.parsers.orca.typing import Atom, LineIterator, _MutableCalculationData
+from calcflow.parsers.orca.typing import Atom, LineIterator, SectionParser, _MutableCalculationData
 from calcflow.utils import logger
 
 # --- Geometry Parser --- #
@@ -9,7 +9,7 @@ GEOMETRY_START_PAT = re.compile(r"CARTESIAN COORDINATES \(ANGSTROEM\)")
 GEOMETRY_LINE_PAT = re.compile(r"^\s*([A-Za-z]{1,3})\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)")
 
 
-class GeometryParser:
+class GeometryParser(SectionParser):
     """Parses the input geometry block."""
 
     def matches(self, line: str, current_data: _MutableCalculationData) -> bool:
@@ -38,6 +38,9 @@ class GeometryParser:
             results.input_geometry = tuple(geometry)
             results.parsed_geometry = True
             logger.debug(f"Successfully parsed {len(geometry)} atoms.")
+        except ParsingError as pe:
+            logger.error(f"Error parsing geometry block: {pe}", exc_info=True)
+            raise
         except Exception as e:
-            logger.error(f"Error parsing geometry block: {e}", exc_info=True)
-            raise ParsingError("Failed to parse geometry block.") from e
+            logger.error(f"Unexpected error parsing geometry block: {e}", exc_info=True)
+            raise ParsingError("Failed to parse geometry block due to an unexpected error.") from e
