@@ -6,8 +6,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/batistagroup/calcflow/blob/main/LICENSE)
 [![image](https://img.shields.io/pypi/v/calcflow.svg)](https://pypi.org/project/calcflow/)
 [![codecov](https://codecov.io/gh/batistagroup/calcflow/graph/badge.svg?token=bO5X75J8li)](https://codecov.io/gh/batistagroup/calcflow)
+![codequal](https://github.com/batistagroup/calcflow/actions/workflows/quality.yml/badge.svg)
 
-A Python package to simplify preparing and parsing quantum chemistry calculations, with no external dependencies. Provides a clean, Pythonic API for interacting with QChem, ORCA, and potentially other quantum chemistry software.
+A Python package to simplify preparing and parsing quantum chemistry calculations, with no external dependencies (is true now, will be true forever). Provides a clean, Pythonic API for interacting with QChem, ORCA, and potentially other quantum chemistry software.
 
 ## Features
 

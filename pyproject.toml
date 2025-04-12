@@ -76,6 +76,9 @@ exclude = ["tests"]
 omit = [
     # omit basis set files
     "*/basis_sets/**/*.py",
+    "*/visualize/*.py",
+    "*/constants/*",
+    "*/__init__.py",
 ]
 
 # Section below is pretty standard logger configuration

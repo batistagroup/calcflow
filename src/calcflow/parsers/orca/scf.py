@@ -257,24 +257,31 @@ class ScfParser(SectionParser):
         logger.debug("Finalizing SCF data...")
 
         # --- Final Checks ---
+        warning_convergence_missing = "SCF convergence line 'SCF CONVERGED AFTER ...' not found."
         if not self.converged:
-            logger.warning("SCF convergence line 'SCF CONVERGED AFTER ...' not found. Assuming not converged.")
+            logger.warning(f"{warning_convergence_missing} Assuming not converged.")
+            # Don't add to results.warnings yet, might be inferred later
 
         # Correct n_iterations based on history if necessary
+        warning_iteration_mismatch = None
         if self.n_iterations == 0 and self.latest_iter_num > 0:
             self.n_iterations = self.latest_iter_num
         elif self.n_iterations > 0 and self.latest_iter_num > self.n_iterations:
-            logger.warning(
-                f"Convergence line reported {self.n_iterations} cycles, but found {self.latest_iter_num} in history. Using history count."
+            warning_iteration_mismatch = (
+                f"Convergence line reported {self.n_iterations} cycles, but found {self.latest_iter_num} in history."
             )
+            logger.warning(f"{warning_iteration_mismatch} Using history count.")
             self.n_iterations = self.latest_iter_num
         elif self.n_iterations == 0 and not self.iteration_history:
-            logger.warning("No SCF iterations found or parsed, and convergence line not found.")
+            # This is logged implicitly if convergence is false and components missing later
+            pass
 
+        warning_history_missing = None
         if self.converged and not self.iteration_history and self.n_iterations > 0:
-            logger.warning(
+            warning_history_missing = (
                 f"SCF convergence line reported {self.n_iterations} cycles, but no iteration history parsed."
             )
+            logger.warning(warning_history_missing)
 
         # --- Check Mandatory Components ---
         found_all_mandatory_components = None not in [
@@ -299,9 +306,11 @@ class ScfParser(SectionParser):
             raise ParsingError("Could not parse all required SCF energy components after SCF execution.")
         elif not found_all_mandatory_components:
             # SCF didn't run or failed early, components might be missing. This is not an error state.
-            logger.warning("SCF did not run or failed early; energy components not found.")
+            warning_components_missing_no_run = "SCF did not run or failed early; energy components not found."
+            logger.warning(warning_components_missing_no_run)
+            results.parsing_warnings.append(warning_components_missing_no_run)
             results.parsed_scf = True  # Mark as parsed/attempted
-            logger.warning("SCF block parsing finished without finding components (likely SCF did not run).")
+            logger.debug("SCF block parsing finished without finding components (likely SCF did not run).")
             return  # Cannot create ScfData without components if SCF didn't run
 
         # Assertions are valid now because we expect components if we reached here
@@ -334,9 +343,9 @@ class ScfParser(SectionParser):
             # This is a heuristic and might be inaccurate if xc_eh is significant or components aren't exact.
             if self.converged:
                 final_scf_energy = self.electronic_eh + self.nuclear_rep_eh
-                logger.warning(
-                    f"No iteration energy found despite convergence. Using Electronic + Nuclear Repulsion: {final_scf_energy} Eh."
-                )
+                warning_fallback_energy = f"No iteration energy found despite convergence. Using Electronic + Nuclear Repulsion: {final_scf_energy:.8f} Eh."
+                logger.warning(warning_fallback_energy)
+                results.parsing_warnings.append(warning_fallback_energy)
                 # Also update last_scf_energy_eh if it was None
                 if self.last_scf_energy_eh is None:
                     self.last_scf_energy_eh = final_scf_energy
@@ -356,6 +365,20 @@ class ScfParser(SectionParser):
         results.scf = scf_result
         results.parsed_scf = True
         logger.debug(f"Successfully parsed SCF data: Converged={self.converged}, Energy={final_scf_energy:.8f} Eh")
+
+        # Append warnings collected during finalization
+        if not self.converged:
+            # Append the missing convergence warning only if it wasn't implicitly handled
+            # by the 'SCF did not run' warning earlier.
+            if not found_all_mandatory_components:  # If components also missing, that warning was already added
+                pass
+            else:  # Components found, but convergence line missing
+                results.parsing_warnings.append(warning_convergence_missing)
+
+        if warning_iteration_mismatch:
+            results.parsing_warnings.append(warning_iteration_mismatch)
+        if warning_history_missing:
+            results.parsing_warnings.append(warning_history_missing)
 
     def parse(self, iterator: LineIterator, current_line: str, results: _MutableCalculationData) -> None:
         """Parses the entire SCF block by coordinating helper methods."""
@@ -405,7 +428,12 @@ class ScfParser(SectionParser):
 
             # If components never started, log it.
             if not found_components_start:
-                logger.warning("SCF Energy Components section ('TOTAL SCF ENERGY') not found.")
+                warning_components_section_missing = "SCF Energy Components section ('TOTAL SCF ENERGY') not found."
+                logger.warning(warning_components_section_missing)
+                # Append this warning only if SCF seemed to run (converged or had iterations)
+                # Otherwise, the lack of components is expected.
+                if self.converged or self.iteration_history:
+                    results.parsing_warnings.append(warning_components_section_missing)
 
             # --- Stage 3: Finalize and Create Data Object ---
             self._finalize_scf_data(results)
