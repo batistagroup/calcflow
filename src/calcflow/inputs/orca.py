@@ -7,6 +7,10 @@ from calcflow.utils import logger
 
 T_OrcaInput = TypeVar("T_OrcaInput", bound="OrcaInput")
 
+# fmt:off
+SUPPORTED_FUNCTIONALS = {"b3lyp", "pbe0", "m06", "cam-b3lyp", "wb97x", "wb97x-d3" }
+# fmt:on
+
 
 @dataclass(frozen=True)
 class OrcaInput(CalculationInput):
@@ -178,9 +182,6 @@ class OrcaInput(CalculationInput):
         mp2_variants["ri-mp2"] = "RI-UMP2" if self.unrestricted else "RI-MP2"
         cc_variants = {"ccsd": "CCSD", "ccsd(t)": "CCSD(T)"}
 
-        # Common DFT functionals
-        supported_functionals = {"b3lyp", "pbe0", "m06", "cam-b3lyp", "wb97x"}
-
         if "hf" in raw_method:
             if raw_method not in hf_variants:
                 raise ValidationError(f"Unrecognized HF method: {raw_method}")
@@ -193,7 +194,7 @@ class OrcaInput(CalculationInput):
                 raise ValidationError("Requested method RHF but unrestricted was set to True.")
             keywords.append(method)
 
-        elif raw_method in supported_functionals:
+        elif raw_method in SUPPORTED_FUNCTIONALS:
             if self.unrestricted:
                 keywords.append("UKS")
             else:

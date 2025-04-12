@@ -221,6 +221,7 @@ class SlurmArgs:
 #SBATCH --output sbatch.out
 #SBATCH --error sbatch.err
 #SBATCH -J {job_name}
+#SBATCH --time {self.time}
 """
         if self.constraint is not None:
             script += f"#SBATCH --constraint={self.constraint}\n"
