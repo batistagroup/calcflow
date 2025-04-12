@@ -31,3 +31,6 @@ coverage:
 ignore:
   - "tests" # ignore folders and all its contents
   - "**/visualize/*" # styling files
+  - "**/constants/*" # constants
+  - "**/__init__.py" # __init__ files
+  - "**/basis_sets/*" # basis sets
