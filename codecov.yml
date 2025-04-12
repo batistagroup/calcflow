@@ -26,4 +26,4 @@ coverage:
 
 ignore:
   - "tests"  # ignore folders and all its contents
-  - "*/visualize/*"         # styling files
+  - "**/visualize/*"         # styling files
