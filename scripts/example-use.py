@@ -2,8 +2,8 @@ from pathlib import Path
 
 from calcflow.geometry.static import Geometry
 from calcflow.inputs.orca import OrcaInput
+from calcflow.inputs.slurm import SlurmArgs
 from calcflow.parsers.orca import parse_orca_output
-from meoq.slurm import NerscSlurmArgs
 
 data_path = Path(__file__).resolve().parents[1] / "data"
 calcs_path = data_path / "calculations"
@@ -16,7 +16,7 @@ clc_folder = calcs_path / "examples" / "h2o" / "sp"
 clc_folder.mkdir(parents=True, exist_ok=True)
 
 # fmt:off
-base_args = NerscSlurmArgs(
+base_args = SlurmArgs(
     exec_fname="sp", time="01:00:00", n_cores=16,
     constraint="cpu", account="m410", queue="premium")
 

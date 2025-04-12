@@ -14,9 +14,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Chemistry",
     "Typing :: Typed",
 ]
-dependencies = [
-
-]
+dependencies = []
 
 [project.urls]
 Homepage = "https://github.com/yourusername/calcflow"      # Add your repo URL
@@ -42,10 +40,7 @@ dev = [
     "types-tqdm>=4.67.0.20241221",
     "tomli>=2.2.1",
 ]
-visualize =[
-        "nbformat>=5.10.4",
-    "plotly>=6.0.1",
-]
+visualize = ["nbformat>=5.10.4", "plotly>=6.0.1"]
 
 [tool.mypy]
 strict = true
@@ -75,13 +70,13 @@ lint.ignore = [
 exclude = ["tests"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["E501"]  # Ignore line length in tests
+"tests/**/*.py" = ["E501"] # Ignore line length in tests
 
 [tool.coverage.run]
 omit = [
     # omit basis set files
     "*/basis_sets/**/*.py",
-    ]
+]
 
 # Section below is pretty standard logger configuration
 
