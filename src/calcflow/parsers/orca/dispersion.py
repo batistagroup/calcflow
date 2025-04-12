@@ -7,7 +7,7 @@ from calcflow.utils import logger
 # --- Dispersion Correction Parser --- #
 DISPERSION_START_PAT = re.compile(r"DFT DISPERSION CORRECTION")
 DISPERSION_METHOD_PAT = re.compile(r"(DFTD\d V\d.*?)(?:\n|$)")  # Basic capture
-DISPERSION_ENERGY_PAT = re.compile(r"Dispersion correction\s+(-?\d+\.\d+)")
+DISPERSION_ENERGY_PAT = re.compile(r"Dispersion correction\s+(\S+)")
 
 
 class DispersionParser:
@@ -18,6 +18,7 @@ class DispersionParser:
 
     def parse(self, iterator: LineIterator, current_line: str, results: _MutableCalculationData) -> None:
         logger.debug("Starting dispersion correction block parsing.")
+        results.parsed_dispersion = True  # Mark as attempted immediately
         # Consume header lines (----)
         next(iterator, None)
         method: str | None = None
@@ -52,9 +53,12 @@ class DispersionParser:
 
             dispersion_data = DispersionCorrectionData(method=method, energy_eh=energy_eh)
             results.dispersion_correction = dispersion_data
-            results.parsed_dispersion = True
             logger.debug(f"Successfully parsed dispersion correction: {repr(dispersion_data)}")
 
         except Exception as e:
+            # If it's the specific error we raise for missing data, let it propagate
+            if isinstance(e, ParsingError):
+                raise
+            # Otherwise, log unexpected errors and mark as attempted
             logger.error(f"Error parsing dispersion correction block: {e}", exc_info=True)
-            results.parsed_dispersion = True  # Mark as attempted
+            # results.parsed_dispersion = True  # Already set at the start
