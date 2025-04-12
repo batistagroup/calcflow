@@ -26,9 +26,11 @@ class OrbitalsParser(SectionParser):
         lumo_index: int | None = None
         last_occupied_index = -1
 
+        # --- Loop for parsing orbital lines ---
         try:
             for line in iterator:
                 line_stripped = line.strip()
+                # Stop conditions for the loop
                 if not line_stripped or "*Virtual orbitals printed" in line_stripped or "--------" in line_stripped:
                     break
 
@@ -44,23 +46,42 @@ class OrbitalsParser(SectionParser):
                         if occ > OCC_THRESHOLD:
                             last_occupied_index = idx
                     except ValueError as e:
+                        # Catch specific error during value conversion
                         raise ParsingError(f"Could not parse orbital line values: {line_stripped}") from e
-                elif orbitals:  # Stop if format breaks after finding some orbitals
+                elif orbitals:  # Stop if format breaks *after* finding some orbitals
+                    logger.warning(f"Non-orbital line encountered after parsing orbitals, stopping: {line_stripped}")
                     break
+                # If line doesn't match and no orbitals parsed yet, continue searching (ignore unexpected lines)
 
-            if not orbitals:
-                raise ParsingError("Orbital energies block found but no orbitals could be parsed.")
+        except ParsingError:
+            # Re-raise specific parsing errors caught above
+            raise
+        except Exception as e:
+            # Catch unexpected errors *during the loop*
+            logger.error(f"Unexpected error parsing orbital lines: {e}", exc_info=True)
+            results.parsed_orbitals = True  # Mark as attempted even if loop failed unexpectedly
+            return  # Exit parsing for this section
 
+        # --- Post-loop validation and processing ---
+        if not orbitals:
+            # Raise error if block was entered but no orbitals were successfully parsed
+            raise ParsingError("Orbital energies block found but no orbitals could be parsed.")
+
+        # Attempt to determine HOMO/LUMO and finalize data
+        try:
             if last_occupied_index != -1:
                 homo_index = last_occupied_index
-                if homo_index + 1 < len(orbitals):
-                    # Check index consistency
-                    if orbitals[homo_index + 1].index == homo_index + 1:
-                        lumo_index = homo_index + 1
+                lumo_candidate_index = homo_index + 1  # Expected index
+                if lumo_candidate_index < len(orbitals):
+                    actual_lumo_index = orbitals[lumo_candidate_index].index
+                    if actual_lumo_index == lumo_candidate_index:
+                        lumo_index = lumo_candidate_index
                     else:
+                        # Log if the index directly after HOMO isn't sequential
                         logger.warning(
-                            f"LUMO index mismatch. Expected {homo_index + 1}, found {orbitals[homo_index + 1].index}"
+                            f"LUMO index mismatch. Expected {lumo_candidate_index}, found {actual_lumo_index}"
                         )
+                # If lumo_candidate_index >= len(orbitals), means HOMO was the last orbital, lumo_index remains None
 
             orbital_data = OrbitalData(orbitals=tuple(orbitals), homo_index=homo_index, lumo_index=lumo_index)
             results.orbitals = orbital_data
@@ -68,6 +89,6 @@ class OrbitalsParser(SectionParser):
             logger.debug(f"Successfully parsed orbital data: {repr(orbital_data)}")
 
         except Exception as e:
-            logger.error(f"Error parsing orbital energies block: {e}", exc_info=True)
-            # Allow parsing to continue for other sections
-            results.parsed_orbitals = True  # Mark as attempted
+            # Catch unexpected errors during HOMO/LUMO logic or OrbitalData creation
+            logger.error(f"Error processing found orbitals or determining HOMO/LUMO: {e}", exc_info=True)
+            results.parsed_orbitals = True  # Mark as attempted, even if post-processing failed
