@@ -162,6 +162,75 @@ class _MutableCalculationData:
     parsed_dispersion: bool = False
 
 
+@dataclass(frozen=True)
+class GradientData:
+    """Holds Cartesian gradient information for a specific optimization cycle."""
+
+    gradients: Mapping[int, tuple[float, float, float]]  # Atom index -> (Gx, Gy, Gz)
+    norm: float
+    rms: float
+    max: float
+
+
+@dataclass(frozen=True)
+class RelaxationStepData:
+    """Holds geometry relaxation step details and convergence criteria."""
+
+    energy_change: float | None = None
+    rms_gradient: float | None = None
+    max_gradient: float | None = None
+    rms_step: float | None = None
+    max_step: float | None = None
+    converged_items: Mapping[str, bool] = field(default_factory=dict)  # e.g., {"Energy": True, "Gradient": False}
+    trust_radius: float | None = None
+
+
+@dataclass
+class OptimizationCycleData:
+    """Stores parsed data for a single geometry optimization cycle."""
+
+    cycle_number: int
+    geometry: Sequence[Atom] | None = None  # Geometry *at the start* of this cycle's calculation
+    energy_eh: float | None = None  # Usually the SCF energy for this cycle
+    scf_data: ScfData | None = None
+    dispersion: DispersionCorrectionData | None = None
+    gradient: GradientData | None = None
+    relaxation_step: RelaxationStepData | None = None
+    # Add other per-cycle properties if needed (e.g., orbitals, charges for each step)
+
+
+@dataclass
+class _MutableOptData:
+    """Internal mutable container for accumulating optimization results during parsing."""
+
+    raw_output: str
+    termination_status: Literal["CONVERGED", "NOT_CONVERGED", "ERROR", "UNKNOWN"] = "UNKNOWN"
+    input_geometry: Sequence[Atom] | None = None
+    cycles: list[OptimizationCycleData] = field(default_factory=list)
+    final_geometry: Sequence[Atom] | None = None  # Converged geometry
+    final_energy_eh: float | None = None
+    final_scf: ScfData | None = None
+    final_orbitals: OrbitalData | None = None
+    final_charges: list[AtomicCharges] = field(default_factory=list)
+    final_dipole: DipoleMomentData | None = None
+    final_dispersion: DispersionCorrectionData | None = None
+    n_cycles: int = 0  # Track number of cycles parsed
+
+    # --- Flags to manage parsing state ---
+    # These might need adjustment as we add cycle logic
+    parsed_input_geometry: bool = False
+    # parsed_final_geometry: bool = False # Replaced by in_final_evaluation state
+    # We'll need flags/logic for tracking state *within* cycles vs final eval
+    # Add flags to track if specific components were parsed in the final block
+    parsed_final_scf: bool = False
+    parsed_final_orbitals: bool = False
+    parsed_final_charges: bool = False
+    parsed_final_dipole: bool = False
+    parsed_final_dispersion: bool = False
+    # Keep track of whether normal termination pattern was seen
+    normal_termination_found: bool = False
+
+
 # --- Parsing Logic --- #
 
 type LineIterator = Iterator[str]

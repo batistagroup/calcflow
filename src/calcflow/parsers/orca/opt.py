@@ -1,5 +1,5 @@
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -8,18 +8,21 @@ from calcflow.parsers.orca.blocks.charges import LOEWDIN_CHARGES_START_PAT, MULL
 from calcflow.parsers.orca.blocks.dipole import DipoleParser
 from calcflow.parsers.orca.blocks.dispersion import DispersionParser
 from calcflow.parsers.orca.blocks.geometry import GeometryParser
+from calcflow.parsers.orca.blocks.gradient import GradientParser
 from calcflow.parsers.orca.blocks.orbitals import OrbitalsParser
+from calcflow.parsers.orca.blocks.relaxation import RelaxationStepParser
 from calcflow.parsers.orca.blocks.scf import ScfParser
 from calcflow.parsers.orca.typing import (
     Atom,
     AtomicCharges,
     DipoleMomentData,
     DispersionCorrectionData,
-    LineIterator,  # Added import for type hint
+    OptimizationCycleData,
     OrbitalData,
     ScfData,
     SectionParser,
     _MutableCalculationData,  # Reuse or adapt parts of this
+    _MutableOptData,
 )
 from calcflow.utils import logger
 
@@ -34,75 +37,6 @@ OPT_CONVERGED_PAT = re.compile(r"\*\*\*\s+THE OPTIMIZATION HAS CONVERGED\s+\*\*\
 
 
 # --- Data Structures (Phase 0) --- #
-
-
-@dataclass(frozen=True)
-class GradientData:
-    """Holds Cartesian gradient information for a specific optimization cycle."""
-
-    gradients: Mapping[int, tuple[float, float, float]]  # Atom index -> (Gx, Gy, Gz)
-    norm: float
-    rms: float
-    max: float
-
-
-@dataclass(frozen=True)
-class RelaxationStepData:
-    """Holds geometry relaxation step details and convergence criteria."""
-
-    energy_change: float | None = None
-    rms_gradient: float | None = None
-    max_gradient: float | None = None
-    rms_step: float | None = None
-    max_step: float | None = None
-    converged_items: Mapping[str, bool] = field(default_factory=dict)  # e.g., {"Energy": True, "Gradient": False}
-    trust_radius: float | None = None
-
-
-@dataclass
-class OptimizationCycleData:
-    """Stores parsed data for a single geometry optimization cycle."""
-
-    cycle_number: int
-    geometry: Sequence[Atom] | None = None  # Geometry *at the start* of this cycle's calculation
-    energy_eh: float | None = None  # Usually the SCF energy for this cycle
-    scf_data: ScfData | None = None
-    dispersion: DispersionCorrectionData | None = None
-    gradient: GradientData | None = None
-    relaxation_step: RelaxationStepData | None = None
-    # Add other per-cycle properties if needed (e.g., orbitals, charges for each step)
-
-
-@dataclass
-class _MutableOptData:
-    """Internal mutable container for accumulating optimization results during parsing."""
-
-    raw_output: str
-    termination_status: Literal["CONVERGED", "NOT_CONVERGED", "ERROR", "UNKNOWN"] = "UNKNOWN"
-    input_geometry: Sequence[Atom] | None = None
-    cycles: list[OptimizationCycleData] = field(default_factory=list)
-    final_geometry: Sequence[Atom] | None = None  # Converged geometry
-    final_energy_eh: float | None = None
-    final_scf: ScfData | None = None
-    final_orbitals: OrbitalData | None = None
-    final_charges: list[AtomicCharges] = field(default_factory=list)
-    final_dipole: DipoleMomentData | None = None
-    final_dispersion: DispersionCorrectionData | None = None
-    n_cycles: int = 0  # Track number of cycles parsed
-
-    # --- Flags to manage parsing state ---
-    # These might need adjustment as we add cycle logic
-    parsed_input_geometry: bool = False
-    # parsed_final_geometry: bool = False # Replaced by in_final_evaluation state
-    # We'll need flags/logic for tracking state *within* cycles vs final eval
-    # Add flags to track if specific components were parsed in the final block
-    parsed_final_scf: bool = False
-    parsed_final_orbitals: bool = False
-    parsed_final_charges: bool = False
-    parsed_final_dipole: bool = False
-    parsed_final_dispersion: bool = False
-    # Keep track of whether normal termination pattern was seen
-    normal_termination_found: bool = False
 
 
 @dataclass(frozen=True)
@@ -153,263 +87,6 @@ class OptimizationData:
 
 
 # --- OPT Specific Parsers (Phase 2 onwards) --- #
-
-# Regex patterns for GradientParser
-GRADIENT_START_PAT = re.compile(r"^\s*CARTESIAN GRADIENT")
-GRADIENT_LINE_PAT = re.compile(r"^\s*\d+\s+[A-Za-z]+\s+:\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)")
-GRADIENT_NORM_PAT = re.compile(r"^\s*Norm of the Cartesian gradient\s+\.{3}\s+(\d+\.\d+)")
-GRADIENT_RMS_PAT = re.compile(r"^\s*RMS gradient\s+\.{3}\s+(\d+\.\d+)")
-GRADIENT_MAX_PAT = re.compile(r"^\s*MAX gradient\s+\.{3}\s+(\d+\.\d+)")
-
-
-class GradientParser:
-    """Parses the CARTESIAN GRADIENT block within an optimization cycle."""
-
-    def matches(self, line: str, current_data: _MutableCalculationData | _MutableOptData) -> bool:
-        """Checks if the line marks the start of the Cartesian Gradient block."""
-        # This parser specifically targets the Cartesian Gradient block.
-        # We assume Dispersion Gradient is handled elsewhere or ignored if not needed.
-        return bool(GRADIENT_START_PAT.search(line))
-
-    def parse(
-        self,
-        iterator: LineIterator,
-        current_line: str,
-        results: _MutableOptData,
-        current_cycle_data: OptimizationCycleData | None,
-    ) -> None:
-        """Parses the gradient values and summary statistics."""
-        if not current_cycle_data:
-            logger.warning("GradientParser matched outside of an optimization cycle. Skipping.")
-            # Consume until end of block? For now, just return.
-            return
-
-        logger.debug(f"Parsing Cartesian Gradient block starting near line: {current_line}")
-        gradients: dict[int, tuple[float, float, float]] = {}
-        norm: float | None = None
-        rms: float | None = None
-        max_grad: float | None = None
-        atom_index = 0
-
-        try:
-            # Consume the separator line and the following blank line
-            try:
-                next(iterator)  # Consume '------------------'
-                next(iterator)  # Consume blank line
-            except StopIteration as e:
-                raise ParsingError("File ended unexpectedly immediately after gradient header.") from e
-
-            while True:  # Loop through gradient lines and summary
-                line = next(iterator)
-
-                match_grad = GRADIENT_LINE_PAT.match(line)
-                if match_grad:
-                    try:
-                        gx = float(match_grad.group(1))
-                        gy = float(match_grad.group(2))
-                        gz = float(match_grad.group(3))
-                        gradients[atom_index] = (gx, gy, gz)
-                        atom_index += 1
-                        continue
-                    except (ValueError, IndexError) as e:
-                        raise ParsingError(f"Could not parse gradient line: {line.strip()}") from e
-
-                match_norm = GRADIENT_NORM_PAT.search(line)
-                if match_norm:
-                    try:
-                        norm = float(match_norm.group(1))
-                        continue
-                    except (ValueError, IndexError) as e:
-                        raise ParsingError(f"Could not parse gradient norm: {line.strip()}") from e
-
-                match_rms = GRADIENT_RMS_PAT.search(line)
-                if match_rms:
-                    try:
-                        rms = float(match_rms.group(1))
-                        continue
-                    except (ValueError, IndexError) as e:
-                        raise ParsingError(f"Could not parse gradient RMS: {line.strip()}") from e
-
-                match_max = GRADIENT_MAX_PAT.search(line)
-                if match_max:
-                    try:
-                        max_grad = float(match_max.group(1))
-                        # Typically the last piece of info, break after finding it
-                        break
-                    except (ValueError, IndexError) as e:
-                        raise ParsingError(f"Could not parse gradient MAX: {line.strip()}") from e
-
-                # Break only on MAX gradient found (handled above)
-                # Remove the break on 'Difference to translation'
-                # if line.startswith("Difference to translation") :
-                #     logger.debug("Exiting gradient block parsing (end pattern detected).")
-                #     break # Assume end of gradient block (before summary stats if format changes)
-
-        except StopIteration:
-            logger.warning("Reached end of file while parsing gradient block.")
-        except ParsingError:  # Re-raise critical parsing errors
-            raise
-        except Exception as e:
-            raise ParsingError("An unexpected error occurred during gradient parsing.") from e
-
-        # Validation
-        if not gradients:
-            raise ParsingError("Gradient block found but no gradient lines parsed.")
-        if norm is None or rms is None or max_grad is None:
-            logger.warning(f"Parsed gradients but missing summary stats (Norm: {norm}, RMS: {rms}, Max: {max_grad})")
-            # Allow continuation, but data will be incomplete
-            # Set default values or handle missing data downstream
-            norm = norm or 0.0
-            rms = rms or 0.0
-            max_grad = max_grad or 0.0
-            # raise ParsingError("Gradient block parsed but summary statistics (Norm, RMS, MAX) not found.")
-
-        gradient_data = GradientData(gradients=gradients, norm=norm, rms=rms, max=max_grad)
-        current_cycle_data.gradient = gradient_data
-        logger.debug(f"Stored GradientData for cycle {current_cycle_data.cycle_number}")
-
-
-# Regex patterns for RelaxationStepParser
-RELAX_START_PAT = re.compile(r"^\s*ORCA GEOMETRY RELAXATION STEP")
-CONV_TABLE_HEADER_PAT = re.compile(r"^\s*-+\|Geometry convergence\|-+")
-CONV_TABLE_LINE_PAT = re.compile(r"^\s*([\w\s]+?)\s+(-?\d+\.\d+)\s+(\d+\.\d+)\s+(YES|NO)")
-TRUST_RADIUS_PAT = re.compile(r"^\s*New trust radius\s+\.{3}\s+(\d+\.\d+)")
-# Add patterns for other step details if needed (e.g., from Redundant Internal Coords table)
-
-
-class RelaxationStepParser:
-    """Parses the geometry relaxation step details and convergence table."""
-
-    def matches(self, line: str, current_data: _MutableCalculationData | _MutableOptData) -> bool:
-        """Checks if the line marks the start of the relaxation step block."""
-        return bool(RELAX_START_PAT.search(line))
-
-    def parse(
-        self,
-        iterator: LineIterator,
-        current_line: str,
-        results: _MutableOptData,
-        current_cycle_data: OptimizationCycleData | None,
-    ) -> None:
-        """Parses the convergence table and other relaxation step info."""
-        if not current_cycle_data:
-            logger.warning("RelaxationStepParser matched outside of an optimization cycle. Skipping.")
-            return
-
-        logger.debug(f"Parsing Geometry Relaxation Step block starting near line: {current_line}")
-        energy_change: float | None = None
-        rms_gradient: float | None = None
-        max_gradient: float | None = None
-        rms_step: float | None = None
-        max_step: float | None = None
-        converged_items: dict[str, bool] = {}
-        trust_radius: float | None = None
-        in_convergence_table = False
-
-        try:
-            while True:
-                line = next(iterator)
-
-                if CONV_TABLE_HEADER_PAT.search(line):
-                    in_convergence_table = True
-                    # Skip the header line itself and the separator line below it
-                    try:
-                        next(iterator)  # Consume the 'Item Value Tolerance Converged' line
-                        next(iterator)  # Consume the '---------------------' line
-                    except StopIteration as e:
-                        raise ParsingError("File ended unexpectedly within convergence table header.") from e
-                    continue
-
-                if in_convergence_table:
-                    if line.strip().startswith("........") or line.strip().startswith("---"):
-                        # End of the main convergence table section
-                        in_convergence_table = False
-                        continue
-
-                    match_conv = CONV_TABLE_LINE_PAT.search(line)
-                    if match_conv:
-                        try:
-                            item = match_conv.group(1).strip()
-                            value = float(match_conv.group(2))
-                            converged = match_conv.group(4) == "YES"
-                            converged_items[item] = converged
-
-                            # Assign specific values based on item name
-                            if item == "Energy change":
-                                energy_change = value
-                            elif item == "RMS gradient":
-                                rms_gradient = value
-                            elif item == "MAX gradient":
-                                max_gradient = value
-                            elif item == "RMS step":
-                                rms_step = value
-                            elif item == "MAX step":
-                                max_step = value
-                            continue  # Continue parsing table lines
-                        except (ValueError, IndexError) as e:
-                            raise ParsingError(f"Could not parse convergence table line: {line.strip()}") from e
-                    else:
-                        # Line within table block but doesn't match pattern - might be end or unexpected format
-                        logger.debug(f"Exiting convergence table parsing due to non-matching line: {line.strip()}")
-                        in_convergence_table = False  # Assume table ended
-
-                # Look for trust radius *after* the table
-                match_trust = TRUST_RADIUS_PAT.search(line)
-                if match_trust:
-                    try:
-                        trust_radius = float(match_trust.group(1))
-                        logger.debug(f"Parsed trust radius: {trust_radius}")
-                        # Trust radius often appears near the end of the relaxation block info
-                        # We might want to break here or look for a more definitive end pattern
-                        # For now, continue, assuming it might appear before other tables
-                        continue
-                    except (ValueError, IndexError):
-                        # Log warning but don't fail the whole parse for trust radius
-                        logger.warning(f"Could not parse trust radius value from line: {line.strip()}", exc_info=True)
-
-                # Define break conditions more carefully
-                # Break if we hit the start of the next cycle or final eval (handled by main loop)
-                # Remove the double-blank check
-                # Use a more specific marker like 'Geometry step timings:' to end the block
-                if line.strip().startswith("Geometry step timings:"):
-                    logger.debug("Exiting RelaxationStepParser at 'Geometry step timings:'.")
-                    break
-
-                # Check for the convergence message within the relaxation block
-                match_opt_converged = OPT_CONVERGED_PAT.search(line)
-                if match_opt_converged:
-                    logger.info("Optimization Converged message found (within RelaxationStepParser).")
-                    # Set final status only if no error occurred
-                    if results.termination_status != "ERROR":
-                        results.termination_status = "CONVERGED"
-                    # Continue parsing the rest of the relaxation block
-                    continue
-
-        except StopIteration:
-            logger.warning("Reached end of file while parsing relaxation step block.")
-        except ParsingError:  # Re-raise critical parsing errors
-            raise
-        except Exception as e:
-            raise ParsingError("An unexpected error occurred during relaxation step parsing.") from e
-
-        # Validation - check if essential parts were parsed
-        if not converged_items:
-            logger.warning(
-                f"Relaxation step block parsed for cycle {current_cycle_data.cycle_number}, but no convergence items found."
-            )
-            # Decide if this is critical? Probably not, allow continuation.
-
-        relax_data = RelaxationStepData(
-            energy_change=energy_change,
-            rms_gradient=rms_gradient,
-            max_gradient=max_gradient,
-            rms_step=rms_step,
-            max_step=max_step,
-            converged_items=converged_items,
-            trust_radius=trust_radius,
-        )
-        current_cycle_data.relaxation_step = relax_data
-        logger.debug(f"Stored RelaxationStepData for cycle {current_cycle_data.cycle_number}")
 
 
 # --- Parser Registry (Phase 0 - Reusing SP Parsers) --- #
