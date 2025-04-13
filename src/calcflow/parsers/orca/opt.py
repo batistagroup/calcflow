@@ -573,20 +573,62 @@ def parse_orca_opt_output(output: str) -> OptimizationData:
                                 # Add other relevant per-cycle parsers if needed (e.g., charges)
 
                             elif in_final_evaluation:
+                                # --- START DEBUG LOGGING FOR FINAL EVALUATION BLOCK --- #
+                                logger.debug(f"  [Final Eval] Parser {type(parser).__name__} finished parsing.")
+                                logger.debug(
+                                    f"  [Final Eval] temp_sp_data.input_geometry: {'Exists' if temp_sp_data.input_geometry else 'None'}"
+                                )
+                                logger.debug(
+                                    f"  [Final Eval] temp_sp_data.scf: {'Exists' if temp_sp_data.scf else 'None'}"
+                                )
+                                logger.debug(
+                                    f"  [Final Eval] temp_sp_data.final_energy_eh: {temp_sp_data.final_energy_eh}"
+                                )
+                                logger.debug(
+                                    f"  [Final Eval] temp_sp_data.orbitals: {'Exists' if temp_sp_data.orbitals else 'None'}"
+                                )
+                                logger.debug(
+                                    f"  [Final Eval] temp_sp_data.atomic_charges: {'Exists' if temp_sp_data.atomic_charges else 'None'}"
+                                )
+                                logger.debug(
+                                    f"  [Final Eval] temp_sp_data.dipole_moment: {'Exists' if temp_sp_data.dipole_moment else 'None'}"
+                                )
+                                logger.debug(
+                                    f"  [Final Eval] temp_sp_data.dispersion_correction: {'Exists' if temp_sp_data.dispersion_correction else 'None'}"
+                                )
+                                logger.debug(
+                                    f"  [Final Eval] results flags: final_geom={results.final_geometry is not None}, final_scf={results.parsed_final_scf}, final_orb={results.parsed_final_orbitals}, final_charge={results.parsed_final_charges}, final_dipole={results.parsed_final_dipole}, final_disp={results.parsed_final_dispersion}"
+                                )
+                                # --- END DEBUG LOGGING --- #
+
                                 # Store in final results fields
                                 if (
                                     isinstance(parser, GeometryParser)
-                                    and temp_sp_data.input_geometry
+                                    # Assume if GeometryParser runs successfully here, it found the final geometry
+                                    # even if it doesn't populate temp_sp_data.input_geometry explicitly.
+                                    # We rely on the atoms being accessible somehow from the temp_sp_data if needed,
+                                    # but the SP parser likely stores it directly in input_geometry anyway.
+                                    # The key is to check the main results flag.
                                     and not results.final_geometry
                                 ):
-                                    results.final_geometry = temp_sp_data.input_geometry
+                                    # Check if the parser actually put something in the temp object
+                                    if temp_sp_data.input_geometry:
+                                        logger.debug(
+                                            "  [Final Eval] Storing final_geometry from temp_sp_data.input_geometry."
+                                        )
+                                        results.final_geometry = temp_sp_data.input_geometry
+                                    else:
+                                        # This case shouldn't happen if GeometryParser worked, but log if it does
+                                        logger.warning(
+                                            "  [Final Eval] GeometryParser ran but temp_sp_data.input_geometry is None. Cannot store final geometry."
+                                        )
                                 elif (
                                     isinstance(parser, ScfParser) and temp_sp_data.scf and not results.parsed_final_scf
                                 ):
+                                    logger.debug("  [Final Eval] Storing final_scf and final_energy_eh.")
                                     results.final_scf = temp_sp_data.scf
-                                    results.final_energy_eh = (
-                                        temp_sp_data.final_energy_eh
-                                    )  # Assume final SCF energy is THE final energy
+                                    # Get final energy directly from the parsed SCF data
+                                    results.final_energy_eh = temp_sp_data.scf.energy_eh
                                     results.parsed_final_scf = True
                                 elif (
                                     isinstance(parser, OrbitalsParser)
