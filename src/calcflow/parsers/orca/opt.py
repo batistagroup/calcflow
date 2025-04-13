@@ -15,6 +15,7 @@ from calcflow.parsers.orca.typing import (
     AtomicCharges,
     DipoleMomentData,
     DispersionCorrectionData,
+    LineIterator,  # Added import for type hint
     OrbitalData,
     ScfData,
     SectionParser,
@@ -150,18 +151,135 @@ class OptimizationData:
         )
 
 
+# --- OPT Specific Parsers (Phase 2 onwards) --- #
+
+# Regex patterns for GradientParser
+GRADIENT_START_PAT = re.compile(r"^\s*CARTESIAN GRADIENT")
+GRADIENT_LINE_PAT = re.compile(r"^\s*\d+\s+[A-Za-z]+\s+:\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)")
+GRADIENT_NORM_PAT = re.compile(r"^\s*Norm of the Cartesian gradient\s+\.{3}\s+(\d+\.\d+)")
+GRADIENT_RMS_PAT = re.compile(r"^\s*RMS gradient\s+\.{3}\s+(\d+\.\d+)")
+GRADIENT_MAX_PAT = re.compile(r"^\s*MAX gradient\s+\.{3}\s+(\d+\.\d+)")
+
+
+class GradientParser:
+    """Parses the CARTESIAN GRADIENT block within an optimization cycle."""
+
+    def matches(self, line: str, current_data: _MutableCalculationData | _MutableOptData) -> bool:
+        """Checks if the line marks the start of the Cartesian Gradient block."""
+        # This parser specifically targets the Cartesian Gradient block.
+        # We assume Dispersion Gradient is handled elsewhere or ignored if not needed.
+        return bool(GRADIENT_START_PAT.search(line))
+
+    def parse(
+        self,
+        iterator: LineIterator,
+        current_line: str,
+        results: _MutableOptData,
+        current_cycle_data: OptimizationCycleData | None,
+    ) -> None:
+        """Parses the gradient values and summary statistics."""
+        if not current_cycle_data:
+            logger.warning("GradientParser matched outside of an optimization cycle. Skipping.")
+            # Consume until end of block? For now, just return.
+            return
+
+        logger.debug(f"Parsing Cartesian Gradient block starting near line: {current_line}")
+        gradients: dict[int, tuple[float, float, float]] = {}
+        norm: float | None = None
+        rms: float | None = None
+        max_grad: float | None = None
+        atom_index = 0
+
+        try:
+            # Consume the separator line and the following blank line
+            try:
+                next(iterator)  # Consume '------------------'
+                next(iterator)  # Consume blank line
+            except StopIteration as e:
+                raise ParsingError("File ended unexpectedly immediately after gradient header.") from e
+
+            while True:  # Loop through gradient lines and summary
+                line = next(iterator)
+
+                match_grad = GRADIENT_LINE_PAT.match(line)
+                if match_grad:
+                    try:
+                        gx = float(match_grad.group(1))
+                        gy = float(match_grad.group(2))
+                        gz = float(match_grad.group(3))
+                        gradients[atom_index] = (gx, gy, gz)
+                        atom_index += 1
+                        continue
+                    except (ValueError, IndexError) as e:
+                        raise ParsingError(f"Could not parse gradient line: {line.strip()}") from e
+
+                match_norm = GRADIENT_NORM_PAT.search(line)
+                if match_norm:
+                    try:
+                        norm = float(match_norm.group(1))
+                        continue
+                    except (ValueError, IndexError) as e:
+                        raise ParsingError(f"Could not parse gradient norm: {line.strip()}") from e
+
+                match_rms = GRADIENT_RMS_PAT.search(line)
+                if match_rms:
+                    try:
+                        rms = float(match_rms.group(1))
+                        continue
+                    except (ValueError, IndexError) as e:
+                        raise ParsingError(f"Could not parse gradient RMS: {line.strip()}") from e
+
+                match_max = GRADIENT_MAX_PAT.search(line)
+                if match_max:
+                    try:
+                        max_grad = float(match_max.group(1))
+                        # Typically the last piece of info, break after finding it
+                        break
+                    except (ValueError, IndexError) as e:
+                        raise ParsingError(f"Could not parse gradient MAX: {line.strip()}") from e
+
+                # Break only on MAX gradient found (handled above)
+                # Remove the break on 'Difference to translation'
+                # if line.startswith("Difference to translation") :
+                #     logger.debug("Exiting gradient block parsing (end pattern detected).")
+                #     break # Assume end of gradient block (before summary stats if format changes)
+
+        except StopIteration:
+            logger.warning("Reached end of file while parsing gradient block.")
+        except ParsingError:  # Re-raise critical parsing errors
+            raise
+        except Exception as e:
+            raise ParsingError("An unexpected error occurred during gradient parsing.") from e
+
+        # Validation
+        if not gradients:
+            raise ParsingError("Gradient block found but no gradient lines parsed.")
+        if norm is None or rms is None or max_grad is None:
+            logger.warning(f"Parsed gradients but missing summary stats (Norm: {norm}, RMS: {rms}, Max: {max_grad})")
+            # Allow continuation, but data will be incomplete
+            # Set default values or handle missing data downstream
+            norm = norm or 0.0
+            rms = rms or 0.0
+            max_grad = max_grad or 0.0
+            # raise ParsingError("Gradient block parsed but summary statistics (Norm, RMS, MAX) not found.")
+
+        gradient_data = GradientData(gradients=gradients, norm=norm, rms=rms, max=max_grad)
+        current_cycle_data.gradient = gradient_data
+        logger.debug(f"Stored GradientData for cycle {current_cycle_data.cycle_number}")
+
+
 # --- Parser Registry (Phase 0 - Reusing SP Parsers) --- #
 # We will add OPT-specific parsers (Gradient, RelaxationStep) later.
 # The order matters for how blocks are detected.
-OPT_PARSER_REGISTRY: Sequence[SectionParser] = [
+OPT_PARSER_REGISTRY: Sequence[SectionParser | GradientParser] = [  # Type hint updated
     GeometryParser(),  # Handles input geom and geometry in final eval block
     ScfParser(),  # Handles SCF in cycles and final eval
+    GradientParser(),  # Added in Phase 2 - Handles gradient in cycles
     OrbitalsParser(),  # Handles orbitals in final eval (usually not per cycle)
     ChargesParser("Mulliken", MULLIKEN_CHARGES_START_PAT),  # Final eval
     ChargesParser("Loewdin", LOEWDIN_CHARGES_START_PAT),  # Final eval
     DipoleParser(),  # Final eval
     DispersionParser(),  # Handles dispersion in cycles and final eval
-    # Add GradientParser here in Phase 2
     # Add RelaxationStepParser here in Phase 3
 ]
 
@@ -257,12 +375,25 @@ def parse_orca_opt_output(output: str) -> OptimizationData:
                     try:
                         # Always create a fresh temp data object for each potential match
                         # to avoid state pollution between parser checks/runs.
+                        # SP parsers will use this.
                         temp_sp_data = _MutableCalculationData(raw_output=results.raw_output)
 
-                        if parser.matches(line, temp_sp_data):
-                            # Found a matching block, now parse and route the data
+                        # Check if the parser matches. Note: GradientParser.matches expects _MutableOptData
+                        # This type hint mismatch needs resolution. For now, assume matches can handle either
+                        # or modify the protocol/parser implementation.
+                        # Let's adjust GradientParser.matches signature for now.
+                        if isinstance(parser, GradientParser):
+                            # OPT specific parsers operate on the main results/cycle data
+                            if parser.matches(line, results):
+                                logger.debug(f"OPT Parser {type(parser).__name__} matched line {current_line_num}.")
+                                # Pass main results and current cycle data
+                                parser.parse(line_iterator, line, results, current_cycle_data)
+                                parser_found = True
+                                break  # Handled by OPT parser
+                        elif parser.matches(line, temp_sp_data):
+                            # Found a matching SP block, now parse and route the data
                             logger.debug(
-                                f"Parser {type(parser).__name__} matched line {current_line_num}. Context: Cycle={in_optimization_cycle}, Final={in_final_evaluation}"
+                                f"SP Parser {type(parser).__name__} matched line {current_line_num}. Context: Cycle={in_optimization_cycle}, Final={in_final_evaluation}"
                             )
                             parser.parse(line_iterator, line, temp_sp_data)
 
