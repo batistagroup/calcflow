@@ -15,7 +15,7 @@ EXAMPLE_SP_OUT = EXAMPLE_SP_OUT_PATH.read_text()
 @pytest.fixture(scope="module")
 def parsed_sp_data() -> orca.CalculationData:
     """Fixture to parse the standard single point output file."""
-    return orca.parse_orca_output(EXAMPLE_SP_OUT)
+    return orca.parse_orca_sp_output(EXAMPLE_SP_OUT)
 
 
 @pytest.fixture

@@ -6,11 +6,8 @@ from _pytest.logging import LogCaptureFixture
 
 from calcflow.exceptions import ParsingError
 from calcflow.parsers import orca
-from calcflow.parsers.orca.orbitals import (  # type: ignore[attr-defined]
-    Orbital,
-    OrbitalsParser,
-    _MutableCalculationData,
-)
+from calcflow.parsers.orca.blocks.orbitals import OrbitalsParser
+from calcflow.parsers.orca.typing import Orbital, _MutableCalculationData
 
 
 def test_orbital_data_presence(parsed_sp_data: orca.CalculationData) -> None:
@@ -256,7 +253,7 @@ def test_unexpected_exception_post_loop(monkeypatch: pytest.MonkeyPatch, caplog:
         raise ValueError("Simulated data processing error")
 
     monkeypatch.setattr(
-        "calcflow.parsers.orca.orbitals.OrbitalData", mock_orbital_data_init
+        "calcflow.parsers.orca.blocks.orbitals.OrbitalData", mock_orbital_data_init
     )  # Use string path for patching
 
     # Parse should catch the exception, log it, and mark as attempted

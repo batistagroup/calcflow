@@ -5,10 +5,10 @@ import pytest
 
 from calcflow.exceptions import ParsingError
 from calcflow.parsers import orca
-from calcflow.parsers.orca.dispersion import DispersionParser
+from calcflow.parsers.orca.blocks.dispersion import DispersionParser
 from calcflow.parsers.orca.typing import _MutableCalculationData
 
-# --- Test Data ---
+# --- Test Data --- #
 
 # Minimal valid block
 VALID_BLOCK_D3 = [

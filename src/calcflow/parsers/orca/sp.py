@@ -4,12 +4,12 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 from calcflow.exceptions import ParsingError
-from calcflow.parsers.orca.charges import LOEWDIN_CHARGES_START_PAT, MULLIKEN_CHARGES_START_PAT, ChargesParser
-from calcflow.parsers.orca.dipole import DipoleParser
-from calcflow.parsers.orca.dispersion import DispersionParser
-from calcflow.parsers.orca.geometry import GeometryParser
-from calcflow.parsers.orca.orbitals import OrbitalsParser
-from calcflow.parsers.orca.scf import ScfParser
+from calcflow.parsers.orca.blocks.charges import LOEWDIN_CHARGES_START_PAT, MULLIKEN_CHARGES_START_PAT, ChargesParser
+from calcflow.parsers.orca.blocks.dipole import DipoleParser
+from calcflow.parsers.orca.blocks.dispersion import DispersionParser
+from calcflow.parsers.orca.blocks.geometry import GeometryParser
+from calcflow.parsers.orca.blocks.orbitals import OrbitalsParser
+from calcflow.parsers.orca.blocks.scf import ScfParser
 from calcflow.parsers.orca.typing import (
     Atom,
     AtomicCharges,
@@ -106,7 +106,7 @@ PARSER_REGISTRY: Sequence[SectionParser] = [
 
 
 # --- Main Parsing Function --- #
-def parse_orca_output(output: str) -> CalculationData:
+def parse_orca_sp_output(output: str) -> CalculationData:
     """
     Parses the text output of an ORCA calculation using a registry of section parsers.
 

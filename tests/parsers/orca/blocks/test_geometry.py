@@ -5,7 +5,7 @@ import pytest
 
 from calcflow.exceptions import ParsingError
 from calcflow.parsers import orca
-from calcflow.parsers.orca.geometry import GeometryParser
+from calcflow.parsers.orca.blocks.geometry import GeometryParser
 from calcflow.parsers.orca.typing import Atom, _MutableCalculationData
 
 

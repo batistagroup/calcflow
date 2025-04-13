@@ -1,4 +1,4 @@
-from calcflow.parsers.orca.main import CalculationData, parse_orca_output
+from calcflow.parsers.orca.sp import CalculationData, parse_orca_sp_output
 from calcflow.parsers.orca.typing import (
     Atom,
     AtomicCharges,
@@ -9,7 +9,7 @@ from calcflow.parsers.orca.typing import (
 )
 
 __all__ = [
-    "parse_orca_output",
+    "parse_orca_sp_output",
     "CalculationData",
     "Atom",
     "AtomicCharges",
@@ -17,7 +17,6 @@ __all__ = [
     "DispersionCorrectionData",
     "OrbitalData",
     "ScfData",
-    "OrbitalData",
     "ScfIteration",
     "ScfEnergyComponents",
 ]

@@ -6,7 +6,7 @@ import pytest
 
 from calcflow.exceptions import ParsingError
 from calcflow.parsers import orca
-from calcflow.parsers.orca.dipole import DipoleParser
+from calcflow.parsers.orca.blocks.dipole import DipoleParser
 from calcflow.parsers.orca.typing import DipoleMomentData, _MutableCalculationData
 
 

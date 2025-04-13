@@ -5,7 +5,7 @@ import pytest
 
 from calcflow.exceptions import ParsingError
 from calcflow.parsers import orca
-from calcflow.parsers.orca.scf import ScfParser
+from calcflow.parsers.orca.blocks.scf import ScfParser
 from calcflow.parsers.orca.typing import LineIterator, _MutableCalculationData
 
 # --- Fixtures for ScfParser Testing ---
