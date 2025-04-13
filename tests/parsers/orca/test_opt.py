@@ -65,129 +65,6 @@ def test_number_of_cycles(parsed_opt_data: OptimizationData) -> None:
     assert actual_cycles == expected_cycles
 
 
-# # Use the fixture name from conftest.py ('parsed_opt_data')
-# def test_final_energy(parsed_opt_data: OptimizationData) -> None:
-#     """
-#     Verify the final total energy (including dispersion) after optimization.
-#     """
-#     # Arrange
-#     # FINAL SINGLE POINT ENERGY       -75.317802959907
-#     expected_energy_eh = -75.317802959907
-#     tolerance = 1e-8  # Tolerance in Hartree
-
-#     # Act
-#     # Access attribute directly
-#     actual_energy_eh = parsed_opt_data.final_energy_eh
-
-#     # Assert
-#     assert actual_energy_eh is not None, "Final energy not found in parsed data"
-#     assert isinstance(actual_energy_eh, (float))
-#     # Ensure it's not None before comparison
-#     assert abs(actual_energy_eh - expected_energy_eh) < tolerance
-
-
-# # Use the fixture name from conftest.py ('parsed_opt_data')
-# def test_final_geometry_coordinates(parsed_opt_data: OptimizationData) -> None:
-#     """
-#     Verify the Cartesian coordinates of the final optimized geometry.
-#     """
-#     # Arrange
-#     # CARTESIAN COORDINATES (ANGSTROEM)
-#     # H      1.367583    1.686996   -0.227375
-#     # O      2.353544    1.568144    0.002277
-#     # H      2.675073    1.313220   -0.930712
-#     expected_coords_angstrom: list[list[float]] = [
-#         [1.367583, 1.686996, -0.227375],
-#         [2.353544, 1.568144, 0.002277],
-#         [2.675073, 1.313220, -0.930712],
-#     ]
-#     tolerance = 1e-6  # Tolerance in Angstrom
-
-#     # Act
-#     # Access attribute directly, checking for None
-#     final_geometry = parsed_opt_data.final_geometry
-#     assert final_geometry is not None, "Final geometry object not found"
-#     # Assume coordinates are stored as a list of lists or similar sequence
-#     actual_coords_angstrom_any = getattr(final_geometry, "coordinates_angstrom", None)
-#     assert actual_coords_angstrom_any is not None, "Final coordinates not found in geometry object"
-#     assert isinstance(actual_coords_angstrom_any, list), "Coordinates should be a list"
-#     actual_coords_angstrom: list[list[float]] = actual_coords_angstrom_any  # Type hint for clarity
-
-#     # Assert
-#     assert len(actual_coords_angstrom) == len(expected_coords_angstrom), "Mismatch in number of atoms"
-#     assert_allclose_list(actual_coords_angstrom, expected_coords_angstrom, atol=tolerance)
-
-
-# # Use the fixture name from conftest.py ('parsed_opt_data')
-# def test_final_geometry_symbols(parsed_opt_data: OptimizationData) -> None:
-#     """
-#     Verify the atomic symbols of the final optimized geometry.
-#     """
-#     # Arrange
-#     expected_symbols = ["H", "O", "H"]
-
-#     # Act
-#     # Access attribute directly, checking for None
-#     final_geometry = parsed_opt_data.final_geometry
-#     assert final_geometry is not None, "Final geometry object not found"
-#     actual_symbols_any = getattr(final_geometry, "symbols", None)
-#     assert actual_symbols_any is not None, "Atomic symbols not found in geometry object"
-#     assert isinstance(actual_symbols_any, list), "Symbols should be a list"
-#     actual_symbols: list[str] = actual_symbols_any
-
-#     # Assert
-#     assert actual_symbols == expected_symbols
-
-
-# # Use the fixture name from conftest.py ('parsed_opt_data')
-# def test_dipole_moment(parsed_opt_data: OptimizationData) -> None:
-#     """
-#     Verify the final total dipole moment magnitude.
-#     """
-#     # Arrange
-#     # Magnitude (Debye)      :      1.628902382
-#     expected_dipole_debye = 1.628902382
-#     tolerance = 1e-6  # Tolerance in Debye
-
-#     # Act
-#     # Access attribute directly, checking for None
-#     final_dipole = parsed_opt_data.final_dipole
-#     assert final_dipole is not None, "Final dipole object not found in parsed data"
-#     # Assuming the dipole object has a 'magnitude_debye' attribute
-#     actual_dipole_debye_any = getattr(final_dipole, "magnitude_debye", None)
-#     assert actual_dipole_debye_any is not None, "Dipole magnitude not found in dipole object"
-#     assert isinstance(actual_dipole_debye_any, float), "Dipole magnitude should be float"
-#     actual_dipole_debye: float = actual_dipole_debye_any
-
-#     # Assert
-#     assert abs(actual_dipole_debye - expected_dipole_debye) < tolerance
-
-
-# # Use the fixture name from conftest.py ('parsed_opt_data')
-# def test_rotational_constants(parsed_opt_data: OptimizationData) -> None:
-#     """
-#     Verify the final rotational constants.
-#     """
-#     # Arrange
-#     # Rotational constants in MHz : 623216.120429 427803.063571 253671.645242
-#     expected_rot_const_mhz: list[float] = [623216.120429, 427803.063571, 253671.645242]
-#     tolerance = 1e-3  # Tolerance in MHz
-
-#     # Act
-#     # Rotational constants are often part of the dipole moment block parsing
-#     final_dipole = parsed_opt_data.final_dipole
-#     assert final_dipole is not None, "Final dipole object not found in parsed data"
-#     # Assuming the dipole object has a 'rotational_constants_mhz' attribute
-#     actual_rot_const_mhz_any = getattr(final_dipole, "rotational_constants_mhz", None)
-#     assert actual_rot_const_mhz_any is not None, "Rotational constants not found in dipole object"
-#     assert isinstance(actual_rot_const_mhz_any, list), "Rotational constants should be a list"
-#     actual_rot_const_mhz: list[float] = actual_rot_const_mhz_any
-
-#     # Assert
-#     assert len(actual_rot_const_mhz) == len(expected_rot_const_mhz), "Mismatch in number of rotational constants"
-#     assert_allclose_list(actual_rot_const_mhz, expected_rot_const_mhz, atol=tolerance)
-
-
 # --- Input Geometry Tests ---
 
 
@@ -282,5 +159,90 @@ def test_cycle_2_energy(parsed_opt_data: OptimizationData) -> None:
     assert abs(actual_energy_eh - expected_energy_eh) < tolerance, "Energy mismatch for cycle 2"
 
 
-# Add more tests as needed for other parsed data, e.g., Mulliken charges,
-# energies/gradients per cycle, basis set info, method info, etc.
+# Use the fixture name from conftest.py ('parsed_opt_data')
+def test_final_energy(parsed_opt_data: OptimizationData) -> None:
+    """
+    Verify the final total energy (including dispersion) after optimization.
+    """
+    # Arrange
+    # FINAL SINGLE POINT ENERGY       -75.317802959907
+    expected_energy_eh = -75.317802959907
+    tolerance = 1e-8  # Tolerance in Hartree
+
+    # Act
+    # Access attribute directly
+    actual_energy_eh = parsed_opt_data.final_energy_eh
+    assert actual_energy_eh is not None, "Final energy not found in parsed data"
+    assert parsed_opt_data.final_dispersion is not None, "Dispersion correction not found in parsed data"
+    actual_energy_eh += parsed_opt_data.final_dispersion.energy_eh
+
+    # Assert
+    assert actual_energy_eh is not None, "Final energy not found in parsed data"
+    assert isinstance(actual_energy_eh, (float))
+    # Ensure it's not None before comparison
+    assert abs(actual_energy_eh - expected_energy_eh) < tolerance
+
+
+# Use the fixture name from conftest.py ('parsed_opt_data')
+def test_final_geometry_coordinates(parsed_opt_data: OptimizationData) -> None:
+    """
+    Verify the Cartesian coordinates of the final optimized geometry.
+    """
+    # Arrange
+    # CARTESIAN COORDINATES (ANGSTROEM)
+    # H      1.367583    1.686996   -0.227375
+    # O      2.353544    1.568144    0.002277
+    # H      2.675073    1.313220   -0.930712
+    expected_coords: list[list[float]] = [
+        [1.367583, 1.686996, -0.227375],
+        [2.353544, 1.568144, 0.002277],
+        [2.675073, 1.313220, -0.930712],
+    ]
+    tolerance = 1e-6  # Tolerance in Angstrom
+
+    # Act
+    # Access attribute directly, checking for None
+    final_geometry = parsed_opt_data.final_geometry
+    assert final_geometry is not None, "Final geometry object not found"
+
+    actual_coords = [(atom.x, atom.y, atom.z) for atom in final_geometry]
+
+    # Assert
+    assert len(actual_coords) == len(expected_coords), "Mismatch in number of atoms for input geometry"
+    for actual, expected in zip(actual_coords, expected_coords, strict=False):
+        for a, e in zip(actual, expected, strict=False):
+            assert abs(a - e) < tolerance, "Final Geometry Coordinates mismatch"
+
+
+# # Use the fixture name from conftest.py ('parsed_opt_data')
+def test_final_geometry_symbols(parsed_opt_data: OptimizationData) -> None:
+    """
+    Verify the atomic symbols of the final optimized geometry.
+    """
+    # Arrange
+    expected_symbols = ["H", "O", "H"]
+
+    final_geometry = parsed_opt_data.final_geometry
+    assert final_geometry is not None, "Final geometry object not found"
+    actual_symbols = [atom.symbol for atom in final_geometry]
+    assert actual_symbols == expected_symbols
+
+
+def test_dipole_moment(parsed_opt_data: OptimizationData) -> None:
+    """
+    Verify the final total dipole moment magnitude.
+    """
+    # Arrange
+    # Magnitude (Debye)      :      1.628902382
+    expected_dipole_debye = 1.628902382
+    tolerance = 1e-6  # Tolerance in Debye
+
+    # Act
+    # Access attribute directly, checking for None
+    final_dipole = parsed_opt_data.final_dipole
+    assert final_dipole is not None, "Final dipole object not found in parsed data"
+    actual_dipole_debye = final_dipole.total_debye
+    assert actual_dipole_debye is not None, "Dipole magnitude not found in dipole object"
+    assert isinstance(actual_dipole_debye, float), "Dipole magnitude should be float"
+
+    assert abs(actual_dipole_debye - expected_dipole_debye) < tolerance

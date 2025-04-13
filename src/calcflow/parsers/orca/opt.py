@@ -547,78 +547,26 @@ def parse_orca_opt_output(output: str) -> OptimizationData:
                             )
                             parser.parse(line_iterator, line, temp_sp_data)
 
-                            # --- Route Parsed Data --- #
-                            # Special handling for the very first geometry parsed
-                            if isinstance(parser, GeometryParser) and temp_sp_data.input_geometry:
-                                if not results.parsed_input_geometry:
-                                    results.input_geometry = temp_sp_data.input_geometry
-                                    results.parsed_input_geometry = True
-                                    logger.debug(
-                                        f"Captured input geometry (from cycle/block starting near line {current_line_num})."
-                                    )
-                                # Also store it in the current cycle if applicable
-                                if in_optimization_cycle and current_cycle_data is not None:
-                                    current_cycle_data.geometry = temp_sp_data.input_geometry
-
-                            # Handle other parsers based on context
-                            elif in_optimization_cycle and current_cycle_data is not None:
-                                # Store in current cycle data
-                                if isinstance(parser, ScfParser) and temp_sp_data.scf:
-                                    current_cycle_data.scf_data = temp_sp_data.scf
-                                    current_cycle_data.energy_eh = (
-                                        temp_sp_data.final_energy_eh
-                                    )  # Often SCF energy is the cycle energy
-                                elif isinstance(parser, DispersionParser) and temp_sp_data.dispersion_correction:
-                                    current_cycle_data.dispersion = temp_sp_data.dispersion_correction
-                                # Add other relevant per-cycle parsers if needed (e.g., charges)
-
-                            elif in_final_evaluation:
+                            # --- Route Parsed Data (Restructured for correct context priority) --- #
+                            if in_final_evaluation:
                                 # --- START DEBUG LOGGING FOR FINAL EVALUATION BLOCK --- #
                                 logger.debug(f"  [Final Eval] Parser {type(parser).__name__} finished parsing.")
-                                logger.debug(
-                                    f"  [Final Eval] temp_sp_data.input_geometry: {'Exists' if temp_sp_data.input_geometry else 'None'}"
-                                )
-                                logger.debug(
-                                    f"  [Final Eval] temp_sp_data.scf: {'Exists' if temp_sp_data.scf else 'None'}"
-                                )
-                                logger.debug(
-                                    f"  [Final Eval] temp_sp_data.final_energy_eh: {temp_sp_data.final_energy_eh}"
-                                )
-                                logger.debug(
-                                    f"  [Final Eval] temp_sp_data.orbitals: {'Exists' if temp_sp_data.orbitals else 'None'}"
-                                )
-                                logger.debug(
-                                    f"  [Final Eval] temp_sp_data.atomic_charges: {'Exists' if temp_sp_data.atomic_charges else 'None'}"
-                                )
-                                logger.debug(
-                                    f"  [Final Eval] temp_sp_data.dipole_moment: {'Exists' if temp_sp_data.dipole_moment else 'None'}"
-                                )
-                                logger.debug(
-                                    f"  [Final Eval] temp_sp_data.dispersion_correction: {'Exists' if temp_sp_data.dispersion_correction else 'None'}"
-                                )
                                 logger.debug(
                                     f"  [Final Eval] results flags: final_geom={results.final_geometry is not None}, final_scf={results.parsed_final_scf}, final_orb={results.parsed_final_orbitals}, final_charge={results.parsed_final_charges}, final_dipole={results.parsed_final_dipole}, final_disp={results.parsed_final_dispersion}"
                                 )
                                 # --- END DEBUG LOGGING --- #
 
-                                # Store in final results fields
+                                # Check parser type WITHIN the final_evaluation context
                                 if (
                                     isinstance(parser, GeometryParser)
-                                    # Assume if GeometryParser runs successfully here, it found the final geometry
-                                    # even if it doesn't populate temp_sp_data.input_geometry explicitly.
-                                    # We rely on the atoms being accessible somehow from the temp_sp_data if needed,
-                                    # but the SP parser likely stores it directly in input_geometry anyway.
-                                    # The key is to check the main results flag.
-                                    and not results.final_geometry
+                                    and not results.final_geometry  # Check main results flag
                                 ):
-                                    # Check if the parser actually put something in the temp object
                                     if temp_sp_data.input_geometry:
                                         logger.debug(
                                             "  [Final Eval] Storing final_geometry from temp_sp_data.input_geometry."
                                         )
                                         results.final_geometry = temp_sp_data.input_geometry
                                     else:
-                                        # This case shouldn't happen if GeometryParser worked, but log if it does
                                         logger.warning(
                                             "  [Final Eval] GeometryParser ran but temp_sp_data.input_geometry is None. Cannot store final geometry."
                                         )
@@ -627,7 +575,6 @@ def parse_orca_opt_output(output: str) -> OptimizationData:
                                 ):
                                     logger.debug("  [Final Eval] Storing final_scf and final_energy_eh.")
                                     results.final_scf = temp_sp_data.scf
-                                    # Get final energy directly from the parsed SCF data
                                     results.final_energy_eh = temp_sp_data.scf.energy_eh
                                     results.parsed_final_scf = True
                                 elif (
@@ -642,9 +589,8 @@ def parse_orca_opt_output(output: str) -> OptimizationData:
                                     and temp_sp_data.atomic_charges
                                     and not results.parsed_final_charges
                                 ):
-                                    # Assume we only care about the first set of charges found in final block
                                     results.final_charges = list(temp_sp_data.atomic_charges)
-                                    results.parsed_final_charges = True  # Avoid appending multiple charge sets
+                                    results.parsed_final_charges = True
                                 elif (
                                     isinstance(parser, DipoleParser)
                                     and temp_sp_data.dipole_moment
@@ -659,6 +605,37 @@ def parse_orca_opt_output(output: str) -> OptimizationData:
                                 ):
                                     results.final_dispersion = temp_sp_data.dispersion_correction
                                     results.parsed_final_dispersion = True
+
+                            elif in_optimization_cycle and current_cycle_data is not None:
+                                # Store in current cycle data (check parser type within cycle context)
+                                if isinstance(parser, GeometryParser) and temp_sp_data.input_geometry:
+                                    current_cycle_data.geometry = temp_sp_data.input_geometry
+                                    # Also capture the *first* geometry seen as the input geometry
+                                    if not results.parsed_input_geometry:
+                                        results.input_geometry = temp_sp_data.input_geometry
+                                        results.parsed_input_geometry = True
+                                        logger.debug(
+                                            f"Captured input geometry (from cycle {current_cycle_data.cycle_number})"
+                                        )
+                                elif isinstance(parser, ScfParser) and temp_sp_data.scf:
+                                    current_cycle_data.scf_data = temp_sp_data.scf
+                                    current_cycle_data.energy_eh = (
+                                        temp_sp_data.final_energy_eh  # Use final_energy_eh from SP data for cycle energy
+                                        if temp_sp_data.final_energy_eh is not None
+                                        else temp_sp_data.scf.energy_eh  # Fallback to scf energy if needed
+                                    )
+                                elif isinstance(parser, DispersionParser) and temp_sp_data.dispersion_correction:
+                                    current_cycle_data.dispersion = temp_sp_data.dispersion_correction
+                                # Add other relevant per-cycle parsers if needed
+
+                            # Handle initial input geometry LAST (if not in cycle or final eval)
+                            elif isinstance(parser, GeometryParser) and temp_sp_data.input_geometry:
+                                if not results.parsed_input_geometry:
+                                    results.input_geometry = temp_sp_data.input_geometry
+                                    results.parsed_input_geometry = True
+                                    logger.debug(
+                                        f"Captured input geometry (before cycle 1, near line {current_line_num})."
+                                    )
 
                             parser_found = True
                             break  # Important: Only one parser handles the start of a block
