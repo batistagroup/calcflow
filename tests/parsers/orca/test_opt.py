@@ -188,5 +188,99 @@ def test_number_of_cycles(parsed_opt_data: OptimizationData) -> None:
 #     assert_allclose_list(actual_rot_const_mhz, expected_rot_const_mhz, atol=tolerance)
 
 
+# --- Input Geometry Tests ---
+
+
+# Use the fixture name from conftest.py ('parsed_opt_data')
+def test_input_geometry_coordinates(parsed_opt_data: OptimizationData) -> None:
+    """
+    Verify the Cartesian coordinates of the input geometry.
+    """
+    # Arrange
+    # From Input File Block / Cycle 1 Start
+    # H      1.364990    1.693850   -0.197480
+    # O      2.328770    1.562940   -0.041680
+    # H      2.702440    1.311570   -0.916650
+    expected_coords = [(1.36499, 1.69385, -0.19748), (2.32877, 1.56294, -0.04168), (2.70244, 1.31157, -0.91665)]
+    tolerance = 1e-6  # Tolerance in Angstrom
+
+    # Act
+    input_geometry = parsed_opt_data.input_geometry
+    assert input_geometry is not None, "Input geometry object not found"
+
+    actual_coords = [(atom.x, atom.y, atom.z) for atom in input_geometry]
+
+    # Assert
+    assert len(actual_coords) == len(expected_coords), "Mismatch in number of atoms for input geometry"
+    for actual, expected in zip(actual_coords, expected_coords, strict=False):
+        for a, e in zip(actual, expected, strict=False):
+            assert abs(a - e) < tolerance, "Input Geometry Coordinates mismatch"
+
+
+# Use the fixture name from conftest.py ('parsed_opt_data')
+def test_input_geometry_symbols(parsed_opt_data: OptimizationData) -> None:
+    """
+    Verify the atomic symbols of the input geometry.
+    """
+    # Arrange
+    expected_symbols = ["H", "O", "H"]
+
+    # Act
+    input_geometry = parsed_opt_data.input_geometry
+    assert input_geometry is not None, "Input geometry object not found"
+
+    actual_symbols = [atom.symbol for atom in input_geometry]
+
+    # Assert
+    assert actual_symbols == expected_symbols, "Input Geometry Symbols"
+
+
+# --- Optimization Cycle Data Tests ---
+
+
+# Use the fixture name from conftest.py ('parsed_opt_data')
+def test_cycle_1_energy(parsed_opt_data: OptimizationData) -> None:
+    """
+    Verify the SCF energy calculated during the first optimization cycle.
+    """
+    # Arrange
+    expected_energy_eh = -75.31350443847158
+    tolerance = 1e-8
+
+    # Act
+    assert len(parsed_opt_data.cycles) > 0, "No optimization cycles found in parsed data"
+    cycle_1_data = parsed_opt_data.cycles[0]
+    assert cycle_1_data is not None, "Cycle 1 data not found"
+    assert cycle_1_data.scf_data is not None, "SCF data not found for cycle 1"
+    actual_energy_eh = cycle_1_data.scf_data.energy_eh  # Access energy from scf_data
+
+    # Assert
+    assert actual_energy_eh is not None, "Energy for cycle 1 not found"
+    assert isinstance(actual_energy_eh, float)
+    assert abs(actual_energy_eh - expected_energy_eh) < tolerance, "Energy mismatch for cycle 1"
+
+
+# Use the fixture name from conftest.py ('parsed_opt_data')
+def test_cycle_2_energy(parsed_opt_data: OptimizationData) -> None:
+    """
+    Verify the SCF energy calculated during the second optimization cycle.
+    """
+    # Arrange
+    expected_energy_eh = -75.31760090240802
+    tolerance = 1e-8
+
+    # Act
+    assert len(parsed_opt_data.cycles) > 1, "Less than 2 optimization cycles found"
+    cycle_2_data = parsed_opt_data.cycles[1]
+    assert cycle_2_data is not None, "Cycle 2 data not found"
+    assert cycle_2_data.scf_data is not None, "SCF data not found for cycle 2"
+    actual_energy_eh = cycle_2_data.scf_data.energy_eh  # Access energy from scf_data
+
+    # Assert
+    assert actual_energy_eh is not None, "Energy for cycle 2 not found"
+    assert isinstance(actual_energy_eh, float)
+    assert abs(actual_energy_eh - expected_energy_eh) < tolerance, "Energy mismatch for cycle 2"
+
+
 # Add more tests as needed for other parsed data, e.g., Mulliken charges,
 # energies/gradients per cycle, basis set info, method info, etc.

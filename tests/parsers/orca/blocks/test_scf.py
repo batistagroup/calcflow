@@ -50,7 +50,7 @@ def test_scf_energy(parsed_sp_data: orca.CalculationData) -> None:
     """Test the final SCF energy (should match last iteration)."""
     scf_data = parsed_sp_data.scf
     assert scf_data is not None
-    assert math.isclose(scf_data.energy_eh, -75.31352786506064, rel_tol=1e-9)
+    assert math.isclose(scf_data.energy_eh, -75.313504422, rel_tol=1e-9)
 
 
 def test_scf_energy_components(parsed_sp_data: orca.CalculationData) -> None:
@@ -536,7 +536,11 @@ def test_scf_late_convergence_line(scf_parser: ScfParser, initial_mutable_data: 
     assert initial_mutable_data.scf.n_iterations == 1
     assert math.isclose(initial_mutable_data.scf.energy_eh, -75.257066)  # type: ignore
     assert len(initial_mutable_data.scf.iteration_history) == 1
-    assert not initial_mutable_data.parsing_warnings  # Should not warn here
+    assert len(initial_mutable_data.parsing_warnings) == 1
+    assert (
+        initial_mutable_data.parsing_warnings[0]
+        == "SCF converged but 'Total energy after final integration' line not found. Using last iteration energy: -75.25706600 Eh"
+    )
 
 
 def test_scf_termination_before_components(

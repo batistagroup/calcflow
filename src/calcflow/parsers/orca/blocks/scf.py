@@ -29,6 +29,7 @@ SCF_ELECTRONIC_PAT = re.compile(r"^\s*Electronic Energy\s*:\s*(-?\d+\.\d+)")
 SCF_ONE_ELECTRON_PAT = re.compile(r"^\s*One Electron Energy\s*:\s*(-?\d+\.\d+)")
 SCF_TWO_ELECTRON_PAT = re.compile(r"^\s*Two Electron Energy\s*:\s*(-?\d+\.\d+)")
 SCF_XC_PAT = re.compile(r"^\s*E\(XC\)\s*:\s*(-?\d+\.\d+)")
+SCF_FINAL_REFINED_ENERGY_PAT = re.compile(r"Total energy after final integration\s*:\s*(-?\d+\.\d+)\s+Eh")
 
 
 # Moved _parse_scf_block logic here
@@ -44,6 +45,7 @@ class ScfParser(SectionParser):
         self.one_electron_eh: float | None = None
         self.two_electron_eh: float | None = None
         self.xc_eh: float | None = None
+        self.final_refined_energy_eh: float | None = None
         self.iteration_history: list[ScfIteration] = []
         self.latest_iter_num: int = 0
         self._current_table_type: str | None = None
@@ -62,6 +64,7 @@ class ScfParser(SectionParser):
         self.one_electron_eh = None
         self.two_electron_eh = None
         self.xc_eh = None
+        self.final_refined_energy_eh = None
         self.iteration_history = []
         self.latest_iter_num = 0
         self._current_table_type = None
@@ -329,29 +332,42 @@ class ScfParser(SectionParser):
 
         # --- Determine Final Energy ---
         final_scf_energy: float
-        if self.iteration_history:
+        warning_fallback_energy: str | None = None
+        warning_refined_missing: str | None = None
+
+        if self.final_refined_energy_eh is not None:
+            final_scf_energy = self.final_refined_energy_eh
+            logger.debug(f"Using final refined SCF energy: {final_scf_energy:.8f} Eh")
+        elif self.iteration_history:
             final_scf_energy = self.iteration_history[-1].energy_eh
+            # Warn if converged but refined energy was expected and not found
+            if self.converged:
+                warning_refined_missing = (
+                    "SCF converged but 'Total energy after final integration' line not found. "
+                    f"Using last iteration energy: {final_scf_energy:.8f} Eh"
+                )
+                logger.warning(warning_refined_missing)
         elif self.last_scf_energy_eh is not None:
             final_scf_energy = self.last_scf_energy_eh
-            logger.warning(
-                f"Using last parsed SCF energy {final_scf_energy} as iteration history is missing/incomplete."
+            warning_fallback_energy = (
+                f"Using last parsed SCF energy {final_scf_energy:.8f} Eh "
+                f"as iteration history is missing/incomplete{' and refined energy line missing' if self.converged else ''}."
             )
+            logger.warning(warning_fallback_energy)
         else:
-            # This path implies components were found, but no energy value was stored from iterations.
-            # This should only happen if the SCF converged in 0 iterations (unlikely) or parsing failed severely.
-            # Let's rely on the electronic energy + nuclear repulsion as a fallback ONLY if converged.
-            # This is a heuristic and might be inaccurate if xc_eh is significant or components aren't exact.
+            # This path implies components were found, but no energy value was stored from iterations or refinement.
             if self.converged:
                 final_scf_energy = self.electronic_eh + self.nuclear_rep_eh
-                warning_fallback_energy = f"No iteration energy found despite convergence. Using Electronic + Nuclear Repulsion: {final_scf_energy:.8f} Eh."
+                warning_fallback_energy = (
+                    f"No iteration or refined energy found despite convergence. "
+                    f"Using Electronic + Nuclear Repulsion: {final_scf_energy:.8f} Eh."
+                )
                 logger.warning(warning_fallback_energy)
-                results.parsing_warnings.append(warning_fallback_energy)
-                # Also update last_scf_energy_eh if it was None
+                # Update last_scf_energy_eh if it was None, might still be useful if fallback is needed elsewhere
                 if self.last_scf_energy_eh is None:
                     self.last_scf_energy_eh = final_scf_energy
             else:
-                # Not converged, no history, components found (implies failure after component printout?)
-                # This state is ambiguous. Raising an error is safer.
+                # Not converged, no history, no refinement, components found (implies failure after component printout?)
                 raise ParsingError("Failed to determine final SCF energy (calculation state unclear).")
 
         # --- Create Result Object ---
@@ -379,6 +395,10 @@ class ScfParser(SectionParser):
             results.parsing_warnings.append(warning_iteration_mismatch)
         if warning_history_missing:
             results.parsing_warnings.append(warning_history_missing)
+        if warning_refined_missing:
+            results.parsing_warnings.append(warning_refined_missing)
+        if warning_fallback_energy:
+            results.parsing_warnings.append(warning_fallback_energy)  # Append fallback warning if generated
 
     def parse(self, iterator: LineIterator, current_line: str, results: _MutableCalculationData) -> None:
         """Parses the entire SCF block by coordinating helper methods."""
@@ -406,6 +426,17 @@ class ScfParser(SectionParser):
                         self.converged = True
                         self.n_iterations = int(conv_match_late.group(1))
                         logger.debug("Found convergence line after iteration tables.")
+
+                # Check for the final refined energy line
+                final_ref_match = SCF_FINAL_REFINED_ENERGY_PAT.search(current_processing_line)
+                if final_ref_match:
+                    try:
+                        self.final_refined_energy_eh = float(final_ref_match.group(1))
+                        logger.debug(f"Found final refined energy: {self.final_refined_energy_eh:.8f} Eh")
+                    except (ValueError, IndexError):
+                        logger.warning(
+                            f"Could not parse float from final refined energy line: {current_processing_line.strip()}"
+                        )
 
                 # Check for terminators that signal the end of anything related to SCF *before* components start
                 terminators_post_scf = (
