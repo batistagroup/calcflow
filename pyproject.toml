@@ -17,11 +17,10 @@ classifiers = [
 dependencies = []
 
 [project.urls]
-Homepage = "https://github.com/yourusername/calcflow"      # Add your repo URL
-Issues = "https://github.com/yourusername/calcflow/issues"
+Homepage = "https://github.com/batistagroup/calcflow"      # Add your repo URL
+Issues = "https://github.com/batistagroup/calcflow/issues"
 
 [tool.setuptools]
-packages = ["calcflow"]
 package-dir = { "" = "src" }
 
 
@@ -81,22 +80,3 @@ omit = [
     "*/__init__.py",
 ]
 
-# Section below is pretty standard logger configuration
-
-[tool.logging]
-version = 1
-disable_existing_loggers = false
-
-[tool.logging.formatters.standard]
-format = "%(asctime)s [%(levelname)s] %(name)s (%(module)s:%(lineno)d): %(message)s"
-datefmt = "%Y-%m-%d %H:%M:%S"
-
-[tool.logging.handlers.console]
-class = "logging.StreamHandler"
-formatter = "standard"
-stream = "ext://sys.stdout"
-
-[tool.logging.loggers.calcflow]
-handlers = ["console"]
-propagate = true
-level = "INFO"
