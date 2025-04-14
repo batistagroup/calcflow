@@ -59,39 +59,25 @@ class GradientParser:
 
                 match_grad = GRADIENT_LINE_PAT.match(line)
                 if match_grad:
-                    try:
-                        gx = float(match_grad.group(1))
-                        gy = float(match_grad.group(2))
-                        gz = float(match_grad.group(3))
-                        gradients[atom_index] = (gx, gy, gz)
-                        atom_index += 1
-                        continue
-                    except (ValueError, IndexError) as e:
-                        raise ParsingError(f"Could not parse gradient line: {line.strip()}") from e
+                    gx = float(match_grad.group(1))
+                    gy = float(match_grad.group(2))
+                    gz = float(match_grad.group(3))
+                    gradients[atom_index] = (gx, gy, gz)
+                    atom_index += 1
+                    continue
 
                 match_norm = GRADIENT_NORM_PAT.search(line)
                 if match_norm:
-                    try:
-                        norm = float(match_norm.group(1))
-                        continue
-                    except (ValueError, IndexError) as e:
-                        raise ParsingError(f"Could not parse gradient norm: {line.strip()}") from e
+                    norm = float(match_norm.group(1))
 
                 match_rms = GRADIENT_RMS_PAT.search(line)
                 if match_rms:
-                    try:
-                        rms = float(match_rms.group(1))
-                        continue
-                    except (ValueError, IndexError) as e:
-                        raise ParsingError(f"Could not parse gradient RMS: {line.strip()}") from e
+                    rms = float(match_rms.group(1))
 
                 match_max = GRADIENT_MAX_PAT.search(line)
                 if match_max:
-                    try:
-                        max_grad = float(match_max.group(1))
-                        break
-                    except (ValueError, IndexError) as e:
-                        raise ParsingError(f"Could not parse gradient MAX: {line.strip()}") from e
+                    max_grad = float(match_max.group(1))
+                    break
 
         except StopIteration:
             logger.warning("Reached end of file while parsing gradient block.")

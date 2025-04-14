@@ -69,26 +69,22 @@ class RelaxationStepParser:
 
                     match_conv = CONV_TABLE_LINE_PAT.search(line)
                     if match_conv:
-                        try:
-                            item = match_conv.group(1).strip()
-                            value = float(match_conv.group(2))
-                            converged = match_conv.group(4) == "YES"
-                            converged_items[item] = converged
+                        item = match_conv.group(1).strip()
+                        value = float(match_conv.group(2))
+                        converged = match_conv.group(4) == "YES"
+                        converged_items[item] = converged
 
-                            # Assign specific values based on item name
-                            if item == "Energy change":
-                                energy_change = value
-                            elif item == "RMS gradient":
-                                rms_gradient = value
-                            elif item == "MAX gradient":
-                                max_gradient = value
-                            elif item == "RMS step":
-                                rms_step = value
-                            elif item == "MAX step":
-                                max_step = value
-                            continue  # Continue parsing table lines
-                        except (ValueError, IndexError) as e:
-                            raise ParsingError(f"Could not parse convergence table line: {line.strip()}") from e
+                        # Assign specific values based on item name
+                        if item == "Energy change":
+                            energy_change = value
+                        elif item == "RMS gradient":
+                            rms_gradient = value
+                        elif item == "MAX gradient":
+                            max_gradient = value
+                        elif item == "RMS step":
+                            rms_step = value
+                        elif item == "MAX step":
+                            max_step = value
                     else:
                         # Line within table block but doesn't match pattern - might be end or unexpected format
                         logger.debug(f"Exiting convergence table parsing due to non-matching line: {line.strip()}")
