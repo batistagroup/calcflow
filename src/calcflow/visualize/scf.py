@@ -3,7 +3,6 @@ from collections.abc import Sequence
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from calcflow.constants import ha_to_ev
 from calcflow.parsers.orca.typing import ScfIteration
 from calcflow.visualize.colors import blue_20, coral_20, green_20, orange_20, purple_20, red_20
 from calcflow.visualize.style import apply_development_style
@@ -32,8 +31,8 @@ def plot_scf_convergence(
     colors = [blue_20.sample_n_hex(n), red_20.sample_n_hex(n), purple_20.sample_n_hex(n), coral_20.sample_n_hex(n), green_20.sample_n_hex(n), orange_20.sample_n_hex(n)]
     for i, history in enumerate(scf_iterations):
         iterations = [h.iteration for h in history]
-        energy_eh = [(h.energy_eh) * ha_to_ev for h in history]
-        delta_e_eh = [h.delta_e_eh * ha_to_ev for h in history]
+        energy_eh = [(h.energy_eh)  for h in history]
+        delta_e_eh = [h.delta_e_eh  for h in history]
         rmsdp = [h.rmsdp for h in history]
         maxdp = [h.maxdp for h in history]
         time_sec = [h.time_sec for h in history]
