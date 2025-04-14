@@ -9,7 +9,7 @@ from pytest import LogCaptureFixture
 
 from calcflow.exceptions import ParsingError
 from calcflow.parsers import orca
-from calcflow.parsers.orca.charges import (
+from calcflow.parsers.orca.blocks.charges import (
     CHARGE_LINE_PAT,
     LOEWDIN_CHARGES_START_PAT,
     MULLIKEN_CHARGES_START_PAT,
@@ -196,7 +196,7 @@ def test_charges_parser_handles_unexpected_exception(caplog: LogCaptureFixture) 
     real_match_line_1 = re.match(CHARGE_LINE_PAT, lines[1])
 
     # Patch the entire pattern object within the charges module
-    with unittest.mock.patch("calcflow.parsers.orca.charges.CHARGE_LINE_PAT") as mock_pattern:
+    with unittest.mock.patch("calcflow.parsers.orca.blocks.charges.CHARGE_LINE_PAT") as mock_pattern:
         # Configure the .match() method of our mocked pattern object
         mock_pattern.match.side_effect = [
             real_match_line_1,  # First call works normally

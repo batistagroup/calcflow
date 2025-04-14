@@ -3,7 +3,7 @@ from pathlib import Path
 from calcflow.geometry.static import Geometry
 from calcflow.inputs.orca import OrcaInput
 from calcflow.inputs.slurm import SlurmArgs
-from calcflow.parsers.orca import parse_orca_output
+from calcflow.parsers.orca import parse_orca_sp_output
 
 data_path = Path(__file__).resolve().parents[1] / "data"
 calcs_path = data_path / "calculations"
@@ -39,5 +39,5 @@ if run["create"]:
 
 if run["parse"]:
     out = (clc_folder / f"{base_args.exec_fname}.out").read_text()
-    calc_data = parse_orca_output(out)
+    calc_data = parse_orca_sp_output(out)
     print(calc_data)
