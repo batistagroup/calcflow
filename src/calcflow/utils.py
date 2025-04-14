@@ -41,7 +41,7 @@ def setup_logging() -> None:
     valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
     if log_level not in valid_levels:
         print(f"Invalid log level {log_level}, defaulting to INFO")
-        log_level = "INFO"  # Make sure to reset if invalid
+        log_level = "INFO"
 
     # Override the log level in the copied config
     LOGGING_CONFIG["loggers"]["calcflow"]["level"] = log_level
