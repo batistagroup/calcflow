@@ -23,7 +23,7 @@ LOGGING_CONFIG: dict[str, Any] = {
     "loggers": {
         "calcflow": {
             "handlers": ["console"],
-            "propagate": False,
+            "propagate": True,
             "level": "INFO",  # Default level
         }
     },
@@ -49,5 +49,4 @@ def setup_logging() -> None:
     logging.config.dictConfig(LOGGING_CONFIG)
 
 
-# Get the logger for the 'batistatemplate' application.
 logger = logging.getLogger("calcflow")
