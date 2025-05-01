@@ -3,6 +3,7 @@ from typing import ClassVar, TypeVar
 
 from calcflow.core import CalculationInput
 from calcflow.exceptions import InputGenerationError, NotSupportedError, ValidationError
+from calcflow.geometry.static import Geometry
 from calcflow.utils import logger
 
 T_QchemInput = TypeVar("T_QchemInput", bound="QchemInput")
@@ -51,17 +52,6 @@ class QchemInput(CalculationInput):
                 "Consider using def2-tzvp or larger basis sets for final geometries."
             )
 
-        if isinstance(self.basis_set, dict):
-            raise NotSupportedError(
-                "Dictionary basis sets are not yet fully implemented in export_input_file for Q-Chem."
-            )
-
-        if self.implicit_solvation_model and self.implicit_solvation_model.lower() not in ["pcm", "smd", "isosvp"]:
-            raise NotSupportedError(
-                f"Only PCM, SMD, and ISOSVP implicit solvation models are directly supported for Q-Chem. "
-                f"Model '{self.implicit_solvation_model}' might require specific setup in a $solvent block."
-            )
-
         if self.n_cores < 1:
             raise ValidationError("Number of cores must be a positive integer.")
 
@@ -72,6 +62,12 @@ class QchemInput(CalculationInput):
                 raise ValidationError(
                     "If run_tddft is True, at least one of tddft_singlets or tddft_triplets must be True."
                 )
+
+        if self.implicit_solvation_model and self.implicit_solvation_model.lower() not in ["pcm", "smd", "isosvp"]:
+            raise NotSupportedError(
+                f"Only PCM, SMD, and ISOSVP implicit solvation models are directly supported for Q-Chem. "
+                f"Model '{self.implicit_solvation_model}' might require specific setup in a $solvent block."
+            )
 
     def set_tddft(
         self: T_QchemInput,
@@ -162,7 +158,8 @@ class QchemInput(CalculationInput):
         if isinstance(self.basis_set, str):
             rem_vars["BASIS"] = self.basis_set
         elif isinstance(self.basis_set, dict):
-            raise InputGenerationError("Dictionary basis sets require a $basis block, not yet implemented.")
+            # Use a general basis set keyword when a dictionary is provided
+            rem_vars["BASIS"] = "gen"
         else:
             raise InputGenerationError(f"Unsupported basis_set type: {type(self.basis_set)}")
 
@@ -211,6 +208,29 @@ class QchemInput(CalculationInput):
         lines.append("$end")
         return "\n".join(lines)
 
+    def _get_basis_block(self) -> str:
+        """Generates the $basis block for mixed basis set definitions.
+
+        Returns:
+            String containing the formatted $basis block if self.basis_set is a dictionary,
+            otherwise an empty string.
+        """
+        if not isinstance(self.basis_set, dict):
+            return ""
+
+        lines = ["$basis"]
+        for element, basis_name in self.basis_set.items():
+            if not isinstance(element, str) or not isinstance(basis_name, str):
+                logger.warning(
+                    f"Skipping invalid entry in basis_set dictionary: {{{element}: {basis_name}}}. Both key and value must be strings."
+                )
+                continue
+            lines.append(f"{element.capitalize()} 0")  # Q-Chem expects element symbol followed by 0
+            lines.append(basis_name)
+            lines.append("****")  # Separator
+        lines.append("$end")
+        return "\n".join(lines)
+
     def export_input_file(self, geom: str) -> str:
         """Generates the Q-Chem input file content.
 
@@ -228,9 +248,45 @@ class QchemInput(CalculationInput):
         input_blocks: list[str] = [
             self._get_molecule_block(geom),
             self._get_rem_block(),
-            # Add other blocks like $solvent, $basis if needed later
+            self._get_basis_block(),
+            # Add other blocks like $solvent if needed later
         ]
 
         final_input = "\n\n".join(block for block in input_blocks if block)
 
         return final_input.strip() + "\n"
+
+    def export_input_file_from_geometry(self, geometry: "Geometry") -> str:
+        """Generates the Q-Chem input file content from a Geometry object, validating basis sets.
+
+        Checks if a dictionary basis set covers all elements in the geometry before
+        generating the input file.
+
+        Args:
+            geometry: A Geometry object containing the molecular structure.
+
+        Returns:
+            String containing the formatted Q-Chem input file.
+
+        Raises:
+            ValidationError: If basis_set is a dictionary and does not contain entries
+                             for all elements present in the geometry.
+            InputGenerationError: If basis_set type is unsupported by the underlying export method.
+            NotSupportedError: If the requested task is not supported by the underlying export method.
+        """
+        # Perform basis set validation if a dictionary is used
+        if isinstance(self.basis_set, dict):
+            geom_elements = geometry.unique_elements
+            basis_elements = {element.upper() for element in self.basis_set}
+            missing_elements = geom_elements - basis_elements
+            if missing_elements:
+                raise ValidationError(
+                    f"Custom basis set dictionary is missing definitions for elements found in geometry: {missing_elements}. "
+                    f"Geometry elements: {geom_elements}. Basis elements: {basis_elements}."
+                )
+
+        # Get the coordinate block string from the Geometry object
+        geom_str = geometry.get_coordinate_block()
+
+        # Call the original method that accepts the string
+        return self.export_input_file(geom=geom_str)

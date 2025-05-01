@@ -113,6 +113,11 @@ class Geometry:
         num_atoms, comment, atoms = parse_xyz(file)
         return cls(num_atoms=num_atoms, comment=comment, atoms=atoms)
 
+    @property
+    def unique_elements(self) -> set[str]:
+        """Returns a set of unique element symbols present in the geometry."""
+        return {symbol.upper() for symbol, _ in self.atoms}
+
     def __repr__(self) -> str:
         """Returns a concise representation of the Geometry object."""
         # Avoid printing potentially very long atoms list
