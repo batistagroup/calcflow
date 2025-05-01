@@ -30,6 +30,7 @@ class QchemInput(CalculationInput):
         tddft_singlets: Flag to include singlet states in TDDFT calculation. Defaults to True.
         tddft_triplets: Flag to include triplet states in TDDFT calculation. Defaults to False.
         tddft_state_analysis: Flag to enable state analysis. Defaults to True.
+        rpa: Controls whether to use RPA (True TDDFT) instead of CIS/TDA.
     """
 
     program: ClassVar[str] = "qchem"
@@ -42,6 +43,7 @@ class QchemInput(CalculationInput):
     tddft_singlets: bool = True
     tddft_triplets: bool = False
     tddft_state_analysis: bool = True
+    rpa: bool = False  # Controls whether to use RPA (True TDDFT) instead of CIS/TDA
 
     def __post_init__(self) -> None:
         """Performs Q-Chem-specific validation after initialization."""
@@ -96,7 +98,7 @@ class QchemInput(CalculationInput):
         if not singlets and not triplets:
             raise ValidationError("At least one of singlets or triplets must be True for TDDFT.")
 
-        logger.info(
+        logger.debug(
             f"Setting TDDFT: nroots={nroots}, singlets={singlets}, triplets={triplets}, state_analysis={state_analysis}"
         )
         return replace(
@@ -107,6 +109,33 @@ class QchemInput(CalculationInput):
             tddft_triplets=triplets,
             tddft_state_analysis=state_analysis,
         )
+
+    def set_rpa(self: T_QchemInput, enable: bool = True) -> T_QchemInput:
+        """Enable or disable the RPA keyword for TDDFT calculations.
+
+        Args:
+            enable: Set to True to enable RPA, False to disable. Defaults to True.
+
+        Returns:
+            A new QchemInput instance with the updated RPA setting.
+        """
+        logger.debug(f"Setting RPA keyword to: {enable}")
+        return replace(self, rpa=enable)
+
+    def set_basis(self: T_QchemInput, basis: str | dict[str, str]) -> T_QchemInput:
+        """Set the basis set for the calculation.
+
+        Args:
+            basis: The basis set specification. Can be a string (e.g., "def2-svp")
+                   or a dictionary mapping element symbols to basis set names
+                   (e.g., {"C": "6-31g*", "H": "sto-3g"}).
+
+        Returns:
+            A new QchemInput instance with the updated basis set.
+        """
+        # Add validation if specific formats are required or common errors checked
+        logger.debug(f"Setting basis set to: {basis}")
+        return replace(self, basis_set=basis)
 
     def _get_molecule_block(self, geom: str) -> str:
         """Generates the $molecule block.
@@ -179,6 +208,8 @@ class QchemInput(CalculationInput):
             rem_vars["STATE_ANALYSIS"] = self.tddft_state_analysis
             # Q-Chem uses CIS_N_ROOTS > 0 to trigger TDDFT/CIS calculations.
             # The METHOD keyword determines DFT vs HF-based excitation.
+            if self.rpa:
+                rem_vars["RPA"] = True
 
         # --- Implicit Solvation --- #
         if self.implicit_solvation_model:
