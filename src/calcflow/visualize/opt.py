@@ -36,7 +36,7 @@ def get_interatomic_distances(atoms: Sequence[Atom]) -> tuple[list[float], list[
     return dists, labels
 
 
-def plot_optimization_progress(opt_data: OptimizationData) -> Figure:
+def plot_optimization_progress(opt_data: OptimizationData, show_distances: bool = True) -> Figure:
     """Create a figure showing optimization progress metrics.
 
     Args:
@@ -77,16 +77,17 @@ def plot_optimization_progress(opt_data: OptimizationData) -> Figure:
     fig.add_trace(go.Scatter(x=cycles, y=rms_steps, mode="lines+markers", name="RMS Step", line=dict(color=purple_colors[0])), row=2, col=1)
     fig.add_trace(go.Scatter(x=cycles, y=max_steps, mode="lines+markers", name="Max Step", line=dict(color=purple_colors[1])), row=2, col=1)
 
-    # Get distances and labels for each cycle
-    distances_and_labels = [get_interatomic_distances(cycle.geometry) for cycle in opt_data.cycles if cycle.geometry]
-    distances = [d[0] for d in distances_and_labels]
-    labels = distances_and_labels[0][1]  # Labels will be same for all cycles
-    n_distances = len(distances[0])
-    distance_colors = blue_20.sample_n_hex(n_distances)
+    if show_distances:
+        # Get distances and labels for each cycle
+        distances_and_labels = [get_interatomic_distances(cycle.geometry) for cycle in opt_data.cycles if cycle.geometry]
+        distances = [d[0] for d in distances_and_labels]
+        labels = distances_and_labels[0][1]  # Labels will be same for all cycles
+        n_distances = len(distances[0])
+        distance_colors = blue_20.sample_n_hex(n_distances)
 
-    for i in range(n_distances):
-        dist_i = [d[i] for d in distances]
-        fig.add_trace(go.Scatter(x=cycles, y=dist_i, mode="lines+markers", name=labels[i], line=dict(color=distance_colors[i])), row=2, col=2)
+        for i in range(n_distances):
+            dist_i = [d[i] for d in distances]
+            fig.add_trace(go.Scatter(x=cycles, y=dist_i, mode="lines+markers", name=labels[i], line=dict(color=distance_colors[i])), row=2, col=2)
 
     # Update layout
     fig.update_layout(height=800, width=1200, showlegend=True, title_text="Geometry Optimization Progress")
