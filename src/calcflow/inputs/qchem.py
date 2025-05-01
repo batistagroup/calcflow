@@ -1,6 +1,7 @@
 from dataclasses import dataclass, replace
 from typing import ClassVar, TypeVar
 
+from calcflow.basis_sets import registry as basis_registry
 from calcflow.core import CalculationInput
 from calcflow.exceptions import InputGenerationError, NotSupportedError, ValidationError
 from calcflow.geometry.static import Geometry
@@ -226,7 +227,10 @@ class QchemInput(CalculationInput):
                 )
                 continue
             lines.append(f"{element.capitalize()} 0")  # Q-Chem expects element symbol followed by 0
-            lines.append(basis_name)
+            if (custom_basis := basis_registry.get_basis_set_object(basis_name)) is not None:
+                lines.append(custom_basis.get_definition_for_element(element))
+            else:
+                lines.append(basis_name)
             lines.append("****")  # Separator
         lines.append("$end")
         return "\n".join(lines)
