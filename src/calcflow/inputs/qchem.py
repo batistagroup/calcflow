@@ -1,0 +1,236 @@
+from dataclasses import dataclass, replace
+from typing import ClassVar, TypeVar
+
+from calcflow.core import CalculationInput
+from calcflow.exceptions import InputGenerationError, NotSupportedError, ValidationError
+from calcflow.utils import logger
+
+T_QchemInput = TypeVar("T_QchemInput", bound="QchemInput")
+
+# fmt:off
+SUPPORTED_FUNCTIONALS = {"b3lyp", "pbe0", "m06", "cam-b3lyp", "wb97x", "wb97x-d3" }
+# fmt:on
+
+
+@dataclass(frozen=True)
+class QchemInput(CalculationInput):
+    """Input parameters specific to Q-Chem calculations.
+
+    Inherits common parameters and validation logic from CalculationInput.
+    Implements the export_input_file method to generate Q-Chem input files.
+
+    Attributes:
+        program: The program name, always "qchem".
+        n_cores: Number of CPU cores to use (influences $omp block). Defaults to 1.
+        geom_mode: Geometry input mode for Q-Chem. Defaults to "xyz".
+        run_tddft: Flag to enable TDDFT calculation. Defaults to False.
+        tddft_nroots: Number of roots to calculate in TDDFT. Required if run_tddft is True.
+        tddft_singlets: Flag to include singlet states in TDDFT calculation. Defaults to True.
+        tddft_triplets: Flag to include triplet states in TDDFT calculation. Defaults to False.
+        tddft_state_analysis: Flag to enable state analysis. Defaults to True.
+    """
+
+    program: ClassVar[str] = "qchem"
+
+    n_cores: int = 1
+    geom_mode: str = "xyz"  # Q-Chem doesn't use this directly in input, but consistent with base
+
+    run_tddft: bool = False
+    tddft_nroots: int | None = None
+    tddft_singlets: bool = True
+    tddft_triplets: bool = False
+    tddft_state_analysis: bool = True
+
+    def __post_init__(self) -> None:
+        """Performs Q-Chem-specific validation after initialization."""
+        super().__post_init__()
+
+        if self.task == "geometry" and self.basis_set == "def2-svp":
+            logger.warning(
+                "Using def2-svp for geometry optimization might yield less accurate results. "
+                "Consider using def2-tzvp or larger basis sets for final geometries."
+            )
+
+        if isinstance(self.basis_set, dict):
+            raise NotSupportedError(
+                "Dictionary basis sets are not yet fully implemented in export_input_file for Q-Chem."
+            )
+
+        if self.implicit_solvation_model and self.implicit_solvation_model.lower() not in ["pcm", "smd", "isosvp"]:
+            raise NotSupportedError(
+                f"Only PCM, SMD, and ISOSVP implicit solvation models are directly supported for Q-Chem. "
+                f"Model '{self.implicit_solvation_model}' might require specific setup in a $solvent block."
+            )
+
+        if self.n_cores < 1:
+            raise ValidationError("Number of cores must be a positive integer.")
+
+        if self.run_tddft:
+            if self.tddft_nroots is None or self.tddft_nroots < 1:
+                raise ValidationError("If run_tddft is True, tddft_nroots must be a positive integer.")
+            if not self.tddft_singlets and not self.tddft_triplets:
+                raise ValidationError(
+                    "If run_tddft is True, at least one of tddft_singlets or tddft_triplets must be True."
+                )
+
+    def set_tddft(
+        self: T_QchemInput,
+        nroots: int,
+        singlets: bool = True,
+        triplets: bool = False,
+        state_analysis: bool = True,
+    ) -> T_QchemInput:
+        """Configure and enable TDDFT calculation.
+
+        Args:
+            nroots: Number of excited states to calculate. Must be positive.
+            singlets: Whether to include singlet states. Defaults to True.
+            triplets: Whether to include triplet states. Defaults to False.
+            state_analysis: Whether to perform state analysis. Defaults to True.
+
+        Returns:
+            A new QchemInput instance with TDDFT enabled and configured.
+
+        Raises:
+            ValidationError: If input parameters are invalid (e.g., nroots <= 0).
+        """
+        if nroots <= 0:
+            raise ValidationError("tddft_nroots must be a positive integer.")
+        if not singlets and not triplets:
+            raise ValidationError("At least one of singlets or triplets must be True for TDDFT.")
+
+        logger.info(
+            f"Setting TDDFT: nroots={nroots}, singlets={singlets}, triplets={triplets}, state_analysis={state_analysis}"
+        )
+        return replace(
+            self,
+            run_tddft=True,
+            tddft_nroots=nroots,
+            tddft_singlets=singlets,
+            tddft_triplets=triplets,
+            tddft_state_analysis=state_analysis,
+        )
+
+    def _get_molecule_block(self, geom: str) -> str:
+        """Generates the $molecule block.
+
+        Args:
+            geom: Molecular geometry in XYZ format (multiline string, excluding header lines).
+
+        Returns:
+            String containing the formatted $molecule block.
+        """
+        lines = [
+            "$molecule",
+            f"{self.charge} {self.spin_multiplicity}",
+            geom.strip(),
+            "$end",
+        ]
+        return "\n".join(lines)
+
+    def _get_rem_block(self) -> str:
+        """Generates the $rem block.
+
+        Returns:
+            String containing the formatted $rem block.
+
+        Raises:
+            ValidationError: If level_of_theory is invalid or unsupported.
+            InputGenerationError: If basis_set type is unsupported.
+        """
+        rem_vars: dict[str, str | bool | int] = {}
+
+        # --- Job Type --- #
+        if self.task == "energy":
+            rem_vars["JOBTYPE"] = "sp"
+        elif self.task == "geometry":
+            rem_vars["JOBTYPE"] = "opt"
+        else:
+            # Q-Chem supports other job types like freq, tss, etc.
+            # Add handling here if needed in the future.
+            raise NotSupportedError(f"Task type '{self.task}' not currently supported for Q-Chem export.")
+
+        # --- Level of Theory --- #
+        method = self.level_of_theory.lower()
+        if method in SUPPORTED_FUNCTIONALS or method == "hf":
+            rem_vars["METHOD"] = method
+        else:
+            # Q-Chem supports many methods. Add validation/mapping as needed.
+            raise ValidationError(f"Unsupported or unrecognized level_of_theory for Q-Chem: '{self.level_of_theory}'")
+
+        # --- Basis Set --- #
+        if isinstance(self.basis_set, str):
+            rem_vars["BASIS"] = self.basis_set
+        elif isinstance(self.basis_set, dict):
+            raise InputGenerationError("Dictionary basis sets require a $basis block, not yet implemented.")
+        else:
+            raise InputGenerationError(f"Unsupported basis_set type: {type(self.basis_set)}")
+
+        # --- Spin/Symmetry --- #
+        rem_vars["UNRESTRICTED"] = self.unrestricted
+        rem_vars["SYMMETRY"] = False  # Often disabled for robustness
+        rem_vars["SYM_IGNORE"] = True
+
+        # --- TDDFT --- #
+        if self.run_tddft:
+            if self.tddft_nroots is None:  # Should be caught by __post_init__, but defensive check
+                raise InputGenerationError("tddft_nroots must be set when run_tddft is True.")
+            rem_vars["CIS_N_ROOTS"] = self.tddft_nroots
+            rem_vars["CIS_SINGLETS"] = self.tddft_singlets
+            rem_vars["CIS_TRIPLETS"] = self.tddft_triplets
+            rem_vars["STATE_ANALYSIS"] = self.tddft_state_analysis
+            # Q-Chem uses CIS_N_ROOTS > 0 to trigger TDDFT/CIS calculations.
+            # The METHOD keyword determines DFT vs HF-based excitation.
+
+        # --- Implicit Solvation --- #
+        if self.implicit_solvation_model:
+            model = self.implicit_solvation_model.lower()
+            rem_vars["SOLVENT_METHOD"] = model
+            if self.solvent:
+                # Q-Chem often infers parameters from solvent name for PCM/SMD
+                # More complex setups might need a full $solvent block
+                # This basic implementation assumes direct mapping is sufficient.
+                logger.warning(
+                    f"Setting SOLVENT_METHOD={model}. "
+                    f"Q-Chem's handling of solvent '{self.solvent}' requires verification. "
+                    f"A manual $solvent block might be needed for non-standard parameters."
+                )
+            else:
+                logger.warning(f"Implicit solvation model '{model}' requested without specifying a solvent.")
+
+        # --- Formatting --- #
+        lines = ["$rem"]
+        max_key_len = max(len(k) for k in rem_vars) if rem_vars else 0
+        for key, value in rem_vars.items():
+            # Format boolean values as True/False for Q-Chem
+            if isinstance(value, bool):
+                value_str = str(value)
+            else:
+                value_str = str(value)
+            lines.append(f"    {key:<{max_key_len}}    {value_str}")
+        lines.append("$end")
+        return "\n".join(lines)
+
+    def export_input_file(self, geom: str) -> str:
+        """Generates the Q-Chem input file content.
+
+        Args:
+            geom: Molecular geometry in XYZ format (multiline string, excluding header lines).
+
+        Returns:
+            String containing the formatted Q-Chem input file.
+
+        Raises:
+            InputGenerationError: If basis_set type is unsupported.
+            ValidationError: If validation fails for settings.
+            NotSupportedError: If requested task is not supported.
+        """
+        input_blocks: list[str] = [
+            self._get_molecule_block(geom),
+            self._get_rem_block(),
+            # Add other blocks like $solvent, $basis if needed later
+        ]
+
+        final_input = "\n\n".join(block for block in input_blocks if block)
+
+        return final_input.strip() + "\n"
