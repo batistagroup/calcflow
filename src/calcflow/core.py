@@ -173,3 +173,16 @@ class CalculationInput(ABC):
         if memory_per_core_mb < 256:
             logger.warning("Memory per core allocation seems low (< 256 MB), please specify in MB.")
         return replace(self, memory_per_core_mb=memory_per_core_mb)
+
+    def set_unrestricted(self: T_CalcInput) -> T_CalcInput:
+        """Set whether the calculation should be unrestricted.
+
+        Args:
+            unrestricted (bool): True to use an unrestricted method, False otherwise.
+
+        Returns:
+            T_CalcInput: A new instance of the CalculationInput subclass with the unrestricted setting updated.
+        """
+        # The __post_init__ method will handle warnings related to spin multiplicity mismatch.
+        logger.debug(f"Setting unrestricted to: {True}")
+        return replace(self, unrestricted=True)
