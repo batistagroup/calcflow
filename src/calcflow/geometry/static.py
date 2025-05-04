@@ -1,7 +1,9 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
+from functools import cached_property
 from pathlib import Path
 
+from calcflow.constants.ptable import ELEMENT_DATA
 from calcflow.typing import AtomCoords
 
 
@@ -117,6 +119,30 @@ class Geometry:
     def unique_elements(self) -> set[str]:
         """Returns a set of unique element symbols present in the geometry."""
         return {symbol.upper() for symbol, _ in self.atoms}
+
+    @cached_property
+    def total_nuclear_charge(self) -> int:
+        """Calculate the total nuclear charge (sum of atomic numbers) for the geometry.
+
+        Uses the ELEMENT_DATA registry to look up atomic numbers.
+
+        Returns:
+            The total nuclear charge of the molecule.
+
+        Raises:
+            KeyError: If an element symbol in the geometry is not found in ELEMENT_DATA.
+        """
+        charge = 0
+        for symbol, _ in self.atoms:
+            element_symbol_upper = symbol.upper()
+            try:
+                charge += ELEMENT_DATA[element_symbol_upper].atomic_number
+            except KeyError as e:
+                raise KeyError(
+                    f"Element symbol '{symbol}' (uppercase: '{element_symbol_upper}') found in geometry "
+                    f"but not defined in ELEMENT_DATA in src/calcflow/constants/ptable.py."
+                ) from e
+        return charge
 
     def __repr__(self) -> str:
         """Returns a concise representation of the Geometry object."""
