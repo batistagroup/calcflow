@@ -33,4 +33,4 @@ ignore:
   - "**/visualize/*" # styling files
   - "**/constants/*" # constants
   - "**/__init__.py" # __init__ files
-  - "**/basis_sets/*" # basis sets
+  - "**/basis_sets/qchem/*" # basis sets

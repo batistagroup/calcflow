@@ -1,4 +1,7 @@
-pcX2 = {
+from calcflow.basis_sets.core import CustomBasisSet
+from calcflow.basis_sets.registry import register_basis_set
+
+_pcX2_defs = {
     "C": """S   1   1.00
       0.933941D+04           1.0000000
 S   1   1.00
@@ -115,7 +118,7 @@ F   1   1.00
       0.114891D+01           1.0000000""",
 }
 
-aug_pcX2 = {
+_aug_pcX2_defs = {
     "C": """S   1   1.00
       0.933941D+04           1.0000000
 S   1   1.00
@@ -256,7 +259,7 @@ F   1   1.00
       0.187320D+00           1.0000000""",
 }
 
-pcX3 = {
+_pcX3_defs = {
     "C": """C     0
 S   1   1.00
       0.871412D+05           1.0000000
@@ -439,3 +442,13 @@ F   1   1.00
 G   1   1.00
       0.160000D+01           1.0000000""",
 }
+
+
+pcX2 = CustomBasisSet(program="qchem", name="pcX-2", definitions=_pcX2_defs)
+register_basis_set(pcX2)
+
+aug_pcX2 = CustomBasisSet(program="qchem", name="aug-pcX-2", definitions=_aug_pcX2_defs)
+register_basis_set(aug_pcX2)
+
+pcX3 = CustomBasisSet(program="qchem", name="pcX-3", definitions=_pcX3_defs)
+register_basis_set(pcX3)

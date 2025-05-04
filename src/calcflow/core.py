@@ -27,7 +27,7 @@ class CalculationInput(ABC):
         unrestricted (bool): Whether to use an unrestricted method (e.g., UB3LYP vs B3LYP). Defaults to False.
         memory_mb (int): Total memory to allocate for the calculation in MB. Defaults to 2000 MB.
         memory_per_core_mb (int): Memory to allocate per core in MB. Defaults to 2000 MB.
-        implicit_solvation_model (Literal["pcm", "smd", "cpcm"] | None): Implicit solvation model to use (e.g., "pcm"). Defaults to None.
+        implicit_solvation_model (Literal["pcm", "smd", "isosvp", "cpcm"] | None): Implicit solvation model to use (e.g., "pcm"). Defaults to None.
         solvent (str | None): Solvent to use for implicit solvation (e.g., "water"). Must be provided if `implicit_solvation_model` is specified. Defaults to None.
     """
 
@@ -42,8 +42,6 @@ class CalculationInput(ABC):
     # --- Optional Common Concepts ---
     memory_mb: int = 2000  # Default memory in MB
     memory_per_core_mb: int = 2000  # Default memory per core in MB
-    implicit_solvation_model: Literal["pcm", "smd", "cpcm"] | None = None
-    solvent: str | None = None
 
     def __post_init__(self) -> None:
         """
@@ -65,10 +63,6 @@ class CalculationInput(ABC):
             raise ValidationError("Spin multiplicity must be a positive integer (e.g., 1 for singlet, 2 for doublet).")
         if not isinstance(self.charge, int):
             raise ValidationError("Charge must be an integer.")
-        if (self.implicit_solvation_model is not None) != (self.solvent is not None):
-            raise ValidationError(
-                "Both `implicit_solvation_model` and `solvent` must be provided together, or neither."
-            )
 
         # Soft Warnings
         if self.memory_mb <= 512:
@@ -108,38 +102,6 @@ class CalculationInput(ABC):
 
     # --- Fluent API methods for common concepts ---
 
-    def set_solvation(
-        self: T_CalcInput, model: Literal["pcm", "smd", "cpcm"] | None, solvent: str | None
-    ) -> T_CalcInput:
-        """
-        Set the implicit solvation model and solvent.
-
-        Both `model` and `solvent` must be provided together, or neither.
-
-        Args:
-            model (Literal["pcm", "smd", "cpcm"] | None): Implicit solvation model to use (e.g., "pcm").
-                If None, solvation is disabled.
-            solvent (str | None): Solvent to use for implicit solvation (e.g., "water").
-                If None, solvation is disabled.
-
-        Returns:
-            T_CalcInput: A new instance of the CalculationInput subclass with the solvation settings updated.
-        Raises:
-            ValidationError: If `model` and `solvent` are not consistently provided (both or neither).
-            ValidationError: If the provided `model` is not one of the allowed models ("pcm", "smd", "cpcm").
-        """
-        if (model is not None) != (solvent is not None):
-            raise ValidationError("Both `model` and `solvent` must be provided together, or neither.")
-        # Basic normalization
-        solvent_lower = solvent.lower() if solvent else None
-        model_lower = model.lower() if model else None
-
-        allowed_models = {"pcm", "smd", "cpcm"}
-        if model_lower is not None and model_lower not in allowed_models:
-            raise ValidationError(f"Solvation model '{model}' not recognized. Allowed: {allowed_models}")
-
-        return replace(self, implicit_solvation_model=model_lower, solvent=solvent_lower)  # type: ignore
-
     def set_memory(self: T_CalcInput, memory_mb: int) -> T_CalcInput:
         """
         Set the total memory for the calculation.
@@ -173,3 +135,16 @@ class CalculationInput(ABC):
         if memory_per_core_mb < 256:
             logger.warning("Memory per core allocation seems low (< 256 MB), please specify in MB.")
         return replace(self, memory_per_core_mb=memory_per_core_mb)
+
+    def set_unrestricted(self: T_CalcInput) -> T_CalcInput:
+        """Set whether the calculation should be unrestricted.
+
+        Args:
+            unrestricted (bool): True to use an unrestricted method, False otherwise.
+
+        Returns:
+            T_CalcInput: A new instance of the CalculationInput subclass with the unrestricted setting updated.
+        """
+        # The __post_init__ method will handle warnings related to spin multiplicity mismatch.
+        logger.debug(f"Setting unrestricted to: {True}")
+        return replace(self, unrestricted=True)
