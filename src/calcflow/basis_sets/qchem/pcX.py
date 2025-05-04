@@ -444,11 +444,11 @@ G   1   1.00
 }
 
 
-pcX2 = CustomBasisSet(name="pcX2", definitions=_pcX2_defs)
+pcX2 = CustomBasisSet(name="pcX-2", definitions=_pcX2_defs)
 register_basis_set(pcX2)
 
-aug_pcX2 = CustomBasisSet(name="aug_pcX2", definitions=_aug_pcX2_defs)
+aug_pcX2 = CustomBasisSet(name="aug-pcX-2", definitions=_aug_pcX2_defs)
 register_basis_set(aug_pcX2)
 
-pcX3 = CustomBasisSet(name="pcX3", definitions=_pcX3_defs)
+pcX3 = CustomBasisSet(name="pcX-3", definitions=_pcX3_defs)
 register_basis_set(pcX3)
