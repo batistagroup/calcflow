@@ -742,16 +742,7 @@ sto-3g
 $end
 """
     # We need to register the basis set for the test to work
-    # Ideally, this would be handled by test fixtures or conftest.py loading entry points
-    # For now, register it directly if not already present.
-    import contextlib
-
-    from calcflow.basis_sets.qchem.pcX import pcX2
-    from calcflow.basis_sets.registry import get_basis_set_object, register_basis_set
-
-    with contextlib.suppress(ValueError):
-        if get_basis_set_object("pcX-2") is None:
-            register_basis_set(pcX2)
+    # importing qchem triggers the registration
 
     actual_output = inp.export_input_file(geom_str)
     assert set(actual_output.split()) == set(expected_output.split())

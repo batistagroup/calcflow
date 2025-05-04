@@ -60,7 +60,7 @@ class ProgramBasisRegistry:
         if self._program_key not in _PROGRAM_REGISTRIES:
             # We could lazily create it here, but requiring prior registration
             # makes intent clearer - registry must be populated first.
-            raise ValueError(
+            raise KeyError(
                 f"No basis sets registered for program '{self._program_key}'. Use register_basis_set() first."
             )
         # Store a direct reference to this program's dictionary
