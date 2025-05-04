@@ -4,7 +4,13 @@ from collections.abc import Sequence
 from calcflow.exceptions import ParsingError
 
 # Import block parsers
-from calcflow.parsers.qchem.blocks import GeometryParser, MetadataParser, RemBlockParser, ScfParser
+from calcflow.parsers.qchem.blocks import (
+    GeometryParser,
+    MetadataParser,
+    MullikenChargesParser,
+    RemBlockParser,
+    ScfParser,
+)
 from calcflow.parsers.qchem.blocks.orbitals import OrbitalParser
 from calcflow.parsers.qchem.typing import (
     CalculationData,
@@ -34,6 +40,7 @@ PARSER_REGISTRY: Sequence[SectionParser] = [
     GeometryParser(),
     ScfParser(),
     OrbitalParser(),
+    MullikenChargesParser(),
     # Add other specific block parsers here later
 ]
 

@@ -1,3 +1,4 @@
+from calcflow.parsers.qchem.blocks.charges import MullikenChargesParser
 from calcflow.parsers.qchem.blocks.geometry import GeometryParser
 from calcflow.parsers.qchem.blocks.metadata import MetadataParser
 from calcflow.parsers.qchem.blocks.rem import RemBlockParser
@@ -8,4 +9,5 @@ __all__ = [
     "ScfParser",
     "MetadataParser",
     "RemBlockParser",
+    "MullikenChargesParser",
 ]
