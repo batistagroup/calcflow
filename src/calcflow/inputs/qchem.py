@@ -265,19 +265,16 @@ class QchemInput(CalculationInput):
         # --- Implicit Solvation --- #
         # Signal solvation implicitly via $solvent or $smx block, not directly in $rem
         if self.implicit_solvation_model:
-            # Set SOLVENT_METHOD only if it's *not* PCM or SMD, which get their own blocks.
-            # ISOSVP and CPCM might still need this REM keyword alongside potential $solvent block customization.
-            if self.implicit_solvation_model not in ["pcm", "smd"]:
-                rem_vars["SOLVENT_METHOD"] = self.implicit_solvation_model
-                logger.warning(
-                    f"Setting SOLVENT_METHOD={self.implicit_solvation_model}. "
-                    f"Ensure any required parameters are set, possibly via a manual $solvent block."
-                )
-            elif not self.solvent:
+            if not self.solvent:
                 # This case should be caught by set_solvation/post_init, but defensive check
                 raise InputGenerationError(
                     f"Solvation model '{self.implicit_solvation_model}' requires a solvent to be specified."
                 )
+            rem_vars["SOLVENT_METHOD"] = self.implicit_solvation_model
+            logger.warning(
+                f"Setting SOLVENT_METHOD={self.implicit_solvation_model}. "
+                f"Ensure any required parameters are set, possibly via a manual $solvent block."
+            )
 
         # --- Formatting --- #
         lines = ["$rem"]
@@ -326,7 +323,8 @@ class QchemInput(CalculationInput):
         solvent_lower = self.solvent.lower()
         lines = [
             "$solvent",
-            f"    SolventName           {solvent_lower}$end",
+            f"    SolventName           {solvent_lower}",
+            "$end",
         ]
         return "\n".join(lines)
 
