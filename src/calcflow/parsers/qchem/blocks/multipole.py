@@ -33,7 +33,7 @@ HEXA_XYYY_YYYY_XXXZ_PAT = re.compile(r"^\s*XYYY\s+(-?\d+\.\d+)\s+YYYY\s+(-?\d+\.
 HEXA_XXYZ_XYYZ_YYYZ_PAT = re.compile(r"^\s*XXYZ\s+(-?\d+\.\d+)\s+XYYZ\s+(-?\d+\.\d+)\s+YYYZ\s+(-?\d+\.\d+)\s*$")
 HEXA_XXZZ_XYZZ_YYZZ_PAT = re.compile(r"^\s*XXZZ\s+(-?\d+\.\d+)\s+XYZZ\s+(-?\d+\.\d+)\s+YYZZ\s+(-?\d+\.\d+)\s*$")
 HEXA_XZZZ_YZZZ_ZZZZ_PAT = re.compile(r"^\s*XZZZ\s+(-?\d+\.\d+)\s+YZZZ\s+(-?\d+\.\d+)\s+ZZZZ\s+(-?\d+\.\d+)\s*$")
-END_PAT = re.compile(r"^-{20,}")  # End of the multipole section
+END_PAT = re.compile(r"^ -{20,}")  # End of the multipole section
 
 
 class MultipoleParser(SectionParser):
@@ -54,6 +54,7 @@ class MultipoleParser(SectionParser):
         quadrupole: QuadrupoleMoments | None = None
         octopole: OctopoleMoments | None = None
         hexadecapole: HexadecapoleMoments | None = None
+        current_line = next(iterator)  # to skip the header line
 
         try:
             while True:

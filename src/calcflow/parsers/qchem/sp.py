@@ -28,7 +28,8 @@ NUCLEAR_REPULSION_PAT = re.compile(r"^ Nuclear Repulsion Energy =\s+(-?\d+\.\d+)
 FINAL_ENERGY_PAT = re.compile(r"^ Total energy =\s+(-?\d+\.\d+)")
 
 # Termination Patterns
-NORMAL_TERM_PAT = re.compile(r"Thank you very much for using Q-Chem\. Have a nice day\.")
+# Make the pattern search for the message anywhere on the line, ignoring surrounding characters
+NORMAL_TERM_PAT = re.compile(r"^ {8}\* {2}Thank you very much for using Q-Chem\. {2}Have a nice day\. {2}\*$")
 # TODO: Identify robust patterns for various Q-Chem error terminations
 ERROR_TERM_PAT = re.compile(r"(ERROR:|error:|aborting|failed)", re.IGNORECASE)
 
@@ -75,18 +76,6 @@ def parse_qchem_sp_output(output: str) -> CalculationData:
                 logger.debug("Reached end of input.")
                 break
 
-            # --- Termination Status --- #
-            # Check termination on every line, regardless of block parsing
-            if NORMAL_TERM_PAT.search(line):
-                results.termination_status = "NORMAL"
-                logger.debug("Found Normal Termination signature.")
-                # We can potentially break or stop parsing blocks once normal termination is found,
-                # but let's allow parsing other trailing blocks for now.
-            elif ERROR_TERM_PAT.search(line) and results.termination_status == "UNKNOWN":
-                results.termination_status = "ERROR"
-                logger.debug(f"Found potential Error Termination signature in line: {line.strip()}")
-                # Don't necessarily stop, might be more info or specific errors later
-
             # --- Handle Block Parsing --- #
             parser_found = False
             for parser in PARSER_REGISTRY:
@@ -94,8 +83,7 @@ def parse_qchem_sp_output(output: str) -> CalculationData:
                     if parser.matches(line, results):
                         block_start_line = current_line_num
                         logger.debug(f"Line {block_start_line}: Matched {type(parser).__name__}")
-                        # MetadataParser is special, doesn't advance iterator beyond current line
-                        # Other parsers consume lines within their parse method.
+                        # Parsers consume lines within their parse method.
                         parser.parse(line_iterator, line, results)
                         parser_found = True
                         break  # Only one parser should handle the start of a block
@@ -106,27 +94,42 @@ def parse_qchem_sp_output(output: str) -> CalculationData:
                     )
                     raise
                 except StopIteration as e:
+                    # This indicates a parser consumed the rest of the file unexpectedly
                     logger.error(
                         f"Parser {type(parser).__name__} unexpectedly consumed end of iterator near line {block_start_line}.",
                         exc_info=True,
                     )
+                    # Raise a specific error, as this usually means parsing is incomplete
                     raise ParsingError(f"File ended unexpectedly during {type(parser).__name__} parsing.") from e
                 except Exception as e:
                     logger.error(
                         f"Unexpected error in {type(parser).__name__} near line {block_start_line}: {e}", exc_info=True
                     )
                     results.parsing_errors.append(f"Error in {type(parser).__name__} near line {block_start_line}: {e}")
+                    # Depending on severity, might raise or just log
                     raise ParsingError(
                         f"Unexpected error in {type(parser).__name__} near line {block_start_line}: {e}"
                     ) from e
 
-            # If a parser handled the line, continue to the next line
+            # If a block parser handled the line, move to the next line
             if parser_found:
                 continue
 
-            # --- Standalone Information (if not part of a block) --- #
+            # --- Handle Standalone Information (if not handled by a block parser) --- #
 
-            # Energy Components (Only check if not handled by a block parser, e.g. ScfParser)
+            # Termination Status (checked only if not part of a block)
+            if NORMAL_TERM_PAT.search(line):
+                results.termination_status = "NORMAL"
+                logger.debug("Found Normal Termination signature.")
+                # Continue parsing, other info might follow
+                continue
+            elif ERROR_TERM_PAT.search(line) and results.termination_status == "UNKNOWN":
+                results.termination_status = "ERROR"
+                logger.debug(f"Found potential Error Termination signature in line: {line.strip()}")
+                # Continue parsing, might find more specific errors
+                continue
+
+            # Energy Components (checked only if not part of a block)
             match_nuc_rep = NUCLEAR_REPULSION_PAT.search(line)
             if match_nuc_rep and results.nuclear_repulsion_eh is None:
                 try:
@@ -139,6 +142,7 @@ def parse_qchem_sp_output(output: str) -> CalculationData:
             match_final_energy = FINAL_ENERGY_PAT.search(line)
             if match_final_energy:
                 try:
+                    # Overwrite if found multiple times, the last one after SCF is desired
                     results.final_energy_eh = float(match_final_energy.group(1))
                     logger.debug(f"Found Potential Final Energy: {results.final_energy_eh}")
                 except (ValueError, IndexError) as e:
@@ -146,20 +150,20 @@ def parse_qchem_sp_output(output: str) -> CalculationData:
                     raise ParsingError("Failed to parse final energy value.") from e
                 continue
 
+            # --- Add other standalone pattern checks here if needed ---
+
     except ParsingError:
+        # Ensure status is ERROR if a specific parsing exception occurred
         results.termination_status = "ERROR"
-        # Removed metadata population from _meta
-        # final_meta_dict = {k: v for k, v in _meta.items() if v is not None}
-        # results.metadata = CalculationMetadata(**final_meta_dict) # type: ignore[arg-type]
+        # Re-raise the original error for clarity
         raise
     except Exception as e:
-        logger.critical(f"Unexpected error in main parsing loop near line ~{current_line_num}: {e}", exc_info=True)
+        logger.critical(
+            f"Unexpected critical error in main parsing loop near line ~{current_line_num}: {e}", exc_info=True
+        )
         results.termination_status = "ERROR"
         results.parsing_errors.append(f"Critical error near line {current_line_num}: {e}")
-        # Removed metadata population from _meta
-        # final_meta_dict = {k: v for k, v in _meta.items() if v is not None}
-        # results.metadata = CalculationMetadata(**final_meta_dict) # type: ignore[arg-type]
-        raise ParsingError(f"An unexpected error occurred during parsing: {e}") from e
+        raise ParsingError(f"An unexpected critical error occurred during parsing: {e}") from e
 
     # --- Final Checks and Refinements --- #
 
@@ -168,8 +172,11 @@ def parse_qchem_sp_output(output: str) -> CalculationData:
         logger.warning("Standard orientation geometry block was not found or parsed.")
         results.parsing_warnings.append("Standard orientation geometry not parsed.")
     if results.input_geometry is None:
-        logger.warning("Input geometry block ($molecule) was not found or parsed.")
+        # This is more critical than standard orientation
+        logger.error("Input geometry block ($molecule) was not found or parsed.")
         results.parsing_warnings.append("Input geometry ($molecule) not parsed.")
+        # Depending on requirements, this could be a ParsingError
+        # raise ParsingError("Input geometry ($molecule) not parsed.")
 
     # Refine termination status if still UNKNOWN
     if results.termination_status == "UNKNOWN":
@@ -181,5 +188,4 @@ def parse_qchem_sp_output(output: str) -> CalculationData:
     )
 
     # Convert mutable data to the final immutable structure
-    # CalculationData.from_mutable handles metadata construction now
     return CalculationData.from_mutable(results)
