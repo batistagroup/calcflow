@@ -1,10 +1,10 @@
-from collections.abc import Sequence
+import re
 from dataclasses import dataclass, replace
 from typing import ClassVar, Literal, TypeVar, cast, get_args
 
 from calcflow.basis_sets import registry as basis_registry
 from calcflow.core import CalculationInput
-from calcflow.exceptions import InputGenerationError, NotSupportedError, ValidationError
+from calcflow.exceptions import ConfigurationError, InputGenerationError, NotSupportedError, ValidationError
 from calcflow.geometry.static import Geometry
 from calcflow.utils import logger
 
@@ -42,8 +42,9 @@ class QchemInput(CalculationInput):
         rpa: Controls whether to use RPA (True TDDFT) instead of CIS/TDA.
         run_mom: Flag to enable MOM calculation. Defaults to False.
         mom_method: Method for MOM calculation. Defaults to "IMOM".
-        mom_alpha_occ: Occupation numbers for alpha electrons in MOM calculation.
-        mom_beta_occ: Occupation numbers for beta electrons in MOM calculation.
+        mom_alpha_occ: Alpha orbital occupation string for MOM (e.g., "1:77 79").
+        mom_beta_occ: Beta orbital occupation string for MOM.
+        mom_transition: Symbolic transition specification (e.g., "HOMO->LUMO").
     """
 
     program: ClassVar[str] = "qchem"
@@ -60,9 +61,10 @@ class QchemInput(CalculationInput):
 
     # --- MOM Specific Attributes ---
     run_mom: bool = False
-    mom_method: QCHEM_ALLOWED_MOM_METHODS = "IMOM"  # Default to IMOM if run_mom is True
-    mom_alpha_occ: Sequence[int] | str | None = None
-    mom_beta_occ: Sequence[int] | str | None = None
+    mom_method: str = "IMOM"  # Default to IMOM if run_mom is True
+    mom_alpha_occ: str | None = None
+    mom_beta_occ: str | None = None
+    mom_transition: str | None = None  # Stores symbolic transition if using that mode
 
     implicit_solvation_model: QCHEM_ALLOWED_SOLVATION_MODELS | None = None
     solvent: str | None = None
@@ -96,23 +98,145 @@ class QchemInput(CalculationInput):
                 f"Solvation model '{self.implicit_solvation_model}' not recognized. Allowed: {get_args(QCHEM_ALLOWED_SOLVATION_MODELS)}"
             )
 
-        # --- MOM Validation ---
-        if self.run_mom:
-            if not self.unrestricted:
-                raise ValidationError("MOM calculations currently require 'unrestricted = True'.")
-            if self.mom_alpha_occ is None:
-                raise ValidationError("If run_mom is True, mom_alpha_occ must be specified.")
-            if self.mom_beta_occ is None:
-                raise ValidationError("If run_mom is True, mom_beta_occ must be specified.")
-            # mom_method has a default, but validate if it was explicitly set to something else
-            if self.mom_method not in get_args(QCHEM_ALLOWED_MOM_METHODS):
-                raise ValidationError(
-                    f"MOM method '{self.mom_method}' not recognized. Allowed: {get_args(QCHEM_ALLOWED_MOM_METHODS)}"
-                )
-        elif self.mom_alpha_occ is not None or self.mom_beta_occ is not None:
-            logger.warning(
-                "mom_alpha_occ or mom_beta_occ are specified, but run_mom is False. These settings will be ignored."
+    def enable_mom(self: T_QchemInput, method: str = "IMOM") -> T_QchemInput:
+        """Enable MOM calculation with specified method.
+
+        Args:
+            method: The MOM method to use. Must be either "IMOM" or "MOM". Defaults to "IMOM".
+
+        Returns:
+            A new QchemInput instance with MOM enabled.
+
+        Raises:
+            ValidationError: If method is not "IMOM" or "MOM".
+        """
+        method_upper = method.upper()
+        if method_upper not in {"IMOM", "MOM"}:
+            raise ValidationError(f"MOM method must be either 'IMOM' or 'MOM', got '{method}'")
+
+        return replace(self, run_mom=True, mom_method=method_upper)
+
+    def set_mom_occupation(self: T_QchemInput, alpha_occ: str, beta_occ: str) -> T_QchemInput:
+        """Set orbital occupation strings for MOM calculation using Q-Chem style ranges.
+
+        Args:
+            alpha_occ: Q-Chem style occupation string for alpha orbitals (e.g., "1:77 79").
+            beta_occ: Q-Chem style occupation string for beta orbitals (e.g., "1:77 78").
+
+        Returns:
+            A new QchemInput instance with the specified occupations.
+
+        Raises:
+            ConfigurationError: If MOM is not enabled (call enable_mom first).
+            ValidationError: If the occupation strings are not in valid Q-Chem format.
+        """
+        if not self.run_mom:
+            raise ConfigurationError("MOM must be enabled first. Call enable_mom() before set_mom_occupation().")
+
+        # Basic validation of the Q-Chem range format
+        for occ, label in [(alpha_occ, "alpha"), (beta_occ, "beta")]:
+            parts = occ.split()
+            for part in parts:
+                if ":" in part:
+                    start, end = part.split(":")
+                    if not (start.isdigit() and end.isdigit()):
+                        raise ValidationError(
+                            f"Invalid {label} occupation range '{part}'. Must be in format 'start:end' with integers."
+                        )
+                elif not part.isdigit():
+                    raise ValidationError(f"Invalid {label} occupation number '{part}'. Must be an integer.")
+
+        return replace(self, mom_alpha_occ=alpha_occ, mom_beta_occ=beta_occ, mom_transition=None)
+
+    def set_mom_transition(self: T_QchemInput, transition: str) -> T_QchemInput:
+        """Set MOM occupations using a symbolic HOMO/LUMO transition.
+
+        For closed-shell singlet ground states only. The transition will be applied
+        to both alpha and beta electrons identically.
+
+        Args:
+            transition: Transition specification (e.g., "HOMO->LUMO", "HOMO-1->LUMO+2").
+                       Only single transitions supported.
+
+        Returns:
+            A new QchemInput instance with the transition stored.
+
+        Raises:
+            ConfigurationError: If MOM is not enabled.
+            ValidationError: If the transition specification is invalid.
+        """
+        if not self.run_mom:
+            raise ConfigurationError("MOM must be enabled first. Call enable_mom() before set_mom_transition().")
+
+        # Parse and validate the transition format
+        if "->" not in transition:
+            raise ValidationError(f"Invalid transition format: '{transition}'. Expected 'SourceOrb->TargetOrb'.")
+
+        source, target = [x.strip().upper() for x in transition.split("->")]
+
+        # Validate HOMO/LUMO format with optional +/- offset
+        pattern = re.compile(r"(HOMO|LUMO)(?:([+-])(\d+))?")
+        source_match = pattern.fullmatch(source)
+        target_match = pattern.fullmatch(target)
+
+        if not source_match:
+            raise ValidationError(f"Invalid source orbital: '{source}'. Must be HOMO/LUMO with optional offset.")
+        if not target_match:
+            raise ValidationError(f"Invalid target orbital: '{target}'. Must be HOMO/LUMO with optional offset.")
+
+        # Validate specific cases we don't allow
+        if source_match.group(1) == "HOMO" and source_match.group(2) == "+":
+            raise ValidationError("Cannot use HOMO+n. HOMO is the highest occupied orbital by definition.")
+        if target_match.group(1) == "LUMO" and target_match.group(2) == "-":
+            raise ValidationError("Cannot use LUMO-n. LUMO is the lowest unoccupied orbital by definition.")
+
+        # Store the validated transition string
+        return replace(self, mom_transition=transition, mom_alpha_occ=None, mom_beta_occ=None)
+
+    def _generate_occupied_block(self, geometry: "Geometry") -> str:
+        """Generates the $occupied block for MOM calculations.
+
+        Args:
+            geometry: The Geometry object for the molecule.
+
+        Returns:
+            String containing the formatted $occupied block.
+
+        Raises:
+            ConfigurationError: If MOM is enabled but occupations are not set.
+            NotSupportedError: If the system is not closed-shell singlet in ground state.
+        """
+        if not self.run_mom:
+            return ""
+
+        if not self.unrestricted:
+            raise ConfigurationError("MOM requires unrestricted=True")
+
+        # For now, we only support closed-shell singlet reference states
+        if self.charge != 0 or self.spin_multiplicity != 1:
+            raise NotSupportedError(
+                "MOM currently only supports closed-shell singlet reference states. "
+                f"Got charge={self.charge}, multiplicity={self.spin_multiplicity}."
             )
+
+        # Calculate total electrons if using symbolic transition
+        if self.mom_transition is not None:
+            total_electrons = geometry.total_nuclear_charge - self.charge
+            alpha_occ, beta_occ = _convert_transition_to_occupations(self.mom_transition, total_electrons)
+        elif self.mom_alpha_occ is None or self.mom_beta_occ is None:
+            raise ConfigurationError("Either mom_transition or both mom_alpha_occ and mom_beta_occ must be set.")
+        else:
+            alpha_occ = self.mom_alpha_occ
+            beta_occ = self.mom_beta_occ
+
+        # Format the block
+        lines = [
+            "$occupied",
+            alpha_occ,
+            beta_occ,
+            "$end",
+        ]
+        return "\n".join(lines)
 
     def set_solvation(self: T_QchemInput, model: str | None, solvent: str | None) -> T_QchemInput:
         """
@@ -229,26 +353,22 @@ class QchemInput(CalculationInput):
         ]
         return "\n".join(lines)
 
-    def _get_rem_block(self) -> str:
-        """Generates the $rem block.
-
-        Returns:
-            String containing the formatted $rem block.
-
-        Raises:
-            ValidationError: If level_of_theory is invalid or unsupported.
-            InputGenerationError: If basis_set type is unsupported.
-        """
+    def _get_rem_block(
+        self,
+        scf_guess: str | None = None,
+        mom_start: bool = False,
+        force_unrestricted: bool = False,
+        skip_optimization: bool = False,
+    ) -> str:
+        """Generates the $rem block with optional MOM-specific settings."""
         rem_vars: dict[str, str | bool | int] = {}
 
         # --- Job Type --- #
-        if self.task == "energy":
+        if skip_optimization and self.task == "geometry" or self.task == "energy":
             rem_vars["JOBTYPE"] = "sp"
         elif self.task == "geometry":
             rem_vars["JOBTYPE"] = "opt"
         else:
-            # Q-Chem supports other job types like freq, tss, etc.
-            # Add handling here if needed in the future.
             raise NotSupportedError(f"Task type '{self.task}' not currently supported for Q-Chem export.")
 
         # --- Level of Theory --- #
@@ -256,59 +376,52 @@ class QchemInput(CalculationInput):
         if method in SUPPORTED_FUNCTIONALS or method == "hf":
             rem_vars["METHOD"] = method
         else:
-            # Q-Chem supports many methods. Add validation/mapping as needed.
             raise ValidationError(f"Unsupported or unrecognized level_of_theory for Q-Chem: '{self.level_of_theory}'")
 
         # --- Basis Set --- #
         if isinstance(self.basis_set, str):
             rem_vars["BASIS"] = self.basis_set
         elif isinstance(self.basis_set, dict):
-            # Use a general basis set keyword when a dictionary is provided
             rem_vars["BASIS"] = "gen"
         else:
             raise InputGenerationError(f"Unsupported basis_set type: {type(self.basis_set)}")
 
         # --- Spin/Symmetry --- #
-        rem_vars["UNRESTRICTED"] = self.unrestricted
-        rem_vars["SYMMETRY"] = False  # Often disabled for robustness
+        rem_vars["UNRESTRICTED"] = force_unrestricted or self.unrestricted
+        rem_vars["SYMMETRY"] = False
         rem_vars["SYM_IGNORE"] = True
+
+        # --- SCF Settings --- #
+        if scf_guess:
+            rem_vars["SCF_GUESS"] = scf_guess
+        if mom_start:
+            rem_vars["MOM_START"] = 1
+            rem_vars["MOM_METHOD"] = self.mom_method
 
         # --- TDDFT --- #
         if self.run_tddft:
-            if self.tddft_nroots is None:  # Should be caught by __post_init__, but defensive check
+            if self.tddft_nroots is None:
                 raise InputGenerationError("tddft_nroots must be set when run_tddft is True.")
             rem_vars["CIS_N_ROOTS"] = self.tddft_nroots
             rem_vars["CIS_SINGLETS"] = self.tddft_singlets
             rem_vars["CIS_TRIPLETS"] = self.tddft_triplets
             rem_vars["STATE_ANALYSIS"] = self.tddft_state_analysis
-            # Q-Chem uses CIS_N_ROOTS > 0 to trigger TDDFT/CIS calculations.
-            # The METHOD keyword determines DFT vs HF-based excitation.
             if self.rpa:
                 rem_vars["RPA"] = True
 
         # --- Implicit Solvation --- #
-        # Signal solvation implicitly via $solvent or $smx block, not directly in $rem
         if self.implicit_solvation_model:
             if not self.solvent:
-                # This case should be caught by set_solvation/post_init, but defensive check
                 raise InputGenerationError(
                     f"Solvation model '{self.implicit_solvation_model}' requires a solvent to be specified."
                 )
             rem_vars["SOLVENT_METHOD"] = self.implicit_solvation_model
-            logger.warning(
-                f"Setting SOLVENT_METHOD={self.implicit_solvation_model}. "
-                f"Ensure any required parameters are set, possibly via a manual $solvent block."
-            )
 
         # --- Formatting --- #
         lines = ["$rem"]
         max_key_len = max(len(k) for k in rem_vars) if rem_vars else 0
         for key, value in rem_vars.items():
-            # Format boolean values as True/False for Q-Chem
-            if isinstance(value, bool):
-                value_str = str(value)
-            else:
-                value_str = str(value)
+            value_str = str(value)
             lines.append(f"    {key:<{max_key_len}}    {value_str}")
         lines.append("$end")
         return "\n".join(lines)
@@ -379,34 +492,124 @@ class QchemInput(CalculationInput):
                 )
 
     def export_input_file(self, geometry: "Geometry") -> str:
-        """Generates the Q-Chem input file content from a Geometry object, validating basis sets.
+        """Generates the Q-Chem input file content.
 
-        Checks if a dictionary basis set covers all elements in the geometry before
-        generating the input file.
+        For MOM calculations, generates a two-job input file with the second job
+        reading orbitals from the first and applying the MOM procedure.
 
         Args:
-            geometry: A Geometry object containing the molecular structure.
+            geometry: The Geometry object containing the molecular structure.
 
         Returns:
             String containing the formatted Q-Chem input file.
 
         Raises:
-            ValidationError: If basis_set is a dictionary and does not contain entries
-                             for all elements present in the geometry.
-            InputGenerationError: If basis_set type is unsupported by the underlying export method.
-            NotSupportedError: If the requested task is not supported by the underlying export method.
+            ValidationError: If basis_set validation fails.
+            ConfigurationError: If MOM settings are invalid.
+            NotSupportedError: If requested features are not supported.
         """
-        # Perform basis set validation if a dictionary is used
         self._pre_export_validation(geometry)
 
-        input_blocks: list[str] = [
+        # Generate first job blocks
+        first_job_blocks = [
             self._get_molecule_block(geometry.get_coordinate_block()),
             self._get_rem_block(),
             self._get_basis_block(),
-            self._get_solvent_block(),  # Add PCM block if needed
-            self._get_smx_block(),  # Add SMD block if needed
+            self._get_solvent_block(),
+            self._get_smx_block(),
         ]
+        first_job = "\n\n".join(block for block in first_job_blocks if block)
 
-        final_input = "\n\n".join(block for block in input_blocks if block)
+        if not self.run_mom:
+            return first_job.strip() + "\n"
 
-        return final_input.strip() + "\n"
+        # For MOM, add second job
+        second_job_blocks = [
+            "$molecule\n    read\n$end",
+            self._get_rem_block(
+                scf_guess="read",
+                mom_start=True,
+                force_unrestricted=True,
+                skip_optimization=True,
+            ),
+            self._get_solvent_block(),  # Keep solvation consistent
+            self._get_smx_block(),
+            self._generate_occupied_block(geometry),
+        ]
+        second_job = "\n\n".join(block for block in second_job_blocks if block)
+
+        return f"{first_job.strip()}\n\n@@@\n\n{second_job.strip()}\n"
+
+
+def _convert_transition_to_occupations(transition: str, n_electrons: int) -> tuple[str, str]:
+    """Converts a symbolic transition to Q-Chem occupation strings.
+
+    Args:
+        n_electrons: Total number of electrons in the system.
+
+    Returns:
+        Tuple of (alpha_occ, beta_occ) strings in Q-Chem format.
+
+    Raises:
+        ConfigurationError: If mom_transition is not set.
+        ValidationError: If the transition format is invalid.
+    """
+    # For closed shell singlet, each spin channel has n_electrons/2 electrons
+    if n_electrons % 2 != 0:
+        raise ValidationError(f"Expected even number of electrons, got {n_electrons}.")
+
+    n_per_spin = n_electrons // 2
+    homo_idx = n_per_spin  # 1-based indexing in Q-Chem
+    lumo_idx = homo_idx + 1
+
+    source, target = [x.strip().upper() for x in transition.split("->")]
+    pattern = re.compile(r"(HOMO|LUMO)(?:([+-])(\d+))?")
+
+    source_match = pattern.fullmatch(source)
+    target_match = pattern.fullmatch(target)
+
+    # These should never be None since we validate in set_mom_transition
+    assert source_match is not None, "Invalid source orbital format"
+    assert target_match is not None, "Invalid target orbital format"
+
+    # Get source orbital index
+    source_base = source_match.group(1)
+    source_op = source_match.group(2)
+    source_offset = int(source_match.group(3)) if source_match.group(3) else 0
+
+    if source_base == "HOMO":
+        source_idx = homo_idx
+        if source_op == "-":
+            source_idx -= source_offset
+    else:  # LUMO
+        source_idx = lumo_idx
+        if source_op == "+":
+            source_idx += source_offset
+
+    # Get target orbital index
+    target_base = target_match.group(1)
+    target_op = target_match.group(2)
+    target_offset = int(target_match.group(3)) if target_match.group(3) else 0
+
+    if target_base == "HOMO":
+        target_idx = homo_idx
+        if target_op == "-":
+            target_idx -= target_offset
+    else:  # LUMO
+        target_idx = lumo_idx
+        if target_op == "+":
+            target_idx += target_offset
+
+    # Generate Q-Chem occupation string
+    # For HOMO->LUMO: if HOMO=78, we want "1:77 79"
+    if source_idx == homo_idx and target_idx == lumo_idx:
+        occ = f"1:{homo_idx - 1} {lumo_idx}"
+    else:
+        # For more complex transitions, we need to build the string carefully
+        occupied = set(range(1, homo_idx + 1))
+        occupied.remove(source_idx)
+        occupied.add(target_idx)
+        # Convert to ranges (TODO: implement range compression for cleaner output)
+        occ = " ".join(str(x) for x in sorted(occupied))
+
+    return occ, occ  # Same occupation for both spins in closed shell case

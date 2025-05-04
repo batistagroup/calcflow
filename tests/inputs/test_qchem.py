@@ -467,7 +467,6 @@ def test_get_smx_block_non_smd(default_qchem_input: QchemInput) -> None:
 
 def test_export_input_file_minimal(h2o_geometry: Geometry, default_qchem_input: QchemInput) -> None:
     """Test exporting a minimal input file (HF/sto-3g energy)."""
-    geom_str = h2o_geometry.get_coordinate_block()
     inp = default_qchem_input
     expected_output = """$molecule
 0 1
@@ -485,14 +484,13 @@ $rem
     SYM_IGNORE      True
 $end
 """
-    actual_output = inp.export_input_file(geom_str)
+    actual_output = inp.export_input_file(h2o_geometry)
     # Compare ignoring potential subtle whitespace differences
     assert set(actual_output.split()) == set(expected_output.split())
 
 
 def test_export_input_file_opt_dft_pcm(h2o_geometry: Geometry, default_qchem_input: QchemInput) -> None:
     """Test exporting an input file for B3LYP/def2-svp Opt with PCM water."""
-    geom_str = h2o_geometry.get_coordinate_block()
     inp = replace(
         default_qchem_input,
         task="geometry",
@@ -521,13 +519,12 @@ $solvent
     SolventName           water
 $end
 """
-    actual_output = inp.export_input_file(geom_str)
+    actual_output = inp.export_input_file(h2o_geometry)
     assert set(actual_output.split()) == set(expected_output.split())
 
 
 def test_export_input_file_tddft_smd(h2o_geometry: Geometry, default_qchem_input: QchemInput) -> None:
     """Test exporting an input file for TDDFT (triplets) with SMD ethanol."""
-    geom_str = h2o_geometry.get_coordinate_block()
     inp = (
         default_qchem_input.set_tddft(nroots=8, singlets=False, triplets=True)
         .set_solvation(model="smd", solvent="ethanol")
@@ -560,13 +557,12 @@ $smx
     solvent    ethanol
 $end
 """
-    actual_output = inp.export_input_file(geom_str)
+    actual_output = inp.export_input_file(h2o_geometry)
     assert set(actual_output.split()) == set(expected_output.split())
 
 
 def test_export_input_file_dict_basis(h2o_geometry: Geometry, default_qchem_input: QchemInput) -> None:
     """Test exporting an input file with a dictionary basis set."""
-    geom_str = h2o_geometry.get_coordinate_block()
     basis_dict = {"O": "6-31g*", "H": "sto-3g"}
     inp = default_qchem_input.set_basis(basis_dict)
 
@@ -595,7 +591,7 @@ sto-3g
 ****
 $end
 """
-    actual_output = inp.export_input_file(geom_str)
+    actual_output = inp.export_input_file(h2o_geometry)
     assert set(actual_output.split()) == set(expected_output.split())
 
 
@@ -619,7 +615,7 @@ $rem
     SYM_IGNORE      True
 $end
 """
-    actual_output = inp.export_input_file_from_geometry(h2o_geometry)
+    actual_output = inp.export_input_file(h2o_geometry)
     assert set(actual_output.split()) == set(expected_output.split())
 
 
@@ -631,7 +627,7 @@ def test_export_input_file_from_geometry_dict_basis_validation(
     inp = default_qchem_input.set_basis(basis_dict_missing_h)
 
     with pytest.raises(ValidationError, match="Custom basis set dictionary is missing definitions for elements"):
-        inp.export_input_file_from_geometry(h2o_geometry)
+        inp.export_input_file(h2o_geometry)
 
 
 def test_export_input_file_from_geometry_dict_basis_valid(
@@ -667,13 +663,12 @@ sto-3g
 ****
 $end
 """
-    actual_output = inp.export_input_file_from_geometry(h2o_geometry)
+    actual_output = inp.export_input_file(h2o_geometry)
     assert set(actual_output.split()) == set(expected_output.split())
 
 
 def test_export_input_file_custom_mixed_basis(h2o_geometry: Geometry, default_qchem_input: QchemInput) -> None:
     """Test exporting an input file with a mixed custom/standard dictionary basis set."""
-    geom_str = h2o_geometry.get_coordinate_block()
     # From src/calcflow/basis_sets/qchem/pcX.py
     pcx2_o_def = """S   1   1.00
       0.168149D+05           1.0000000
@@ -744,5 +739,5 @@ $end
     # We need to register the basis set for the test to work
     # importing qchem triggers the registration
 
-    actual_output = inp.export_input_file(geom_str)
+    actual_output = inp.export_input_file(h2o_geometry)
     assert set(actual_output.split()) == set(expected_output.split())
