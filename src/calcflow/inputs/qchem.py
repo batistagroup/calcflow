@@ -563,6 +563,9 @@ def _convert_transition_to_occupations(transition: str, n_electrons: int) -> tup
     homo_idx = n_per_spin  # 1-based indexing in Q-Chem
     lumo_idx = homo_idx + 1
 
+    # Ground state occupation for beta (closed shell reference)
+    beta_occ = f"1:{homo_idx}"
+
     source, target = [x.strip().upper() for x in transition.split("->")]
     pattern = re.compile(r"(HOMO|LUMO)(?:([+-])(\d+))?")
 
@@ -635,4 +638,7 @@ def _convert_transition_to_occupations(transition: str, n_electrons: int) -> tup
                 parts.append(f"{start}:{end}")
             occ = " ".join(parts)
 
-    return occ, occ  # Same occupation for both spins in closed shell case
+    # Alpha occupation is modified, beta remains ground state
+    alpha_occ = occ
+
+    return alpha_occ, beta_occ

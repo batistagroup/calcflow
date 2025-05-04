@@ -3,32 +3,32 @@ import pytest
 from calcflow.exceptions import ValidationError
 from calcflow.inputs.qchem import _convert_transition_to_occupations
 
-# Generate the expected string for HOMO-5 -> LUMO with 156 electrons (HOMO=78)
+# Generate the expected ALPHA string for HOMO-5 -> LUMO with 156 electrons (HOMO=78)
 # Occupied set becomes {1..72} U {74..78} U {79}
-homo_minus_5_lumo_156_occ = " ".join(map(str, list(range(1, 73)) + list(range(74, 79)) + [79]))
+homo_minus_5_lumo_156_alpha_occ = " ".join(map(str, list(range(1, 73)) + list(range(74, 79)) + [79]))
 
 
 # Define test cases using parametrize
 # Format: (n_electrons, transition, expected_alpha, expected_beta)
 valid_cases = [
     # --- Basic cases (10 electrons: HOMO=5, LUMO=6) ---
-    (10, "HOMO->LUMO", "1:4 6", "1:4 6"),
-    (10, "homo->lumo", "1:4 6", "1:4 6"),  # Test case insensitivity
-    (10, " HOMO -> LUMO ", "1:4 6", "1:4 6"),  # Test whitespace robustness
-    (10, "HOMO-1->LUMO", "1 2 3 5 6", "1 2 3 5 6"),
-    (10, "HOMO->LUMO+1", "1:4 7", "1:4 7"),
-    (10, "HOMO-2->LUMO+2", "1 2 4 5 8", "1 2 4 5 8"),
+    (10, "HOMO->LUMO", "1:4 6", "1:5"),
+    (10, "homo->lumo", "1:4 6", "1:5"),  # Test case insensitivity
+    (10, " HOMO -> LUMO ", "1:4 6", "1:5"),  # Test whitespace robustness
+    (10, "HOMO-1->LUMO", "1 2 3 5 6", "1:5"),
+    (10, "HOMO->LUMO+1", "1:4 7", "1:5"),
+    (10, "HOMO-2->LUMO+2", "1 2 4 5 8", "1:5"),
     # --- More complex cases (156 electrons: HOMO=78, LUMO=79) ---
-    (156, "HOMO->LUMO", "1:77 79", "1:77 79"),
+    (156, "HOMO->LUMO", "1:77 79", "1:78"),
     (
         156,
         "HOMO-5->LUMO",
-        homo_minus_5_lumo_156_occ,
-        homo_minus_5_lumo_156_occ,
+        homo_minus_5_lumo_156_alpha_occ,  # Corrected alpha
+        "1:78",  # Beta is ground state
     ),
-    (156, "HOMO->LUMO+10", "1:77 89", "1:77 89"),
+    (156, "HOMO->LUMO+10", "1:77 89", "1:78"),
     # --- Edge case (2 electrons: HOMO=1, LUMO=2) ---
-    (2, "HOMO->LUMO", "2", "2"),
+    (2, "HOMO->LUMO", "2", "1"),
 ]
 
 
