@@ -17,6 +17,8 @@ T_QchemInput = TypeVar("T_QchemInput", bound="QchemInput")
 SUPPORTED_FUNCTIONALS = {"b3lyp", "pbe0", "m06", "cam-b3lyp", "wb97x", "wb97x-d3" }
 # fmt:on
 
+QCHEM_BASIS_REGISTRY = basis_registry.ProgramBasisRegistry("qchem")
+
 
 @dataclass(frozen=True)
 class QchemInput(CalculationInput):
@@ -298,8 +300,8 @@ class QchemInput(CalculationInput):
                 )
                 continue
             lines.append(f"{element.capitalize()} 0")  # Q-Chem expects element symbol followed by 0
-            if (custom_basis := basis_registry.get_basis_set_object(basis_name)) is not None:
-                lines.append(custom_basis.get_definition_for_element(element))
+            if basis_name in QCHEM_BASIS_REGISTRY:
+                lines.append(QCHEM_BASIS_REGISTRY[basis_name][element])
             else:
                 lines.append(basis_name)
             lines.append("****")  # Separator
