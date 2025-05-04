@@ -1,4 +1,4 @@
-from calcflow.basis_sets.core import CustomBasisSet
+from calcflow.basis_sets.custom_basis import CustomBasisSet
 from calcflow.basis_sets.registry import register_basis_set
 
 _pcX2_defs = {

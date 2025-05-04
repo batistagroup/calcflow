@@ -5,7 +5,7 @@ import pytest
 
 # Directly import the functions/classes and the registry dictionary for manipulation/clearing
 from calcflow.basis_sets import registry
-from calcflow.basis_sets.core import CustomBasisSet
+from calcflow.basis_sets.custom_basis import CustomBasisSet
 from calcflow.exceptions import ValidationError  # Need this for checking basis set validation
 from calcflow.utils import logger
 

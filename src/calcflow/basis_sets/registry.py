@@ -1,6 +1,6 @@
 """Central registry mapping program names and basis set names to CustomBasisSet objects."""
 
-from calcflow.basis_sets.core import CustomBasisSet
+from calcflow.basis_sets.custom_basis import CustomBasisSet
 from calcflow.utils import logger
 
 # Central storage: {program_name_lower: {basis_name_lower: CustomBasisSet}}
