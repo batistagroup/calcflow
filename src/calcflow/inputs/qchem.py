@@ -174,24 +174,36 @@ class QchemInput(CalculationInput):
 
         source, target = [x.strip().upper() for x in transition.split("->")]
 
-        # Validate HOMO/LUMO format with optional +/- offset
+        # Validate HOMO/LUMO format with optional +/- offset OR positive integer
         pattern = re.compile(r"(HOMO|LUMO)(?:([+-])(\d+))?")
-        source_match = pattern.fullmatch(source)
-        target_match = pattern.fullmatch(target)
 
-        if not source_match:
-            raise ValidationError(f"Invalid source orbital: '{source}'. Must be HOMO/LUMO with optional offset.")
-        if not target_match:
-            raise ValidationError(f"Invalid target orbital: '{target}'. Must be HOMO/LUMO with optional offset.")
+        def _is_valid_specifier(spec: str) -> bool:
+            if spec.isdigit() and int(spec) > 0:
+                return True  # Positive integer
+            match = pattern.fullmatch(spec)
+            if not match:
+                return False  # Neither integer nor HOMO/LUMO format
+            # Additional checks for HOMO/LUMO format
+            if match.group(1) == "HOMO" and match.group(2) == "+":
+                raise ValidationError(f"Invalid source orbital: '{spec}'. Cannot use HOMO+n.")
+            if match.group(1) == "LUMO" and match.group(2) == "-":
+                raise ValidationError(f"Invalid target orbital: '{spec}'. Cannot use LUMO-n.")
+            return True
 
-        # Validate specific cases we don't allow
-        if source_match.group(1) == "HOMO" and source_match.group(2) == "+":
-            raise ValidationError("Cannot use HOMO+n. HOMO is the highest occupied orbital by definition.")
-        if target_match.group(1) == "LUMO" and target_match.group(2) == "-":
-            raise ValidationError("Cannot use LUMO-n. LUMO is the lowest unoccupied orbital by definition.")
+        if not _is_valid_specifier(source):
+            raise ValidationError(
+                f"Invalid source orbital: '{source}'. Must be HOMO[-n], LUMO[+n], or positive integer."
+            )
+        if not _is_valid_specifier(target):
+            raise ValidationError(
+                f"Invalid target orbital: '{target}'. Must be HOMO[-n], LUMO[+n], or positive integer."
+            )
 
-        # Store the validated transition string
-        return replace(self, mom_transition=transition, mom_alpha_occ=None, mom_beta_occ=None)
+        # Store the validated transition string (keep original case for potential user preference)
+        original_source, original_target = [x.strip() for x in transition.split("->")]
+        validated_transition = f"{original_source}->{original_target}"
+
+        return replace(self, mom_transition=validated_transition, mom_alpha_occ=None, mom_beta_occ=None)
 
     def _generate_occupied_block(self, geometry: "Geometry") -> str:
         """Generates the $occupied block for MOM calculations.
@@ -566,43 +578,63 @@ def _convert_transition_to_occupations(transition: str, n_electrons: int) -> tup
     # Ground state occupation for beta (closed shell reference)
     beta_occ = str(homo_idx) if homo_idx == 1 else f"1:{homo_idx}"
 
-    source, target = [x.strip().upper() for x in transition.split("->")]
+    # --- Parse Source and Target --- #
+    source_str, target_str = [x.strip().upper() for x in transition.split("->")]
     pattern = re.compile(r"(HOMO|LUMO)(?:([+-])(\d+))?")
 
-    source_match = pattern.fullmatch(source)
-    target_match = pattern.fullmatch(target)
+    def _parse_specifier(spec: str, name: str) -> int:
+        if spec.isdigit():
+            idx = int(spec)
+            if idx <= 0:
+                raise ValidationError(f"{name.capitalize()} orbital index must be positive, got '{spec}'")
+            return idx
 
-    # These should never be None since we validate in set_mom_transition
-    assert source_match is not None, "Invalid source orbital format"
-    assert target_match is not None, "Invalid target orbital format"
+        match = pattern.fullmatch(spec)
+        # This should ideally not happen due to validation in set_mom_transition, but check defensively
+        if not match:
+            raise ValidationError(f"Invalid {name} orbital format: '{spec}'")
 
+        base = match.group(1)
+        op = match.group(2)
+        offset = int(match.group(3)) if match.group(3) else 0
+
+        if base == "HOMO":
+            idx = homo_idx
+            if op == "-":
+                idx -= offset
+            # op == "+" case already caught by set_mom_transition validation
+        else:  # LUMO
+            idx = lumo_idx
+            if op == "+":
+                idx += offset
+            # op == "-" case already caught by set_mom_transition validation
+
+        if idx <= 0:
+            raise ValidationError(f"Calculated {name} orbital index must be positive, got {idx} from '{spec}'")
+        return idx
+
+    source_idx = _parse_specifier(source_str, "source")
+    target_idx = _parse_specifier(target_str, "target")
+
+    # --- Validate Transition Physics --- #
+    if source_idx > homo_idx:
+        raise ValidationError(
+            f"Source orbital must be occupied (index <= HOMO={homo_idx}), got {source_idx} from '{source_str}'"
+        )
+    if target_idx <= homo_idx:
+        raise ValidationError(
+            f"Target orbital must be unoccupied (index > HOMO={homo_idx}), got {target_idx} from '{target_str}'"
+        )
+
+    # --- Generate Occupation Strings --- #
+    # (Existing logic for generating occ string based on source_idx/target_idx follows)
     # Get source orbital index
-    source_base = source_match.group(1)
-    source_op = source_match.group(2)
-    source_offset = int(source_match.group(3)) if source_match.group(3) else 0
-
-    if source_base == "HOMO":
-        source_idx = homo_idx
-        if source_op == "-":
-            source_idx -= source_offset
-    else:  # LUMO
-        source_idx = lumo_idx
-        if source_op == "+":
-            source_idx += source_offset
+    # source_base = source_match.group(1)
+    # ... (old logic removed) ...
 
     # Get target orbital index
-    target_base = target_match.group(1)
-    target_op = target_match.group(2)
-    target_offset = int(target_match.group(3)) if target_match.group(3) else 0
-
-    if target_base == "HOMO":
-        target_idx = homo_idx
-        if target_op == "-":
-            target_idx -= target_offset
-    else:  # LUMO
-        target_idx = lumo_idx
-        if target_op == "+":
-            target_idx += target_offset
+    # target_base = target_match.group(1)
+    # ... (old logic removed) ...
 
     # Generate Q-Chem occupation string for alpha
     if source_idx == homo_idx and target_idx == lumo_idx:

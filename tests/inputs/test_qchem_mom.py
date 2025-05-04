@@ -30,6 +30,25 @@ valid_cases = [
     (156, "HOMO->LUMO+10", "1:77 89", "1:78"),
     # --- Edge case (2 electrons: HOMO=1, LUMO=2) ---
     (2, "HOMO->LUMO", "2", "1"),
+    # --- Explicit Integer Indices (156 electrons: HOMO=78, LUMO=79) ---
+    (156, "6->LUMO", "1:5 7:79", "1:78"),  # Int source, LUMO target
+    (156, "6 -> 79", "1:5 7:79", "1:78"),  # Int source, Int target (with space)
+    (156, "HOMO->79", "1:77 79", "1:78"),  # HOMO source, Int target
+    (156, "78->LUMO", "1:77 79", "1:78"),  # Int(HOMO) source, LUMO target
+]
+
+# Define test cases for invalid transitions
+invalid_transition_cases = [
+    # --- Invalid Targets (Target <= HOMO) ---
+    (156, "HOMO->HOMO", "Target orbital must be unoccupied"),
+    (156, "HOMO->78", "Target orbital must be unoccupied"),
+    (156, "6->HOMO", "Target orbital must be unoccupied"),
+    (156, "6->77", "Target orbital must be unoccupied"),
+    # --- Invalid Sources (Source > HOMO) ---
+    (156, "LUMO->LUMO+1", "Source orbital must be occupied"),
+    (156, "LUMO->80", "Source orbital must be occupied"),
+    (156, "79->LUMO+1", "Source orbital must be occupied"),
+    (156, "80->81", "Source orbital must be occupied"),
 ]
 
 
@@ -47,6 +66,15 @@ def test_convert_transition_to_occupations_odd_electrons() -> None:
     """Tests that an odd number of electrons raises a ValidationError."""
     with pytest.raises(ValidationError, match="Expected even number of electrons"):
         _convert_transition_to_occupations("HOMO->LUMO", 11)
+
+
+@pytest.mark.parametrize("n_electrons, transition, error_match", invalid_transition_cases)
+def test_convert_transition_to_occupations_invalid_transitions(
+    n_electrons: int, transition: str, error_match: str
+) -> None:
+    """Tests that invalid transitions (e.g., to occupied, from virtual) raise ValidationError."""
+    with pytest.raises(ValidationError, match=error_match):
+        _convert_transition_to_occupations(transition, n_electrons)
 
 
 # Note: Validation errors for malformed transitions like "HOMO+1->LUMO" or
