@@ -8,6 +8,7 @@ from calcflow.parsers.qchem.blocks import (
     GeometryParser,
     MetadataParser,
     MullikenChargesParser,
+    MultipoleParser,
     RemBlockParser,
     ScfParser,
 )
@@ -41,6 +42,7 @@ PARSER_REGISTRY: Sequence[SectionParser] = [
     ScfParser(),
     OrbitalParser(),
     MullikenChargesParser(),
+    MultipoleParser(),
     # Add other specific block parsers here later
 ]
 
@@ -72,6 +74,18 @@ def parse_qchem_sp_output(output: str) -> CalculationData:
             except StopIteration:
                 logger.debug("Reached end of input.")
                 break
+
+            # --- Termination Status --- #
+            # Check termination on every line, regardless of block parsing
+            if NORMAL_TERM_PAT.search(line):
+                results.termination_status = "NORMAL"
+                logger.debug("Found Normal Termination signature.")
+                # We can potentially break or stop parsing blocks once normal termination is found,
+                # but let's allow parsing other trailing blocks for now.
+            elif ERROR_TERM_PAT.search(line) and results.termination_status == "UNKNOWN":
+                results.termination_status = "ERROR"
+                logger.debug(f"Found potential Error Termination signature in line: {line.strip()}")
+                # Don't necessarily stop, might be more info or specific errors later
 
             # --- Handle Block Parsing --- #
             parser_found = False
@@ -106,14 +120,13 @@ def parse_qchem_sp_output(output: str) -> CalculationData:
                         f"Unexpected error in {type(parser).__name__} near line {block_start_line}: {e}"
                     ) from e
 
+            # If a parser handled the line, continue to the next line
             if parser_found:
-                # If a parser matched and executed, it potentially consumed lines.
-                # The main loop's next() call will get the line *after* the block.
-                # MetadataParser is an exception as it only parses the current line,
-                # but the main loop still calls next() after it runs.
                 continue
 
-            # Energy Components
+            # --- Standalone Information (if not part of a block) --- #
+
+            # Energy Components (Only check if not handled by a block parser, e.g. ScfParser)
             match_nuc_rep = NUCLEAR_REPULSION_PAT.search(line)
             if match_nuc_rep and results.nuclear_repulsion_eh is None:
                 try:
@@ -132,15 +145,6 @@ def parse_qchem_sp_output(output: str) -> CalculationData:
                     logger.error(f"Could not parse final energy value from line: {line.strip()}", exc_info=True)
                     raise ParsingError("Failed to parse final energy value.") from e
                 continue
-
-            # --- Termination Status --- #
-            if NORMAL_TERM_PAT.search(line):
-                results.termination_status = "NORMAL"
-                logger.debug("Found Normal Termination signature.")
-
-            elif ERROR_TERM_PAT.search(line) and results.termination_status == "UNKNOWN":
-                results.termination_status = "ERROR"
-                logger.debug(f"Found potential Error Termination signature in line: {line.strip()}")
 
     except ParsingError:
         results.termination_status = "ERROR"

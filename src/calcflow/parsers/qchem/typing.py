@@ -115,11 +115,102 @@ class DipoleMomentData:
 
 
 @dataclass(frozen=True)
+class QuadrupoleMoments:
+    """Stores Cartesian quadrupole moments (Debye-Ang)."""
+
+    xx: float
+    xy: float
+    yy: float
+    xz: float
+    yz: float
+    zz: float
+
+
+@dataclass(frozen=True)
+class OctopoleMoments:
+    """Stores Cartesian octopole moments (Debye-Ang^2)."""
+
+    xxx: float
+    xxy: float
+    xyy: float
+    yyy: float
+    xxz: float
+    xyz: float
+    yyz: float
+    xzz: float
+    yzz: float
+    zzz: float
+
+
+@dataclass(frozen=True)
+class HexadecapoleMoments:
+    """Stores Cartesian hexadecapole moments (Debye-Ang^3)."""
+
+    xxxx: float
+    xxxy: float
+    xxyy: float
+    xyyy: float
+    yyyy: float
+    xxxz: float
+    xxyz: float
+    xyyz: float
+    yyyz: float
+    xxzz: float
+    xyzz: float
+    yyzz: float
+    xzzz: float
+    yzzz: float
+    zzzz: float
+
+
+@dataclass(frozen=True)
+class MultipoleData:
+    """Container for various electric multipole moments."""
+
+    charge_esu: float | None = None
+    dipole: DipoleMomentData | None = None
+    quadrupole: QuadrupoleMoments | None = None
+    octopole: OctopoleMoments | None = None
+    hexadecapole: HexadecapoleMoments | None = None
+
+    def __repr__(self) -> str:
+        parts = []
+        if self.charge_esu is not None:
+            parts.append(f"charge_esu={self.charge_esu:.4f}")
+        if self.dipole:
+            # Use the dipole's own repr for detail
+            parts.append(f"dipole={self.dipole!r}")
+        if self.quadrupole:
+            parts.append("quadrupole=QuadrupoleMoments(...)")
+        if self.octopole:
+            parts.append("octopole=OctopoleMoments(...)")
+        if self.hexadecapole:
+            parts.append("hexadecapole=HexadecapoleMoments(...)")
+        return f"{type(self).__name__}({', '.join(parts)})"
+
+    def __str__(self) -> str:
+        """Return a concise representation showing presence of moments."""
+        summary = []
+        if self.charge_esu is not None:
+            summary.append(f"Charge={self.charge_esu:.4f}")
+        if self.dipole:
+            summary.append(f"Dipole={self.dipole.total_debye:.4f} D")
+        has_higher_moments = self.quadrupole or self.octopole or self.hexadecapole
+        if has_higher_moments:
+            summary.append("Higher moments present")
+        if not summary:
+            return f"{type(self).__name__}(Empty)"
+        return f"{type(self).__name__}({', '.join(summary)})"
+
+
+@dataclass(frozen=True)
 class DispersionCorrectionData:
     """Holds details of the empirical dispersion correction (e.g., D3)."""
 
     method: str  # e.g., "D3(0)", "D3(BJ)"
     energy_eh: float
+    basis_set: str | None = None
+    # Add other relevant metadata: SCF type, symmetry, etc.
 
 
 @dataclass(frozen=True)
@@ -158,7 +249,7 @@ class _MutableCalculationData:
     scf: ScfData | None = None
     orbitals: OrbitalData | None = None
     atomic_charges: list[AtomicCharges] = field(default_factory=list)
-    dipole_moment: DipoleMomentData | None = None
+    multipole: MultipoleData | None = None
     dispersion_correction: DispersionCorrectionData | None = None
     # Track errors/warnings during parsing
     parsing_errors: list[str] = field(default_factory=list)
@@ -169,7 +260,7 @@ class _MutableCalculationData:
     parsed_scf: bool = False
     parsed_orbitals: bool = False
     parsed_mulliken_charges: bool = False  # Be specific if needed
-    parsed_dipole: bool = False
+    parsed_multipole: bool = False
     parsed_dispersion: bool = False
     # Add flags for metadata components
     parsed_meta_version: bool = False
@@ -194,7 +285,7 @@ class CalculationData:
     scf: ScfData | None = None
     orbitals: OrbitalData | None = None
     atomic_charges: list[AtomicCharges] = field(default_factory=list)
-    dipole_moment: DipoleMomentData | None = None
+    multipole: MultipoleData | None = None
     dispersion_correction: DispersionCorrectionData | None = None
 
     @classmethod
@@ -219,7 +310,7 @@ class CalculationData:
             scf=mutable_data.scf,
             orbitals=mutable_data.orbitals,
             atomic_charges=list(mutable_data.atomic_charges),  # Ensure list copy
-            dipole_moment=mutable_data.dipole_moment,
+            multipole=mutable_data.multipole,
             dispersion_correction=mutable_data.dispersion_correction,
         )
 
