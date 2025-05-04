@@ -213,6 +213,76 @@ class TestOrcaInputInitValidation:
         )
         assert "Using def2-svp for geometry optimization might yield less accurate results" in caplog.text
 
+    # --- Solvation Validation Tests ---
+    def test_init_requires_solvent_with_model(self) -> None:
+        """Test validation fails if implicit_solvation_model is set without solvent during init."""
+        with pytest.raises(
+            ValidationError, match="Both `implicit_solvation_model` and `solvent` must be provided together"
+        ):
+            OrcaInput(
+                task="energy",
+                level_of_theory="hf",
+                basis_set="sto-3g",
+                charge=0,
+                spin_multiplicity=1,
+                implicit_solvation_model="cpcm",  # Model provided
+                solvent=None,  # Solvent missing
+            )
+
+    def test_init_requires_model_with_solvent(self) -> None:
+        """Test validation fails if solvent is set without implicit_solvation_model during init."""
+        with pytest.raises(
+            ValidationError, match="Both `implicit_solvation_model` and `solvent` must be provided together"
+        ):
+            OrcaInput(
+                task="energy",
+                level_of_theory="hf",
+                basis_set="sto-3g",
+                charge=0,
+                spin_multiplicity=1,
+                implicit_solvation_model=None,  # Model missing
+                solvent="water",  # Solvent provided
+            )
+
+    def test_init_valid_orca_solvation_models(self) -> None:
+        """Test successful initialization with supported ORCA solvation models."""
+        instance_cpcm = OrcaInput(
+            task="energy",
+            level_of_theory="hf",
+            basis_set="sto-3g",
+            charge=0,
+            spin_multiplicity=1,
+            implicit_solvation_model="cpcm",
+            solvent="water",
+        )
+        assert instance_cpcm.implicit_solvation_model == "cpcm"
+        assert instance_cpcm.solvent == "water"
+
+        instance_smd = OrcaInput(
+            task="energy",
+            level_of_theory="hf",
+            basis_set="sto-3g",
+            charge=0,
+            spin_multiplicity=1,
+            implicit_solvation_model="smd",
+            solvent="toluene",
+        )
+        assert instance_smd.implicit_solvation_model == "smd"
+        assert instance_smd.solvent == "toluene"
+
+    def test_init_unsupported_base_solvation_model_error(self) -> None:
+        """Test NotSupportedError for a model valid in base class but not ORCA."""
+        with pytest.raises(NotSupportedError, match="ORCA's primary solvation models are CPCM and SMD"):
+            OrcaInput(
+                task="energy",
+                level_of_theory="hf",
+                basis_set="sto-3g",
+                charge=0,
+                spin_multiplicity=1,
+                implicit_solvation_model="pcm",  # type: ignore[arg-type] # Intentionally invalid for ORCA validation
+                solvent="water",
+            )
+
 
 class TestOrcaInputMethods:
     """Tests for methods modifying OrcaInput instances."""
@@ -277,6 +347,58 @@ class TestOrcaInputMethods:
 
     # Note: Validation for conflicting nroots/iroot happens in __post_init__,
     # not directly in set_tddft, so we don't test that specific error here.
+
+
+class TestOrcaInputSetSolvation:
+    """Tests for the set_solvation method."""
+
+    @pytest.mark.parametrize(
+        "model, solvent, expected_model, expected_solvent",
+        [
+            ("cpcm", "water", "cpcm", "water"),
+            ("smd", "ethanol", "smd", "ethanol"),
+            ("CPCM", "WATER", "cpcm", "water"),  # Test case normalization
+            ("SmD", "eThAnOl", "smd", "ethanol"),  # Test case normalization
+        ],
+    )
+    def test_set_solvation_add_valid(
+        self, minimal_orca_input: OrcaInput, model: str, solvent: str, expected_model: str, expected_solvent: str
+    ) -> None:
+        """Test adding valid ORCA solvation models using set_solvation."""
+        solvated = minimal_orca_input.set_solvation(model, solvent)
+        assert solvated.implicit_solvation_model == expected_model
+        assert solvated.solvent == expected_solvent
+        assert solvated is not minimal_orca_input  # Ensure immutability
+
+        # Ensure other fields are unchanged
+        assert solvated.task == minimal_orca_input.task
+        assert solvated.level_of_theory == minimal_orca_input.level_of_theory
+
+    def test_set_solvation_remove(self, minimal_orca_input: OrcaInput) -> None:
+        """Test removing solvation using set_solvation(None, None)."""
+        # First add solvation, then remove it
+        solvated = minimal_orca_input.set_solvation("cpcm", "water")
+        dry = solvated.set_solvation(None, None)
+
+        assert dry.implicit_solvation_model is None
+        assert dry.solvent is None
+        assert dry is not solvated  # Ensure immutability
+        # Ensure other fields are unchanged
+        assert dry.task == minimal_orca_input.task
+
+    def test_set_solvation_requires_both_or_neither(self, minimal_orca_input: OrcaInput) -> None:
+        """Test set_solvation raises ValidationError if model/solvent are inconsistent."""
+        with pytest.raises(ValidationError, match="Both `model` and `solvent` must be provided together"):
+            minimal_orca_input.set_solvation("cpcm", None)
+        with pytest.raises(ValidationError, match="Both `model` and `solvent` must be provided together"):
+            minimal_orca_input.set_solvation(None, "water")
+
+    def test_set_solvation_unsupported_model_error(self, minimal_orca_input: OrcaInput) -> None:
+        """Test set_solvation raises ValidationError for unsupported ORCA models."""
+        with pytest.raises(ValidationError, match="Solvation model 'pcm' not recognized for ORCA"):
+            minimal_orca_input.set_solvation("pcm", "water")  # type: ignore[arg-type] # Testing invalid model string
+        with pytest.raises(ValidationError, match="Solvation model 'invalid' not recognized for ORCA"):
+            minimal_orca_input.set_solvation("invalid", "water")  # type: ignore[arg-type] # Testing invalid model string
 
 
 class TestOrcaInputExport:
