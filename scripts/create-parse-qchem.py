@@ -12,7 +12,7 @@ calcs_path = data_path / "calculations"
 xyz_1h2o = Geometry.from_xyz_file(data_path / "geometries" / "1h2o.xyz")
 
 
-clc_folder = calcs_path / "examples" / "h2o" / "sp"
+clc_folder = calcs_path / "examples" / "qchem" / "h2o"
 clc_folder.mkdir(parents=True, exist_ok=True)
 
 # fmt:off
