@@ -138,8 +138,9 @@ class QchemInput(CalculationInput):
             parts = occ.split()
             for part in parts:
                 if ":" in part:
-                    start, end = part.split(":")
-                    if not (start.isdigit() and end.isdigit()):
+                    split_parts = part.split(":")
+                    # Ensure exactly two parts for a range and both are digits
+                    if len(split_parts) != 2 or not (split_parts[0].isdigit() and split_parts[1].isdigit()):
                         raise ValidationError(
                             f"Invalid {label} occupation range '{part}'. Must be in format 'start:end' with integers."
                         )

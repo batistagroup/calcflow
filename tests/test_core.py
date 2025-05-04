@@ -9,6 +9,10 @@ from _pytest.logging import LogCaptureFixture
 
 from calcflow.core import CalculationInput
 from calcflow.exceptions import ValidationError
+from calcflow.geometry.static import Geometry
+from calcflow.utils import logger
+
+logger.setLevel(logging.INFO)
 
 # fmt:off
 
@@ -16,14 +20,14 @@ from calcflow.exceptions import ValidationError
 class SimpleInput(CalculationInput):
     """Simple concrete implementation of CalculationInput for testing."""
 
-    def export_input_file(self, geom: str) -> str:
+    def export_input_file(self, geom: Geometry) -> str:
         """Basic implementation that just returns the geometry."""
         # Basic check to ensure required fields are used
         assert self.charge is not None
         assert self.spin_multiplicity is not None
         assert self.level_of_theory
         assert self.basis_set
-        return f"# Simple input file for testing\ncharge: {self.charge}\nspin: {self.spin_multiplicity}\nmethod: {self.level_of_theory}\nbasis: {self.basis_set}\ngeom:\n{geom}"
+        return f"# Simple input file for testing\ncharge: {self.charge}\nspin: {self.spin_multiplicity}\nmethod: {self.level_of_theory}\nbasis: {self.basis_set}\ngeom:\n{geom.get_coordinate_block()}"
 
 @pytest.fixture
 def base_input() -> SimpleInput:
@@ -121,7 +125,7 @@ def test_post_init_warnings(caplog: LogCaptureFixture) -> None:
 
 def test_export_input_file(base_input: SimpleInput) -> None:
     """Test the basic export_input_file implementation."""
-    geom_str = "H 0 0 0\nO 0 0 1"
+    geom = Geometry(num_atoms=2, comment="", atoms=[("O", (0, 0, 0)), ("H", (0, 0, 1))])
     expected_output = (
         "# Simple input file for testing\n"
         "charge: 0\n"
@@ -129,9 +133,9 @@ def test_export_input_file(base_input: SimpleInput) -> None:
         "method: B3LYP\n"
         "basis: 6-31G*\n"
         "geom:\n"
-        "H 0 0 0\n"
-        "O 0 0 1"
+        "O        0.00000000      0.00000000      0.00000000\n"
+        "H        0.00000000      0.00000000      1.00000000"
     )
-    assert base_input.export_input_file(geom_str) == expected_output
+    assert base_input.export_input_file(geom) == expected_output
 
 # fmt:on
