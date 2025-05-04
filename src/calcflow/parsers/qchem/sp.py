@@ -2,6 +2,9 @@ import re
 from collections.abc import Sequence
 
 from calcflow.exceptions import ParsingError
+
+# Import block parsers
+from calcflow.parsers.qchem.blocks import GeometryParser, ScfParser
 from calcflow.parsers.qchem.typing import (
     CalculationData,
     CalculationMetadata,
@@ -36,8 +39,10 @@ ERROR_TERM_PAT = re.compile(r"(ERROR:|error:|aborting|failed)", re.IGNORECASE)
 # This list will hold instances of SectionParser implementations (e.g., GeometryParser, ScfParser)
 # Order might matter if sections can be nested or ambiguous.
 PARSER_REGISTRY: Sequence[SectionParser] = [
-    # Add specific block parsers here later
-    # e.g., GeometryParser(), ScfParser(), OrbitalsParser(), ChargesParser(), DipoleParser(), DispersionParser()
+    GeometryParser(),
+    ScfParser(),
+    # Add other specific block parsers here later
+    # e.g., ScfParser(), OrbitalsParser(), ChargesParser(), DipoleParser(), DispersionParser()
 ]
 
 
@@ -83,37 +88,73 @@ def parse_qchem_sp_output(output: str) -> CalculationData:
 
             # --- Handle Block Parsing --- #
             parser_found = False
-            # TODO: Implement block parser logic
-            # for parser in PARSER_REGISTRY:
-            #     try:
-            #         if parser.matches(line, results):
-            #             parser.parse(line_iterator, line, results)
-            #             parser_found = True
-            #             # Reset context flags if necessary after block parsing
-            #             in_rem_block = False
-            #             break # Only one parser should handle the start of a block
-            #     except ParsingError as e:
-            #         logger.error(f"Parser {type(parser).__name__} failed critically: {e}", exc_info=True)
-            #         raise # Re-raise critical errors
-            #     except Exception as e:
-            #         logger.error(f"Unexpected error in {type(parser).__name__}: {e}", exc_info=True)
-            #         results.parsing_errors.append(f"Error in {type(parser).__name__} near line {current_line_num}: {e}")
-            #         # Decide whether to continue or raise
+            # Check registered block parsers first
+            for parser in PARSER_REGISTRY:
+                try:
+                    # Pass iterator copy if parser might need to backtrack? No, consume design.
+                    if parser.matches(line, results):
+                        # Store current line number before parsing block for better error reporting
+                        block_start_line = current_line_num
+                        logger.debug(f"Line {block_start_line}: Matched {type(parser).__name__}")
+                        parser.parse(line_iterator, line, results)
+                        parser_found = True
+                        # Reset context flags if necessary after block parsing
+                        in_rem_block = False  # Geometry blocks aren't inside $rem
+                        break  # Only one parser should handle the start of a block
+                except ParsingError as e:
+                    logger.error(
+                        f"Parser {type(parser).__name__} failed critically near line {block_start_line}: {e}",
+                        exc_info=True,
+                    )
+                    raise  # Re-raise critical errors
+                except StopIteration as e:
+                    logger.error(
+                        f"Parser {type(parser).__name__} unexpectedly consumed end of iterator near line {block_start_line}.",
+                        exc_info=True,
+                    )
+                    raise ParsingError(f"File ended unexpectedly during {type(parser).__name__} parsing.") from e
+                except Exception as e:
+                    # Catch unexpected errors within a parser's logic
+                    logger.error(
+                        f"Unexpected error in {type(parser).__name__} near line {block_start_line}: {e}", exc_info=True
+                    )
+                    results.parsing_errors.append(f"Error in {type(parser).__name__} near line {block_start_line}: {e}")
+                    # Decide whether to continue or raise. For now, raise a ParsingError.
+                    raise ParsingError(
+                        f"Unexpected error in {type(parser).__name__} near line {block_start_line}: {e}"
+                    ) from e
 
             if parser_found:
-                continue  # Move to the next line after block parsing consumed lines
+                # The parser.parse() method consumes lines from the iterator,
+                # so we continue to the *next* line read by the main loop.
+                # We need to update current_line_num based on how many lines parse consumed.
+                # This is tricky without the parser returning the count.
+                # For now, assume parse consumes until the end of its block and continue.
+                # A more robust approach might involve the parser returning the last line number.
+                # Or, pass the line_iterator wrapper that tracks line number.
+                # Let's rely on logging for now.
+                continue
 
             # --- Handle Context Flags --- #
+            # Check context flags *after* checking block parsers
             if "$rem" in line:
-                in_rem_block = True
-                continue
-            elif "$end" in line and in_rem_block:
-                in_rem_block = False
-                continue
+                # Could be start or part of a comment within $rem
+                if not in_rem_block:  # Only trigger on the actual start
+                    logger.debug(f"Entering $rem block at line {current_line_num}")
+                    in_rem_block = True
+                continue  # Skip further processing of the $rem line itself
+            elif "$end" in line:
+                # Could be end of $rem, $molecule, etc.
+                if in_rem_block:
+                    logger.debug(f"Exiting $rem block at line {current_line_num}")
+                    in_rem_block = False
+                # Let geometry parser handle $end for $molecule
+                continue  # Skip further processing of the $end line
 
             # --- Handle Line-Specific Information --- #
+            # Only process lines if not handled by a block parser
 
-            # Metadata
+            # Metadata (ensure these aren't matched within other blocks by accident)
             match_version = QCHEM_VERSION_PAT.search(line)
             if match_version and _meta["qchem_version"] is None:
                 _meta["qchem_version"] = match_version.group(1)
@@ -145,6 +186,8 @@ def parse_qchem_sp_output(output: str) -> CalculationData:
                     _meta["basis_set"] = match_basis.group(1)
                     logger.debug(f"Found Basis Set: {_meta['basis_set']}")
                     continue
+                # Skip other lines within $rem block if not matching specific info
+                continue
 
             # Energy Components
             match_nuc_rep = NUCLEAR_REPULSION_PAT.search(line)
@@ -181,29 +224,32 @@ def parse_qchem_sp_output(output: str) -> CalculationData:
     except ParsingError:
         results.termination_status = "ERROR"  # Mark as error if parsing fails critically
         # Populate metadata before raising
-        results.metadata = CalculationMetadata(**_meta)  # type: ignore[arg-type]
+        final_meta_dict = {k: v for k, v in _meta.items() if v is not None}
+        results.metadata = CalculationMetadata(**final_meta_dict)  # type: ignore[arg-type]
         raise
     except Exception as e:
         logger.critical(f"Unexpected error in main parsing loop near line ~{current_line_num}: {e}", exc_info=True)
         results.termination_status = "ERROR"
         results.parsing_errors.append(f"Critical error near line {current_line_num}: {e}")
         # Populate metadata before raising
-        results.metadata = CalculationMetadata(**_meta)  # type: ignore[arg-type]
+        final_meta_dict = {k: v for k, v in _meta.items() if v is not None}
+        results.metadata = CalculationMetadata(**final_meta_dict)  # type: ignore[arg-type]
         raise ParsingError(f"An unexpected error occurred during parsing: {e}") from e
 
     # --- Final Checks and Refinements --- #
 
     # Create the final immutable metadata object before final checks
-    # Filter out None values before passing to the dataclass constructor
     final_meta_dict = {k: v for k, v in _meta.items() if v is not None}
     results.metadata = CalculationMetadata(**final_meta_dict)  # type: ignore[arg-type]
 
-    # Example Check: Ensure geometry was parsed (will be handled by GeometryParser later)
-    # if results.standard_orientation_geometry is None:
-    #     logger.error("Standard orientation geometry block was not found or parsed.")
-    #     # Decide if this is critical for SP - maybe allow missing for now?
-    #     # raise ParsingError("Standard orientation geometry block was not found.")
-    #     results.parsing_warnings.append("Standard orientation geometry not parsed.")
+    # Example Check: Ensure standard orientation geometry was parsed
+    if results.standard_orientation_geometry is None:
+        logger.warning("Standard orientation geometry block was not found or parsed.")
+        # For SP, this might be acceptable, just a warning. For OPT, it would be critical.
+        results.parsing_warnings.append("Standard orientation geometry not parsed.")
+    if results.input_geometry is None:
+        logger.warning("Input geometry block ($molecule) was not found or parsed.")
+        results.parsing_warnings.append("Input geometry ($molecule) not parsed.")
 
     # Refine termination status if still UNKNOWN
     if results.termination_status == "UNKNOWN":
