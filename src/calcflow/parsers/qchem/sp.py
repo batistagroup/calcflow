@@ -5,6 +5,7 @@ from calcflow.exceptions import ParsingError
 
 # Import block parsers
 from calcflow.parsers.qchem.blocks import GeometryParser, MetadataParser, RemBlockParser, ScfParser
+from calcflow.parsers.qchem.blocks.orbitals import OrbitalParser
 from calcflow.parsers.qchem.typing import (
     CalculationData,
     LineIterator,
@@ -14,16 +15,6 @@ from calcflow.parsers.qchem.typing import (
 from calcflow.utils import logger
 
 # --- Regex Patterns (Compile patterns for efficiency) ---
-
-# Metadata Patterns
-# QCHEM_VERSION_PAT = re.compile(r"^ Q-Chem (\d+\.\d+(\.\d+)?), Q-Chem, Inc")
-# HOST_PAT = re.compile(r"^ Host: (\S+)")
-# RUN_DATE_PAT = re.compile(r"^ Q-Chem begins on (.*)")
-
-# Input Section Patterns (from $rem block)
-# METHOD_PAT = re.compile(r"^METHOD\s+(\S+)", re.IGNORECASE)
-# BASIS_PAT = re.compile(r"^BASIS\s+(\S+)", re.IGNORECASE)
-
 # Energy/Structure Patterns
 NUCLEAR_REPULSION_PAT = re.compile(r"^ Nuclear Repulsion Energy =\s+(-?\d+\.\d+)")
 # Use 'Total energy =' after SCF as the final SP energy
@@ -42,6 +33,7 @@ PARSER_REGISTRY: Sequence[SectionParser] = [
     RemBlockParser(),
     GeometryParser(),
     ScfParser(),
+    OrbitalParser(),
     # Add other specific block parsers here later
 ]
 
@@ -114,16 +106,6 @@ def parse_qchem_sp_output(output: str) -> CalculationData:
                 # but the main loop still calls next() after it runs.
                 continue
 
-            # --- Handle Line-Specific Information (if not handled by a block parser) ---
-
-            # Metadata checks removed (handled by MetadataParser)
-            # match_version = QCHEM_VERSION_PAT.search(line)
-            # if match_version and _meta["qchem_version"] is None:
-            #     _meta["qchem_version"] = match_version.group(1)
-            #     logger.debug(f"Found Q-Chem Version: {_meta['qchem_version']}")
-            #     continue
-            # ... (host, date checks removed) ...
-
             # Energy Components
             match_nuc_rep = NUCLEAR_REPULSION_PAT.search(line)
             if match_nuc_rep and results.nuclear_repulsion_eh is None:
@@ -169,10 +151,6 @@ def parse_qchem_sp_output(output: str) -> CalculationData:
         raise ParsingError(f"An unexpected error occurred during parsing: {e}") from e
 
     # --- Final Checks and Refinements --- #
-
-    # Removed metadata population from _meta
-    # final_meta_dict = {k: v for k, v in _meta.items() if v is not None}
-    # results.metadata = CalculationMetadata(**final_meta_dict) # type: ignore[arg-type]
 
     # Example Check: Ensure standard orientation geometry was parsed
     if results.standard_orientation_geometry is None:

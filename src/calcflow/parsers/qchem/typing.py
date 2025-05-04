@@ -146,6 +146,8 @@ class _MutableCalculationData:
     qchem_version: str | None = None
     host: str | None = None
     run_date: str | None = None
+    # Add rem block data
+    rem: dict[str, str | bool | int | float] = field(default_factory=dict)  # Added rem field
     calculation_method: str | None = None
     basis_set: str | None = None
 
