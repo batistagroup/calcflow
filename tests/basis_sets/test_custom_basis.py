@@ -1,6 +1,6 @@
 import pytest
 
-from calcflow.basis_sets.core import CustomBasisSet
+from calcflow.basis_sets.custom_basis import CustomBasisSet
 from calcflow.exceptions import ValidationError
 
 # Define valid sample definitions for reuse

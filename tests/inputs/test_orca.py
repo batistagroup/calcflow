@@ -4,6 +4,7 @@ from dataclasses import replace
 import pytest
 
 from calcflow.exceptions import NotSupportedError, ValidationError
+from calcflow.geometry.static import Geometry
 from calcflow.inputs.orca import OrcaInput
 from calcflow.utils import logger
 
@@ -11,15 +12,18 @@ logger.setLevel(logging.INFO)
 
 
 @pytest.fixture
-def default_geom() -> str:
-    """Provides a default geometry string."""
-    return """O 0.0 0.0 0.0
-H 0.0 0.0 1.0
-H 0.0 1.0 0.0"""
+def default_geom() -> Geometry:
+    """Provides a default geometry object."""
+    atoms = [
+        ("O", (0.0, 0.0, 0.0)),
+        ("H", (0.0, 0.0, 1.0)),
+        ("H", (0.0, 1.0, 0.0)),
+    ]
+    return Geometry(num_atoms=3, comment="Default water geometry", atoms=atoms)
 
 
 @pytest.fixture
-def minimal_orca_input(default_geom: str) -> OrcaInput:
+def minimal_orca_input(default_geom: Geometry) -> OrcaInput:
     """Provides a minimal valid OrcaInput instance."""
     return OrcaInput(
         task="energy",
@@ -421,7 +425,7 @@ class TestOrcaInputExport:
             f"Keyword mismatch: Expected {expected_keywords_set}, Got {actual_keywords_set}"
         )
 
-    def test_export_minimal_energy(self, minimal_orca_input: OrcaInput, default_geom: str) -> None:
+    def test_export_minimal_energy(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
         """Test export for a minimal single-point energy calculation."""
         output = minimal_orca_input.export_input_file(default_geom)
         actual_lines = [line.strip() for line in output.strip().split("\n") if line.strip()]
@@ -444,7 +448,7 @@ class TestOrcaInputExport:
             "%maxcore 2000",  # Correct default memory
             "* xyz 0 1",
             # Add individual lines from the geometry
-            *default_geom.strip().split("\n"),
+            *default_geom.get_coordinate_block().strip().split("\n"),
             "*",
         ]
         # Filter out the keyword line from actual_lines for this check
@@ -465,7 +469,7 @@ class TestOrcaInputExport:
         # Check the final '*' exists after the geometry
         assert output.strip().endswith("*")
 
-    def test_export_geometry_optimization(self, minimal_orca_input: OrcaInput, default_geom: str) -> None:
+    def test_export_geometry_optimization(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
         """Test export for a geometry optimization."""
         geom_opt_input = replace(minimal_orca_input, task="geometry")
         output = geom_opt_input.export_input_file(default_geom)
@@ -487,7 +491,7 @@ class TestOrcaInputExport:
         # --- Geometry Block Check ---
         assert "* xyz 0 1" in output
         # Ensure all lines of the geometry are present in the output
-        geom_lines = default_geom.strip().split("\n")
+        geom_lines = default_geom.get_coordinate_block().strip().split("\n")
         assert all(line in output for line in geom_lines)
         # Check the final '*' exists after the geometry
         assert output.strip().endswith("*")
@@ -513,7 +517,7 @@ class TestOrcaInputExport:
     def test_export_level_of_theory_variants(
         self,
         minimal_orca_input: OrcaInput,
-        default_geom: str,
+        default_geom: Geometry,
         level_of_theory: str,
         unrestricted: bool,
         expected_keywords_str: str,
@@ -541,7 +545,7 @@ class TestOrcaInputExport:
     def test_export_level_of_theory_warnings(
         self,
         minimal_orca_input: OrcaInput,
-        default_geom: str,
+        default_geom: Geometry,
         level_of_theory: str,
         unrestricted: bool,
         warning_msg: str,
@@ -569,7 +573,7 @@ class TestOrcaInputExport:
     def test_export_invalid_level_of_theory(
         self,
         minimal_orca_input: OrcaInput,
-        default_geom: str,
+        default_geom: Geometry,
         level_of_theory: str,
         unrestricted: bool,
         error_match: str,
@@ -586,7 +590,7 @@ class TestOrcaInputExport:
     def test_export_ccsd_unrestricted_error(
         self,
         minimal_orca_input: OrcaInput,
-        default_geom: str,
+        default_geom: Geometry,
     ) -> None:
         """Test error for CCSD with unrestricted=True."""
         test_input = replace(
@@ -597,28 +601,28 @@ class TestOrcaInputExport:
         with pytest.raises(ValidationError, match="Requested method CCSD but unrestricted was set to True."):
             test_input.export_input_file(default_geom)
 
-    def test_export_with_ri(self, minimal_orca_input: OrcaInput, default_geom: str) -> None:
+    def test_export_with_ri(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
         """Test export with RI approximation enabled."""
         ri_input = minimal_orca_input.enable_ri(approx="RIJCOSX", aux_basis="def2/J")
         output = ri_input.export_input_file(default_geom)
         expected_keywords_set = {"!", "RHF", "sto-3g", "SP", "RIJCOSX", "def2/J"}
         self._assert_keywords_match(output, expected_keywords_set)
 
-    def test_export_with_procs_and_mem(self, minimal_orca_input: OrcaInput, default_geom: str) -> None:
+    def test_export_with_procs_and_mem(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
         """Test export with multiple processors and custom memory."""
         mem_proc_input = replace(minimal_orca_input, n_cores=8, memory_per_core_mb=2000)
         output = mem_proc_input.export_input_file(default_geom)
         assert "%pal nprocs 8 end" in output
         assert "%maxcore 2000" in output
 
-    def test_export_with_cpcm_solvation(self, minimal_orca_input: OrcaInput, default_geom: str) -> None:
+    def test_export_with_cpcm_solvation(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
         """Test export with CPCM implicit solvation."""
         cpcm_input = replace(minimal_orca_input, implicit_solvation_model="cpcm", solvent="water")
         output = cpcm_input.export_input_file(default_geom)
         assert 'CPCM("water")' in output
         assert "%cpcm" not in output  # No separate block for CPCM keyword
 
-    def test_export_with_smd_solvation(self, minimal_orca_input: OrcaInput, default_geom: str) -> None:
+    def test_export_with_smd_solvation(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
         """Test export with SMD implicit solvation (requires %cpcm block)."""
         smd_input = replace(minimal_orca_input, implicit_solvation_model="smd", solvent="toluene")
         output = smd_input.export_input_file(default_geom)
@@ -630,7 +634,7 @@ class TestOrcaInputExport:
 end"""
         assert expected_block in output
 
-    def test_export_smd_missing_solvent_error(self, minimal_orca_input: OrcaInput, default_geom: str) -> None:
+    def test_export_smd_missing_solvent_error(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
         """Test export fails if SMD is used without specifying a solvent."""
         # Error should be raised during initialization via replace due to base class validation
         with pytest.raises(
@@ -638,7 +642,7 @@ end"""
         ):
             replace(minimal_orca_input, implicit_solvation_model="smd", solvent=None)
 
-    def test_export_with_tddft_nroots(self, minimal_orca_input: OrcaInput, default_geom: str) -> None:
+    def test_export_with_tddft_nroots(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
         """Test export with TDDFT enabled using nroots."""
         tddft_input = minimal_orca_input.set_tddft(nroots=5, triplets=True, method="TDDFT")
         # We need to re-validate after replace/set_tddft for the export checks
@@ -651,7 +655,7 @@ end"""
 end"""
         assert expected_block in output
 
-    def test_export_with_tddft_iroot(self, minimal_orca_input: OrcaInput, default_geom: str) -> None:
+    def test_export_with_tddft_iroot(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
         """Test export with TDDFT enabled using iroot."""
         tddft_input = minimal_orca_input.set_tddft(iroot=2, triplets=False, method="TDA")
         # Re-validate after replace/set_tddft
@@ -665,7 +669,7 @@ end"""
 end"""
         assert expected_block in output
 
-    def test_export_with_print_mos(self, minimal_orca_input: OrcaInput, default_geom: str) -> None:
+    def test_export_with_print_mos(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
         """Test export with MO printing enabled."""
         print_mo_input = minimal_orca_input.enable_print_mos()
         # Re-validate after replace/enable_print_mos
@@ -680,7 +684,7 @@ end"""
         # Explicitly check the return value of the private method
         assert print_mo_input_validated._get_output_block() == expected_block  # Line 338
 
-    def test_export_full_example(self, default_geom: str) -> None:
+    def test_export_full_example(self, default_geom: Geometry) -> None:
         """Test export with multiple features enabled simultaneously."""
         full_input = OrcaInput(
             task="geometry",
@@ -718,11 +722,11 @@ end"""
         assert "%output" in output
         assert "Print[ P_MOs ] 1" in output
         # Check geometry section
-        assert "* xyz 1 2" in output
-        assert default_geom.strip() in output
+        assert f"* xyz {full_input.charge} {full_input.spin_multiplicity}" in output
+        assert default_geom.get_coordinate_block().strip() in output
         assert output.strip().endswith("*")
 
-    def test_export_dict_basis_error(self, minimal_orca_input: OrcaInput, default_geom: str) -> None:
+    def test_export_dict_basis_error(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
         """Test export raises error for dictionary basis sets."""
         with pytest.raises(
             NotSupportedError,
@@ -737,7 +741,9 @@ end"""
             )
             dict_basis_input.export_input_file(default_geom)
 
-    def test_export_tddft_validation_error_in_block(self, minimal_orca_input: OrcaInput, default_geom: str) -> None:
+    def test_export_tddft_validation_error_in_block(
+        self, minimal_orca_input: OrcaInput, default_geom: Geometry
+    ) -> None:
         """Test ValidationError in _get_tddft_block if inconsistent state is forced."""
         # Create an inconsistent state *after* __post_init__ validation
         with pytest.raises(

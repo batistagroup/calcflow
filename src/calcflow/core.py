@@ -3,6 +3,7 @@ from dataclasses import dataclass, replace
 from typing import Literal, TypeVar
 
 from calcflow.exceptions import ValidationError
+from calcflow.geometry.static import Geometry
 from calcflow.utils import logger
 
 # Generic TypeVar for fluent methods in subclasses
@@ -86,7 +87,7 @@ class CalculationInput(ABC):
         # and ideally call super().__post_init__()
 
     @abstractmethod
-    def export_input_file(self, geom: str) -> str:
+    def export_input_file(self, geometry: "Geometry") -> str:
         """
         Abstract method to export the input file content as a string.
 

@@ -3,6 +3,7 @@ from typing import ClassVar, Literal, TypeVar, cast, get_args
 
 from calcflow.core import CalculationInput
 from calcflow.exceptions import InputGenerationError, NotSupportedError, ValidationError
+from calcflow.geometry.static import Geometry
 from calcflow.utils import logger
 
 T_OrcaInput = TypeVar("T_OrcaInput", bound="OrcaInput")
@@ -410,7 +411,7 @@ class OrcaInput(CalculationInput):
 
         return "\n".join(lines)
 
-    def export_input_file(self, geom: str) -> str:
+    def export_input_file(self, geometry: "Geometry") -> str:
         """Generates the ORCA input file content.
 
         Args:
@@ -432,7 +433,7 @@ class OrcaInput(CalculationInput):
             self._get_tddft_block(),
             self._get_output_block(),
             f"* {self.geom_mode} {self.charge} {self.spin_multiplicity}",
-            geom.strip(),
+            geometry.get_coordinate_block(),
             "*",
         ]
 
