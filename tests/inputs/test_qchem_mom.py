@@ -5,7 +5,8 @@ from calcflow.inputs.qchem import _convert_transition_to_occupations
 
 # Generate the expected ALPHA string for HOMO-5 -> LUMO with 156 electrons (HOMO=78)
 # Occupied set becomes {1..72} U {74..78} U {79}
-homo_minus_5_lumo_156_alpha_occ = " ".join(map(str, list(range(1, 73)) + list(range(74, 79)) + [79]))
+# Compressed: 1:72 74:78 79
+homo_minus_5_lumo_156_alpha_occ = "1:72 74:79"
 
 
 # Define test cases using parametrize
@@ -15,9 +16,9 @@ valid_cases = [
     (10, "HOMO->LUMO", "1:4 6", "1:5"),
     (10, "homo->lumo", "1:4 6", "1:5"),  # Test case insensitivity
     (10, " HOMO -> LUMO ", "1:4 6", "1:5"),  # Test whitespace robustness
-    (10, "HOMO-1->LUMO", "1 2 3 5 6", "1:5"),
+    (10, "HOMO-1->LUMO", "1:3 5:6", "1:5"),  # Updated expected alpha
     (10, "HOMO->LUMO+1", "1:4 7", "1:5"),
-    (10, "HOMO-2->LUMO+2", "1 2 4 5 8", "1:5"),
+    (10, "HOMO-2->LUMO+2", "1:2 4:5 8", "1:5"),  # Updated expected alpha
     # --- More complex cases (156 electrons: HOMO=78, LUMO=79) ---
     (156, "HOMO->LUMO", "1:77 79", "1:78"),
     (

@@ -564,7 +564,7 @@ def _convert_transition_to_occupations(transition: str, n_electrons: int) -> tup
     lumo_idx = homo_idx + 1
 
     # Ground state occupation for beta (closed shell reference)
-    beta_occ = f"1:{homo_idx}"
+    beta_occ = str(homo_idx) if homo_idx == 1 else f"1:{homo_idx}"
 
     source, target = [x.strip().upper() for x in transition.split("->")]
     pattern = re.compile(r"(HOMO|LUMO)(?:([+-])(\d+))?")
@@ -604,10 +604,12 @@ def _convert_transition_to_occupations(transition: str, n_electrons: int) -> tup
         if target_op == "+":
             target_idx += target_offset
 
-    # Generate Q-Chem occupation string
-    # For HOMO->LUMO: if HOMO=78, we want "1:77 79"
+    # Generate Q-Chem occupation string for alpha
     if source_idx == homo_idx and target_idx == lumo_idx:
-        occ = f"1:{homo_idx - 1} {lumo_idx}"
+        if homo_idx == 1:
+            occ = str(lumo_idx)  # Special case for 1-electron per spin (HOMO=1)
+        else:
+            occ = f"1:{homo_idx - 1} {lumo_idx}"
     else:
         # For more complex transitions, we need to build the string carefully
         occupied = set(range(1, homo_idx + 1))
