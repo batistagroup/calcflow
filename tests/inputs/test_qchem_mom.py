@@ -49,6 +49,11 @@ invalid_transition_cases = [
     (156, "LUMO->80", "Source orbital must be occupied"),
     (156, "79->LUMO+1", "Source orbital must be occupied"),
     (156, "80->81", "Source orbital must be occupied"),
+    # --- Non-positive indices ---
+    (10, "HOMO-5 -> LUMO", "Calculated source orbital index must be positive, got 0"),  # HOMO=5, HOMO-5=0
+    (10, "5 -> 0", "Target orbital index must be positive, got '0'"),
+    (10, "0 -> 6", "Source orbital index must be positive, got '0'"),
+    # Negative indices are caught by set_mom_transition format check
 ]
 
 
