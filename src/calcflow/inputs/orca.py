@@ -1,5 +1,5 @@
 from dataclasses import dataclass, replace
-from typing import ClassVar, Literal, TypeVar
+from typing import ClassVar, Literal, TypeVar, get_args
 
 from calcflow.core import CalculationInput
 from calcflow.exceptions import InputGenerationError, NotSupportedError, ValidationError
@@ -10,6 +10,9 @@ T_OrcaInput = TypeVar("T_OrcaInput", bound="OrcaInput")
 # fmt:off
 SUPPORTED_FUNCTIONALS = {"b3lyp", "pbe0", "m06", "cam-b3lyp", "wb97x", "wb97x-d3" }
 # fmt:on
+
+# Define allowed models specifically for ORCA
+ORCA_ALLOWED_SOLVATION_MODELS = Literal["smd", "cpcm"]
 
 
 @dataclass(frozen=True)
@@ -52,6 +55,9 @@ class OrcaInput(CalculationInput):
     tddft_triplets: bool = False
     tddft_method: Literal["TDDFT", "TDA"] = "TDDFT"
 
+    implicit_solvation_model: ORCA_ALLOWED_SOLVATION_MODELS | None = None
+    solvent: str | None = None
+
     output_verbosity: Literal["Normal", "Verbose", "Mini"] = "Normal"
     print_mos: bool = False
 
@@ -80,9 +86,12 @@ class OrcaInput(CalculationInput):
                 "Dictionary basis sets are not yet fully implemented in export_input_file for ORCA."
             )
 
-        if self.implicit_solvation_model and self.implicit_solvation_model.lower() not in ["cpcm", "smd"]:
+        if self.implicit_solvation_model and self.implicit_solvation_model not in get_args(
+            ORCA_ALLOWED_SOLVATION_MODELS
+        ):
             raise NotSupportedError(
-                f"ORCA's primary solvation models are CPCM and SMD. Model '{self.implicit_solvation_model}' might require specific setup."
+                f"ORCA's primary solvation models are CPCM and SMD. Model '{self.implicit_solvation_model}' is not directly supported."
+                f"Allowed: {get_args(ORCA_ALLOWED_SOLVATION_MODELS)}"
             )
 
         if self.n_cores < 1:
@@ -108,6 +117,44 @@ class OrcaInput(CalculationInput):
                 raise ValidationError("tddft_nroots must be a positive integer.")
             if self.tddft_iroot is not None and self.tddft_iroot < 1:
                 raise ValidationError("tddft_iroot must be a positive integer.")
+
+        if (self.implicit_solvation_model is not None) != (self.solvent is not None):
+            raise ValidationError(
+                "Both `implicit_solvation_model` and `solvent` must be provided together, or neither."
+            )
+
+    def set_solvation(
+        self: T_OrcaInput, model: ORCA_ALLOWED_SOLVATION_MODELS | None, solvent: str | None
+    ) -> T_OrcaInput:
+        """
+        Set the implicit solvation model and solvent.
+
+        Both `model` and `solvent` must be provided together, or neither.
+
+        Args:
+            model (ORCA_ALLOWED_SOLVATION_MODELS | None): Implicit solvation model to use (e.g., "smd").
+                If None, solvation is disabled.
+            solvent (str | None): Solvent to use for implicit solvation (e.g., "water").
+                If None, solvation is disabled.
+
+        Returns:
+            T_OrcaInput: A new instance of the OrcaInput subclass with the solvation settings updated.
+        Raises:
+            ValidationError: If `model` and `solvent` are not consistently provided (both or neither).
+            ValidationError: If the provided `model` is not one of the allowed models ("pcm", "smd", "isosvp", "cpcm").
+        """
+        if (model is not None) != (solvent is not None):
+            raise ValidationError("Both `model` and `solvent` must be provided together, or neither.")
+        solvent_lower = solvent.lower() if solvent else None
+        model_lower = model.lower() if model else None
+
+        # Validate against ORCA allowed models
+        if model_lower is not None and model_lower not in get_args(ORCA_ALLOWED_SOLVATION_MODELS):
+            raise ValidationError(
+                f"Solvation model '{model}' not recognized for ORCA. Allowed: {get_args(ORCA_ALLOWED_SOLVATION_MODELS)}"
+            )
+
+        return replace(self, implicit_solvation_model=model_lower, solvent=solvent_lower)  # type: ignore
 
     def enable_ri(self: T_OrcaInput, approx: str, aux_basis: str) -> T_OrcaInput:
         """Enable RI approximation with a given auxiliary basis set.

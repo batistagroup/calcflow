@@ -1,11 +1,15 @@
 from dataclasses import dataclass, replace
-from typing import ClassVar, TypeVar
+from typing import ClassVar, Literal, TypeVar, get_args
 
 from calcflow.basis_sets import registry as basis_registry
 from calcflow.core import CalculationInput
 from calcflow.exceptions import InputGenerationError, NotSupportedError, ValidationError
 from calcflow.geometry.static import Geometry
 from calcflow.utils import logger
+
+# Define allowed models specifically for Q-Chem
+QCHEM_ALLOWED_SOLVATION_MODELS = Literal["pcm", "smd", "isosvp", "cpcm"]
+
 
 T_QchemInput = TypeVar("T_QchemInput", bound="QchemInput")
 
@@ -45,6 +49,9 @@ class QchemInput(CalculationInput):
     tddft_state_analysis: bool = True
     rpa: bool = False  # Controls whether to use RPA (True TDDFT) instead of CIS/TDA
 
+    implicit_solvation_model: QCHEM_ALLOWED_SOLVATION_MODELS | None = None
+    solvent: str | None = None
+
     def __post_init__(self) -> None:
         """Performs Q-Chem-specific validation after initialization."""
         super().__post_init__()
@@ -66,11 +73,55 @@ class QchemInput(CalculationInput):
                     "If run_tddft is True, at least one of tddft_singlets or tddft_triplets must be True."
                 )
 
-        if self.implicit_solvation_model and self.implicit_solvation_model.lower() not in ["pcm", "smd", "isosvp"]:
-            raise NotSupportedError(
-                f"Only PCM, SMD, and ISOSVP implicit solvation models are directly supported for Q-Chem. "
-                f"Model '{self.implicit_solvation_model}' might require specific setup in a $solvent block."
+        # Use the Q-Chem specific literal for validation
+        if self.implicit_solvation_model and self.implicit_solvation_model not in get_args(
+            QCHEM_ALLOWED_SOLVATION_MODELS
+        ):
+            # This check might become redundant if type checkers enforce the Literal, but good defensive programming.
+            raise ValidationError(
+                f"Solvation model '{self.implicit_solvation_model}' not recognized. Allowed: {get_args(QCHEM_ALLOWED_SOLVATION_MODELS)}"
+            )  # pragma: no cover
+
+        # Update specific model support messages if needed
+        if self.implicit_solvation_model in ["isosvp", "cpcm"]:
+            logger.warning(
+                f"Model '{self.implicit_solvation_model}' selected. This might require manual setup in a $solvent block "
+                f"if non-default parameters are needed."
             )
+
+    def set_solvation(
+        self: T_QchemInput, model: QCHEM_ALLOWED_SOLVATION_MODELS | None, solvent: str | None
+    ) -> T_QchemInput:
+        """
+        Set the implicit solvation model and solvent.
+
+        Both `model` and `solvent` must be provided together, or neither.
+
+        Args:
+            model (QCHEM_ALLOWED_SOLVATION_MODELS | None): Implicit solvation model to use (e.g., "pcm").
+                If None, solvation is disabled.
+            solvent (str | None): Solvent to use for implicit solvation (e.g., "water").
+                If None, solvation is disabled.
+
+        Returns:
+            T_QchemInput: A new instance of the QchemInput subclass with the solvation settings updated.
+        Raises:
+            ValidationError: If `model` and `solvent` are not consistently provided (both or neither).
+            ValidationError: If the provided `model` is not one of the allowed models ("pcm", "smd", "isosvp", "cpcm").
+        """
+        if (model is not None) != (solvent is not None):
+            raise ValidationError("Both `model` and `solvent` must be provided together, or neither.")
+        # Basic normalization
+        solvent_lower = solvent.lower() if solvent else None
+        model_lower = model.lower() if model else None
+
+        # Validate against the Q-Chem specific Literal
+        if model_lower is not None and model_lower not in get_args(QCHEM_ALLOWED_SOLVATION_MODELS):
+            raise ValidationError(
+                f"Solvation model '{model}' not recognized. Allowed: {get_args(QCHEM_ALLOWED_SOLVATION_MODELS)}"
+            )
+
+        return replace(self, implicit_solvation_model=model_lower, solvent=solvent_lower)  # type: ignore
 
     def set_tddft(
         self: T_QchemInput,
@@ -212,20 +263,21 @@ class QchemInput(CalculationInput):
                 rem_vars["RPA"] = True
 
         # --- Implicit Solvation --- #
+        # Signal solvation implicitly via $solvent or $smx block, not directly in $rem
         if self.implicit_solvation_model:
-            model = self.implicit_solvation_model.lower()
-            rem_vars["SOLVENT_METHOD"] = model
-            if self.solvent:
-                # Q-Chem often infers parameters from solvent name for PCM/SMD
-                # More complex setups might need a full $solvent block
-                # This basic implementation assumes direct mapping is sufficient.
+            # Set SOLVENT_METHOD only if it's *not* PCM or SMD, which get their own blocks.
+            # ISOSVP and CPCM might still need this REM keyword alongside potential $solvent block customization.
+            if self.implicit_solvation_model not in ["pcm", "smd"]:
+                rem_vars["SOLVENT_METHOD"] = self.implicit_solvation_model
                 logger.warning(
-                    f"Setting SOLVENT_METHOD={model}. "
-                    f"Q-Chem's handling of solvent '{self.solvent}' requires verification. "
-                    f"A manual $solvent block might be needed for non-standard parameters."
+                    f"Setting SOLVENT_METHOD={self.implicit_solvation_model}. "
+                    f"Ensure any required parameters are set, possibly via a manual $solvent block."
                 )
-            else:
-                logger.warning(f"Implicit solvation model '{model}' requested without specifying a solvent.")
+            elif not self.solvent:
+                # This case should be caught by set_solvation/post_init, but defensive check
+                raise InputGenerationError(
+                    f"Solvation model '{self.implicit_solvation_model}' requires a solvent to be specified."
+                )
 
         # --- Formatting --- #
         lines = ["$rem"]
@@ -266,6 +318,33 @@ class QchemInput(CalculationInput):
         lines.append("$end")
         return "\n".join(lines)
 
+    def _get_solvent_block(self) -> str:
+        """Generates the $solvent block for PCM calculations."""
+        if self.implicit_solvation_model != "pcm" or not self.solvent:
+            return ""
+
+        solvent_lower = self.solvent.lower()
+        lines = [
+            "$solvent",
+            f"    SolventName           {solvent_lower}$end",
+        ]
+        return "\n".join(lines)
+
+    def _get_smx_block(self) -> str:
+        """Generates the $smx block for SMD calculations."""
+        if self.implicit_solvation_model != "smd" or not self.solvent:
+            return ""
+
+        # Q-Chem expects solvent names directly in $smx block. Case sensitivity might matter.
+        # We pass the user-provided name, assuming they know the correct Q-Chem identifier.
+        lines = [
+            "$smx",
+            f"    solvent    {self.solvent}",
+            "$end",
+        ]
+        logger.debug(f"Generating $smx block for solvent: {self.solvent}")
+        return "\n".join(lines)
+
     def export_input_file(self, geom: str) -> str:
         """Generates the Q-Chem input file content.
 
@@ -284,7 +363,9 @@ class QchemInput(CalculationInput):
             self._get_molecule_block(geom),
             self._get_rem_block(),
             self._get_basis_block(),
-            # Add other blocks like $solvent if needed later
+            self._get_solvent_block(),  # Add PCM block if needed
+            self._get_smx_block(),  # Add SMD block if needed
+            # Add other blocks like $external_charges if needed later
         ]
 
         final_input = "\n\n".join(block for block in input_blocks if block)
