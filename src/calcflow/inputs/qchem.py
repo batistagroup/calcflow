@@ -1,5 +1,5 @@
 from dataclasses import dataclass, replace
-from typing import ClassVar, Literal, TypeVar, get_args
+from typing import ClassVar, Literal, TypeVar, cast, get_args
 
 from calcflow.basis_sets import registry as basis_registry
 from calcflow.core import CalculationInput
@@ -89,9 +89,7 @@ class QchemInput(CalculationInput):
                 f"if non-default parameters are needed."
             )
 
-    def set_solvation(
-        self: T_QchemInput, model: QCHEM_ALLOWED_SOLVATION_MODELS | None, solvent: str | None
-    ) -> T_QchemInput:
+    def set_solvation(self: T_QchemInput, model: str | None, solvent: str | None) -> T_QchemInput:
         """
         Set the implicit solvation model and solvent.
 
@@ -120,8 +118,9 @@ class QchemInput(CalculationInput):
             raise ValidationError(
                 f"Solvation model '{model}' not recognized. Allowed: {get_args(QCHEM_ALLOWED_SOLVATION_MODELS)}"
             )
+        casted = cast(QCHEM_ALLOWED_SOLVATION_MODELS, model_lower)
 
-        return replace(self, implicit_solvation_model=model_lower, solvent=solvent_lower)  # type: ignore
+        return replace(self, implicit_solvation_model=casted, solvent=solvent_lower)  # type: ignore
 
     def set_tddft(
         self: T_QchemInput,
