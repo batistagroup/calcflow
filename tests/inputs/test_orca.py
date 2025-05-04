@@ -44,6 +44,8 @@ class TestOrcaInputInitValidation:
         assert minimal_orca_input.tddft_iroot is None
         assert not minimal_orca_input.tddft_triplets
         assert minimal_orca_input.tddft_method == "TDDFT"
+        assert minimal_orca_input.implicit_solvation_model is None
+        assert minimal_orca_input.solvent is None
 
     def test_override_defaults(self) -> None:
         """Test overriding default parameters during initialization."""

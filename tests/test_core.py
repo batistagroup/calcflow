@@ -46,8 +46,6 @@ def test_simple_input_valid_creation(base_input: SimpleInput) -> None:
     assert base_input.basis_set == "6-31G*"
     assert base_input.memory_mb == 2000 # Default value
     assert base_input.memory_per_core_mb == 2000 # Default value
-    assert base_input.implicit_solvation_model is None
-    assert base_input.solvent is None
     assert not base_input.unrestricted
 
 
@@ -66,63 +64,6 @@ def test_creation_invalid_charge_type(charge: Any) -> None:
     with pytest.raises(ValidationError, match="Charge must be an integer"):
         SimpleInput(charge=charge, spin_multiplicity=1, task="energy",
                    level_of_theory="B3LYP", basis_set="6-31G*")
-
-@pytest.mark.parametrize("inv_model", ["invalid_model", "solvent"])
-def test_creation_invalid_solvation_model(inv_model: str) -> None:
-    """Test that invalid solvation models raise ValidationError during creation if solvent is also provided."""
-    # Need to provide a solvent, otherwise the model check isn't reached due to the consistency check
-    with pytest.raises(ValidationError, match="Both `implicit_solvation_model` and `solvent` must be provided together"):
-        SimpleInput(charge=0, spin_multiplicity=1, task="energy", level_of_theory="B3LYP", basis_set="6-31G*",
-                    implicit_solvation_model=inv_model, solvent=None) # type: ignore[arg-type] # Testing invalid model string
-
-    # Check the consistency error when model is None but solvent is not
-    with pytest.raises(ValidationError, match="Both `implicit_solvation_model` and `solvent` must be provided together"):
-        SimpleInput(charge=0, spin_multiplicity=1, task="energy", level_of_theory="B3LYP", basis_set="6-31G*",
-                    implicit_solvation_model=None, solvent="water")
-
-@pytest.mark.parametrize("model", ["pcm", "smd", "cpcm"])
-def test_creation_requires_solvent_with_model(model: str) -> None:
-    """Test that specifying solvation model without solvent raises ValidationError."""
-    with pytest.raises(ValidationError, match="Both `implicit_solvation_model` and `solvent` must be provided together"):
-        SimpleInput(charge=0, spin_multiplicity=1, task="energy", level_of_theory="B3LYP", basis_set="6-31G*",
-                    implicit_solvation_model=model, solvent=None) # type: ignore[arg-type] # Testing model without solvent
-
-@pytest.mark.parametrize("solvent", ["water", "ethanol", "benzene"])
-def test_creation_valid_solvation_model_with_solvent(solvent: str) -> None:
-    """Test that specifying valid solvation model with solvent works."""
-    instance = SimpleInput(charge=0, spin_multiplicity=1, task="energy", level_of_theory="B3LYP", basis_set="6-31G*",
-                implicit_solvation_model="pcm", solvent=solvent)
-    assert instance.implicit_solvation_model == "pcm"
-    assert instance.solvent == solvent.lower() # Check normalization
-
-@pytest.mark.parametrize("model,solvent", [
-    ("pcm", "water"),
-    ("smd", "ethanol"),
-    ("cpcm", "benzene"),
-    ("PCM", "WATER"), # Test case insensitivity
-])
-def test_set_solvation(base_input: SimpleInput, model: str, solvent: str) -> None:
-    """Test set_solvation method adds, removes, and validates solvation."""
-    solvated = base_input.set_solvation(model, solvent) # type: ignore[arg-type] # Testing case normalization handled by method
-    assert solvated.implicit_solvation_model == model.lower()
-    assert solvated.solvent == solvent.lower()
-    assert solvated is not base_input # Ensure immutability
-
-    # Remove solvation
-    dry = solvated.set_solvation(None, None)
-    assert dry.implicit_solvation_model is None
-    assert dry.solvent is None
-    assert dry is not solvated # Ensure immutability
-
-    # Invalid: mixed None/value
-    with pytest.raises(ValidationError, match="Both `model` and `solvent` must be provided together"):
-        base_input.set_solvation("pcm", None)
-    with pytest.raises(ValidationError, match="Both `model` and `solvent` must be provided together"):
-        base_input.set_solvation(None, "water")
-
-    # Invalid: unrecognized model
-    with pytest.raises(ValidationError, match="Solvation model 'invalid_model' not recognized"):
-        base_input.set_solvation("invalid_model", "water") # type: ignore[arg-type] # Testing invalid model string recognition
 
 def test_set_memory(base_input: SimpleInput, caplog: LogCaptureFixture) -> None:
     """Test set_memory method."""
