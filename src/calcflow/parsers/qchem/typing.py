@@ -141,7 +141,14 @@ class _MutableCalculationData:
 
     raw_output: str
     termination_status: Literal["NORMAL", "ERROR", "UNKNOWN"] = "UNKNOWN"
-    metadata: CalculationMetadata = field(default_factory=CalculationMetadata)
+    # Removed: metadata: CalculationMetadata = field(default_factory=CalculationMetadata)
+    # Add individual metadata fields
+    qchem_version: str | None = None
+    host: str | None = None
+    run_date: str | None = None
+    calculation_method: str | None = None
+    basis_set: str | None = None
+
     input_geometry: Sequence[Atom] | None = None  # From $molecule block
     standard_orientation_geometry: Sequence[Atom] | None = None  # From 'Standard Nuclear Orientation'
     final_energy_eh: float | None = None  # Typically the 'Total energy' after SCF
@@ -162,6 +169,12 @@ class _MutableCalculationData:
     parsed_mulliken_charges: bool = False  # Be specific if needed
     parsed_dipole: bool = False
     parsed_dispersion: bool = False
+    # Add flags for metadata components
+    parsed_meta_version: bool = False
+    parsed_meta_host: bool = False
+    parsed_meta_run_date: bool = False
+    parsed_meta_method: bool = False
+    parsed_meta_basis: bool = False
     # Add more flags as needed
 
 
@@ -185,10 +198,18 @@ class CalculationData:
     @classmethod
     def from_mutable(cls, mutable_data: _MutableCalculationData) -> "CalculationData":
         """Creates an immutable CalculationData from the mutable version."""
+        # Construct metadata from individual fields
+        metadata = CalculationMetadata(
+            qchem_version=mutable_data.qchem_version,
+            host=mutable_data.host,
+            run_date=mutable_data.run_date,
+            calculation_method=mutable_data.calculation_method,
+            basis_set=mutable_data.basis_set,
+        )
         return cls(
             raw_output=mutable_data.raw_output,
             termination_status=mutable_data.termination_status,
-            metadata=mutable_data.metadata,  # Assuming metadata is immutable or handled
+            metadata=metadata,  # Use the constructed metadata object
             input_geometry=mutable_data.input_geometry,
             standard_orientation_geometry=mutable_data.standard_orientation_geometry,
             final_energy_eh=mutable_data.final_energy_eh,
