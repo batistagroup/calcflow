@@ -77,16 +77,8 @@ class QchemInput(CalculationInput):
         if self.implicit_solvation_model and self.implicit_solvation_model not in get_args(
             QCHEM_ALLOWED_SOLVATION_MODELS
         ):
-            # This check might become redundant if type checkers enforce the Literal, but good defensive programming.
             raise ValidationError(
                 f"Solvation model '{self.implicit_solvation_model}' not recognized. Allowed: {get_args(QCHEM_ALLOWED_SOLVATION_MODELS)}"
-            )  # pragma: no cover
-
-        # Update specific model support messages if needed
-        if self.implicit_solvation_model in ["isosvp", "cpcm"]:
-            logger.warning(
-                f"Model '{self.implicit_solvation_model}' selected. This might require manual setup in a $solvent block "
-                f"if non-default parameters are needed."
             )
 
     def set_solvation(self: T_QchemInput, model: str | None, solvent: str | None) -> T_QchemInput:
