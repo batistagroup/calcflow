@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from typing import ClassVar, Literal, TypeVar, cast, get_args
 
@@ -10,6 +11,8 @@ from calcflow.utils import logger
 # Define allowed models specifically for Q-Chem
 QCHEM_ALLOWED_SOLVATION_MODELS = Literal["pcm", "smd", "isosvp", "cpcm"]
 
+# Allowed MOM methods
+QCHEM_ALLOWED_MOM_METHODS = Literal["IMOM", "MOM"]
 
 T_QchemInput = TypeVar("T_QchemInput", bound="QchemInput")
 
@@ -37,6 +40,10 @@ class QchemInput(CalculationInput):
         tddft_triplets: Flag to include triplet states in TDDFT calculation. Defaults to False.
         tddft_state_analysis: Flag to enable state analysis. Defaults to True.
         rpa: Controls whether to use RPA (True TDDFT) instead of CIS/TDA.
+        run_mom: Flag to enable MOM calculation. Defaults to False.
+        mom_method: Method for MOM calculation. Defaults to "IMOM".
+        mom_alpha_occ: Occupation numbers for alpha electrons in MOM calculation.
+        mom_beta_occ: Occupation numbers for beta electrons in MOM calculation.
     """
 
     program: ClassVar[str] = "qchem"
@@ -50,6 +57,12 @@ class QchemInput(CalculationInput):
     tddft_triplets: bool = False
     tddft_state_analysis: bool = True
     rpa: bool = False  # Controls whether to use RPA (True TDDFT) instead of CIS/TDA
+
+    # --- MOM Specific Attributes ---
+    run_mom: bool = False
+    mom_method: QCHEM_ALLOWED_MOM_METHODS = "IMOM"  # Default to IMOM if run_mom is True
+    mom_alpha_occ: Sequence[int] | str | None = None
+    mom_beta_occ: Sequence[int] | str | None = None
 
     implicit_solvation_model: QCHEM_ALLOWED_SOLVATION_MODELS | None = None
     solvent: str | None = None
@@ -81,6 +94,24 @@ class QchemInput(CalculationInput):
         ):
             raise ValidationError(
                 f"Solvation model '{self.implicit_solvation_model}' not recognized. Allowed: {get_args(QCHEM_ALLOWED_SOLVATION_MODELS)}"
+            )
+
+        # --- MOM Validation ---
+        if self.run_mom:
+            if not self.unrestricted:
+                raise ValidationError("MOM calculations currently require 'unrestricted = True'.")
+            if self.mom_alpha_occ is None:
+                raise ValidationError("If run_mom is True, mom_alpha_occ must be specified.")
+            if self.mom_beta_occ is None:
+                raise ValidationError("If run_mom is True, mom_beta_occ must be specified.")
+            # mom_method has a default, but validate if it was explicitly set to something else
+            if self.mom_method not in get_args(QCHEM_ALLOWED_MOM_METHODS):
+                raise ValidationError(
+                    f"MOM method '{self.mom_method}' not recognized. Allowed: {get_args(QCHEM_ALLOWED_MOM_METHODS)}"
+                )
+        elif self.mom_alpha_occ is not None or self.mom_beta_occ is not None:
+            logger.warning(
+                "mom_alpha_occ or mom_beta_occ are specified, but run_mom is False. These settings will be ignored."
             )
 
     def set_solvation(self: T_QchemInput, model: str | None, solvent: str | None) -> T_QchemInput:
@@ -336,34 +367,18 @@ class QchemInput(CalculationInput):
         logger.debug(f"Generating $smx block for solvent: {self.solvent}")
         return "\n".join(lines)
 
-    def export_input_file(self, geom: str) -> str:
-        """Generates the Q-Chem input file content.
+    def _pre_export_validation(self, geometry: "Geometry") -> None:
+        if isinstance(self.basis_set, dict):
+            geom_elements = geometry.unique_elements
+            basis_elements = {element.upper() for element in self.basis_set}
+            missing_elements = geom_elements - basis_elements
+            if missing_elements:
+                raise ValidationError(
+                    f"Custom basis set dictionary is missing definitions for elements found in geometry: {missing_elements}. "
+                    f"Geometry elements: {geom_elements}. Basis elements: {basis_elements}."
+                )
 
-        Args:
-            geom: Molecular geometry in XYZ format (multiline string, excluding header lines).
-
-        Returns:
-            String containing the formatted Q-Chem input file.
-
-        Raises:
-            InputGenerationError: If basis_set type is unsupported.
-            ValidationError: If validation fails for settings.
-            NotSupportedError: If requested task is not supported.
-        """
-        input_blocks: list[str] = [
-            self._get_molecule_block(geom),
-            self._get_rem_block(),
-            self._get_basis_block(),
-            self._get_solvent_block(),  # Add PCM block if needed
-            self._get_smx_block(),  # Add SMD block if needed
-            # Add other blocks like $external_charges if needed later
-        ]
-
-        final_input = "\n\n".join(block for block in input_blocks if block)
-
-        return final_input.strip() + "\n"
-
-    def export_input_file_from_geometry(self, geometry: "Geometry") -> str:
+    def export_input_file(self, geometry: "Geometry") -> str:
         """Generates the Q-Chem input file content from a Geometry object, validating basis sets.
 
         Checks if a dictionary basis set covers all elements in the geometry before
@@ -382,18 +397,16 @@ class QchemInput(CalculationInput):
             NotSupportedError: If the requested task is not supported by the underlying export method.
         """
         # Perform basis set validation if a dictionary is used
-        if isinstance(self.basis_set, dict):
-            geom_elements = geometry.unique_elements
-            basis_elements = {element.upper() for element in self.basis_set}
-            missing_elements = geom_elements - basis_elements
-            if missing_elements:
-                raise ValidationError(
-                    f"Custom basis set dictionary is missing definitions for elements found in geometry: {missing_elements}. "
-                    f"Geometry elements: {geom_elements}. Basis elements: {basis_elements}."
-                )
+        self._pre_export_validation(geometry)
 
-        # Get the coordinate block string from the Geometry object
-        geom_str = geometry.get_coordinate_block()
+        input_blocks: list[str] = [
+            self._get_molecule_block(geometry.get_coordinate_block()),
+            self._get_rem_block(),
+            self._get_basis_block(),
+            self._get_solvent_block(),  # Add PCM block if needed
+            self._get_smx_block(),  # Add SMD block if needed
+        ]
 
-        # Call the original method that accepts the string
-        return self.export_input_file(geom=geom_str)
+        final_input = "\n\n".join(block for block in input_blocks if block)
+
+        return final_input.strip() + "\n"
