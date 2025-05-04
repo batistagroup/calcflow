@@ -74,7 +74,7 @@ exclude = ["tests"]
 [tool.coverage.run]
 omit = [
     # omit basis set files
-    "*/basis_sets/**/*.py",
+    "*/basis_sets/qchem/*.py",
     "*/visualize/*.py",
     "*/constants/*",
     "*/__init__.py",

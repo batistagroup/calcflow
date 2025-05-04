@@ -5,6 +5,9 @@ import pytest
 
 from calcflow.exceptions import NotSupportedError, ValidationError
 from calcflow.inputs.orca import OrcaInput
+from calcflow.utils import logger
+
+logger.setLevel(logging.INFO)
 
 
 @pytest.fixture
