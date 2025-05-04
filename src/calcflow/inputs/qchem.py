@@ -545,6 +545,7 @@ def _convert_transition_to_occupations(transition: str, n_electrons: int) -> tup
     """Converts a symbolic transition to Q-Chem occupation strings.
 
     Args:
+        transition: String containing the transition to convert.
         n_electrons: Total number of electrons in the system.
 
     Returns:
@@ -609,7 +610,29 @@ def _convert_transition_to_occupations(transition: str, n_electrons: int) -> tup
         occupied = set(range(1, homo_idx + 1))
         occupied.remove(source_idx)
         occupied.add(target_idx)
-        # Convert to ranges (TODO: implement range compression for cleaner output)
-        occ = " ".join(str(x) for x in sorted(occupied))
+        occupied_list = sorted(list(occupied))
+
+        if not occupied_list:
+            occ = ""  # Handle case with zero occupied orbitals if it ever occurs
+        else:
+            parts = []
+            start = occupied_list[0]
+            end = start
+            for i in range(1, len(occupied_list)):
+                if occupied_list[i] == end + 1:
+                    end = occupied_list[i]
+                else:
+                    if start == end:
+                        parts.append(str(start))
+                    else:
+                        parts.append(f"{start}:{end}")
+                    start = occupied_list[i]
+                    end = start
+            # Append the last range/number
+            if start == end:
+                parts.append(str(start))
+            else:
+                parts.append(f"{start}:{end}")
+            occ = " ".join(parts)
 
     return occ, occ  # Same occupation for both spins in closed shell case

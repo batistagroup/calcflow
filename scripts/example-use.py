@@ -35,7 +35,7 @@ if run["create"]:
         f.write(base_args.set_software("orca").create_submit_script(f"h2o-{base_args.exec_fname}"))
 
     with (clc_folder / f"{base_args.exec_fname}.inp").open("w") as f:
-        f.write(job.export_input_file(xyz_1h2o.get_coordinate_block()))
+        f.write(job.export_input_file(xyz_1h2o))
 
 if run["parse"]:
     out = (clc_folder / f"{base_args.exec_fname}.out").read_text()
