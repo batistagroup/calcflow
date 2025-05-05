@@ -7,7 +7,7 @@ from calcflow.parsers.qchem.typing import CalculationData, _MutableCalculationDa
 
 # Load the example output file content once
 ex_folder = Path(__file__).resolve().parents[3] / "data" / "calculations" / "examples" / "qchem"
-EXAMPLE_SP_OUT_PATH = ex_folder / "h2o" / "sp" / "sp.out"
+EXAMPLE_SP_OUT_PATH = ex_folder / "h2o" / "sp.out"
 
 
 @pytest.fixture(scope="module")
