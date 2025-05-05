@@ -1,6 +1,7 @@
 import re
 from typing import Final
 
+from calcflow.exceptions import ParsingError
 from calcflow.parsers.qchem.typing import (
     LineIterator,
     Orbital,
@@ -16,6 +17,8 @@ SPIN_SECTION_PAT: Final[re.Pattern[str]] = re.compile(r"^\s*(Alpha|Beta) MOs", r
 OCCUPIED_MARKER: Final[str] = "-- Occupied --"
 VIRTUAL_MARKER: Final[str] = "-- Virtual --"
 ENERGY_LINE_PAT: Final[re.Pattern[str]] = re.compile(r"^\s*(-?\d+\.\d+(\s+|$))+")
+# Use the long dashed line as the definitive end marker
+BLOCK_END_SEPARATOR_PAT = re.compile(r"^\s*-{60,}")
 SECTION_SEPARATOR: Final[str] = "---"
 
 
@@ -52,36 +55,40 @@ class OrbitalParser(SectionParser):
         beta_idx_counter = 0
 
         # The current_line is the header, we start processing lines *after* it.
-        # The main loop will consume the iterator directly.
+        # Consume the separator line immediately following the header.
+        try:
+            line_after_header = next(iterator)
+            if not BLOCK_END_SEPARATOR_PAT.search(line_after_header.strip()):
+                logger.warning(
+                    f"Expected separator line '------' after Orbital Energies header, got: '{line_after_header.strip()}'. Continuing parsing."
+                )
+                # Decide how to handle this - maybe try parsing line_after_header? For now, log and continue.
+        except StopIteration:
+            logger.warning("File ended immediately after Orbital Energies header.")
+            data.parsing_warnings.append("Incomplete Orbital Energies section (ended after header).")
+            data.parsed_orbitals = False  # Mark as not parsed
+            return  # Nothing more to parse
 
-        # We don't need line_iterator_with_start anymore.
-        # The loop now directly uses the passed 'iterator'.
-
-        line_num = 0  # Relative line number within the block, starting after header
+        line_num = 0  # Relative line number within the block, starting after the separator
         try:
             while True:  # Loop until break or StopIteration
                 line = next(iterator)
                 line_num += 1
                 line_stripped = line.strip()
 
-                # End conditions for the orbital block
-                # Use a more robust check than just line_num > 2
-                # Break if we see a separator or blank line *after* parsing at least one energy section header (occupied/virtual)
-                is_end_marker = not line_stripped or line_stripped.startswith(SECTION_SEPARATOR)
-                has_started_parsing_energies = parsing_occupied or parsing_virtual
-
-                if is_end_marker and has_started_parsing_energies:
+                # End condition check: Only the long dashed line terminates the block
+                if BLOCK_END_SEPARATOR_PAT.search(line_stripped):
                     logger.debug(
                         f"End of Orbital Energies section detected at block line {line_num} ('{line_stripped}')."
                     )
-                    # Do *not* consume this line, let the main loop handle it or the next parser
                     break  # Exit the while loop
 
-                # Skip initial separators/blank lines before any real content
-                if is_end_marker and not has_started_parsing_energies:
-                    logger.debug(f"Skipping initial separator/blank line {line_num}: '{line_stripped}'")
+                # Skip blank lines explicitly
+                if not line_stripped:
+                    logger.debug(f"Skipping blank line {line_num}")
                     continue
 
+                # Check for spin section header (Alpha/Beta MOs)
                 spin_match = SPIN_SECTION_PAT.search(line_stripped)
                 if spin_match:
                     current_spin_type = spin_match.group(1).lower()
@@ -116,41 +123,56 @@ class OrbitalParser(SectionParser):
                 if parsing_occupied or parsing_virtual:
                     energy_match = ENERGY_LINE_PAT.search(line_stripped)
                     if energy_match:
+                        # Validate all parts of the line *before* processing
+                        parsed_energies_on_line: list[float] = []
                         try:
-                            energies = [float(e) for e in energy_match.group(0).split()]
-                            target_list: list[Orbital] | None
-                            idx_counter: int
+                            # Attempt to convert all non-empty parts
+                            parts = line_stripped.split()
+                            parsed_energies_on_line = [float(p) for p in parts]
+                        except ValueError as e:
+                            # Treat malformed line as a fatal error
+                            logger.error(
+                                f"Malformed energy line encountered: '{line_stripped}'. Aborting orbital parsing."
+                            )
+                            data.parsing_errors.append(f"Malformed energy line: '{line_stripped}'")
+                            raise ParsingError(f"Malformed orbital energy line: '{line_stripped}'") from e
+                            # No need for all_parts_valid anymore or continue
 
-                            if current_spin_type == "alpha":
-                                target_list = alpha_orbitals_list
-                                idx_counter = alpha_idx_counter
-                            elif current_spin_type == "beta" and beta_orbitals_list is not None:
-                                target_list = beta_orbitals_list
-                                idx_counter = beta_idx_counter
-                            else:
-                                logger.warning(
-                                    f"Parsed beta energies but calculation seems restricted or list not initialized: {line_stripped}"
-                                )
-                                continue
+                        # If we reach here, all parts were valid floats
+                        target_list: list[Orbital] | None
+                        idx_counter: int
 
-                            for energy in energies:
-                                orbital = Orbital(index=idx_counter, energy_eh=energy)
-                                target_list.append(orbital)
-                                idx_counter += 1
+                        if current_spin_type == "alpha":
+                            target_list = alpha_orbitals_list
+                            idx_counter = alpha_idx_counter
+                        elif current_spin_type == "beta" and beta_orbitals_list is not None:
+                            target_list = beta_orbitals_list
+                            idx_counter = beta_idx_counter
+                        else:
+                            logger.warning(
+                                f"Parsed beta energies but calculation seems restricted or list not initialized: {line_stripped}"
+                            )
+                            continue
 
-                            if current_spin_type == "alpha":
-                                alpha_idx_counter = idx_counter
-                            elif current_spin_type == "beta":
-                                beta_idx_counter = idx_counter
+                        for energy in parsed_energies_on_line:
+                            orbital = Orbital(index=idx_counter, energy_eh=energy)
+                            target_list.append(orbital)
+                            idx_counter += 1
 
-                            logger.debug(f"Parsed {len(energies)} {current_spin_type} energies: {energies}")
+                        if current_spin_type == "alpha":
+                            alpha_idx_counter = idx_counter
+                        elif current_spin_type == "beta":
+                            beta_idx_counter = idx_counter
 
-                        except ValueError:
-                            logger.warning(f"Could not parse float from energy line: '{line_stripped}'")
+                        logger.debug(
+                            f"Parsed {len(parsed_energies_on_line)} {current_spin_type} energies: {parsed_energies_on_line}"
+                        )
 
         except StopIteration:
             # File ended while parsing orbitals. This might be okay if it's the last section.
             logger.warning("File ended during Orbital Energies parsing.")
+            # Also record this warning in the results data
+            data.parsing_warnings.append("File ended during Orbital Energies parsing.")
             # Allow processing of orbitals found so far.
 
         # --- Final Processing --- #
