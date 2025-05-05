@@ -6,7 +6,7 @@ from calcflow.parsers import orca
 from calcflow.parsers.orca.typing import _MutableCalculationData
 
 # Load the example output file content once
-ex_folder = Path(__file__).resolve().parents[3] / "data" / "calculations" / "examples"
+ex_folder = Path(__file__).resolve().parents[3] / "data" / "calculations" / "examples" / "orca"
 EXAMPLE_SP_OUT_PATH = ex_folder / "h2o" / "sp" / "sp.out"
 EXAMPLE_OPT_OUT_PATH = ex_folder / "h2o" / "opt" / "opt.out"
 
