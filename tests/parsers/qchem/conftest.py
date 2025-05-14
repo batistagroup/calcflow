@@ -28,6 +28,12 @@ def parsed_sp_tzvppd_smd_data() -> CalculationData:
     return qchem.parse_qchem_sp_output((ex_folder / "h2o" / "sp-tzvppd-smd.out").read_text())
 
 
+@pytest.fixture(scope="module")
+def parsed_tddft_pc2_data() -> CalculationData:
+    """Fixture to parse the standard single point output file."""
+    return qchem.parse_qchem_tddft_output((ex_folder / "h2o" / "tddft-rks-pc2.out").read_text())
+
+
 @pytest.fixture
 def mutable_data() -> _MutableCalculationData:
     """Provides a fresh mutable data object for testing."""
