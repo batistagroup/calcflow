@@ -1,10 +1,7 @@
-# Placeholder for TDDFT Block Parsers
-
 import re
-from collections.abc import Sequence
+from typing import Any, cast
 
 from calcflow.parsers.qchem.typing import (
-    Atom,
     ExcitonAnalysisTransitionDM,
     LineIterator,
     SectionParser,
@@ -16,525 +13,414 @@ from calcflow.parsers.qchem.typing import (
 )
 from calcflow.utils import logger
 
-STATE_HEADER_PAT = re.compile(r"^\s*(Singlet|Triplet)\s+(\d+)\s*:\s*$")
+# --- Helper functions --- #
 
-# --- Transition Density Matrix Analysis Block ---
-TRANS_DM_ANALYSIS_HEADER_PAT = re.compile(r"^\s*Transition Density Matrix Analysis\s*$")
-# STATE_HEADER_PAT is reused: r"^\s*(Singlet|Triplet)\s+(\d+)\s*:\s*$"
 
-# Sub-section patterns for Transition DM Analysis
-# Mulliken Population (Transition DM)
-MULLIKEN_TRANS_DM_HEADER_PAT = re.compile(r"^\s*Mulliken Population Analysis \(Transition DM\)\s*$")
-# Atom      Trans. (e)              h+              e-           Del q
-# --------------------------------------------------------------------
-#  1 H       -0.000020        0.016997       -0.530519       -0.513522
-MULLIKEN_TRANS_DM_ATOM_LINE_PAT = re.compile(
-    r"^\s*(\d+)\s+([A-Za-z]+)\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)"
+def safe_float(value: str) -> float | None:
+    """Attempt to convert a string to a float, returning None on ValueError."""
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return None
+
+
+FLOAT_PATTERN = r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?"
+TRIPLET_PATTERN = re.compile(
+    r"[\[\(]?\s*"
+    rf"({FLOAT_PATTERN})[\s,]+"
+    rf"({FLOAT_PATTERN})[\s,]+"
+    rf"({FLOAT_PATTERN})\s*[\]\)]?"
 )
-MULLIKEN_TRANS_DM_SUM_LINE_PAT = re.compile(r"^\s*Sum:\s+(-?\d+\.\d+)")
-SUM_ABS_TRANS_CHARGES_PAT = re.compile(r"^\s*Sum of absolute trans\. charges, QTa =\s*(-?\d+\.\d+)")
-SUM_SQ_TRANS_CHARGES_PAT = re.compile(r"^\s*Sum of squared  trans\. charges, QT2 =\s*(-?\d+\.\d+)")
 
-# CT Numbers (Mulliken)
-CT_NUMBERS_HEADER_PAT = re.compile(r"^\s*CT numbers \(Mulliken\)\s*$")
-CT_OMEGA_PAT = re.compile(r"^\s*omega\s*=\s*(-?\d+\.\d+)")
-CT_TWO_ALPHA_BETA_PAT = re.compile(r"^\s*2<alpha\|beta>\s*=\s*(-?\d+\.\d+)")
-CT_LOC_PAT = re.compile(r"^\s*LOC\s*=\s*(-?\d+\.\d+)")
-CT_LOCA_PAT = re.compile(r"^\s*LOCa\s*=\s*(-?\d+\.\d+)")
-CT_PHE_PAT = re.compile(r"^\s*<Phe>\s*=\s*(-?\d+\.\d+)")
 
-# Exciton Analysis (Transition Density Matrix)
-EXCITON_TRANS_DM_HEADER_PAT = re.compile(r"^\s*Exciton analysis of the transition density matrix\s*$")
-TRANS_DIPOLE_MOMENT_TOTAL_PAT = re.compile(r"^\s*Trans\. dipole moment\s*\[D\]:\s*(-?\d+\.\d+)")
-CARTESIAN_COMPONENTS_D_PAT = re.compile(
-    r"^\s*Cartesian components\s*\[D\]:\s*\[\s*(-?\d+\.\d+),\s*(-?\d+\.\d+),\s*(-?\d+\.\d+)\s*\]"
-)
-TRANS_R_SQUARED_AU_PAT = re.compile(r"^\s*Transition <r\^2>\s*\[a\.u\.\]:\s*(-?\d+\.\d+)")
-CARTESIAN_COMPONENTS_AU_PAT = re.compile(
-    r"^\s*Cartesian components\s*\[a\.u\.\]:\s*\[\s*(-?\d+\.\d+),\s*(-?\d+\.\d+),\s*(-?\d+\.\d+)\s*\]"
-)
-EXCITON_RH_PAT = re.compile(r"^\s*<r_h>\s*\[Ang\]:\s*\[\s*(-?\d+\.\d+),\s*(-?\d+\.\d+),\s*(-?\d+\.\d+)\s*\]")
-EXCITON_RE_PAT = re.compile(r"^\s*<r_e>\s*\[Ang\]:\s*\[\s*(-?\d+\.\d+),\s*(-?\d+\.\d+),\s*(-?\d+\.\d+)\s*\]")
-EXCITON_RE_RH_SEP_PAT = re.compile(r"^\s*\|<r_e - r_h>\|\s*\[Ang\]:\s*(-?\d+\.\d+)")
-EXCITON_SIZE_LINE_PAT = re.compile(
-    r"^\s*(Hole size|Electron size)\s*\[Ang\]:\s*(-?\d+\.\d+)"
-)  # For scalar hole/electron size
-CARTESIAN_COMPONENTS_ANG_PAT = re.compile(
-    r"^\s*Cartesian components\s*\[Ang\]:\s*\[\s*(-?\d+\.\d+),\s*(-?\d+\.\d+),\s*(-?\d+\.\d+)\s*\]"
-)  # For Angstrom components
-RMS_ELECTRON_HOLE_SEP_PAT = re.compile(r"^\s*RMS electron-hole separation\s*\[Ang\]:\s*(-?\d+\.\d+)")
-COVARIANCE_RH_RE_PAT = re.compile(r"^\s*Covariance\(r_h, r_e\)\s*\[Ang\^2\]:\s*(-?\d+\.\d+)")
-CORRELATION_COEFF_PAT = re.compile(r"^\s*Correlation coefficient:\s*(-?\d+\.\d+)")
-CENTER_OF_MASS_SIZE_PAT = re.compile(r"^\s*Center-of-mass size\s*\[Ang\]:\s*(-?\d+\.\d+)")
+def extract_float_triplet(text: str) -> tuple[float, float, float] | None:
+    """Extracts a tuple of three floats from a string. Handles [x,y,z] or x y z."""
+    if not isinstance(text, str):
+        return None
+    match = TRIPLET_PATTERN.search(text)
+    if match:
+        try:
+            return (float(match.group(1)), float(match.group(2)), float(match.group(3)))
+        except ValueError:
+            return None
+    return None
 
-SECTION_SEPARATOR_PAT = re.compile(r"^\s*-{20,}\s*$")  # A line of dashes, often ends state blocks
-BLANK_LINE_PAT = re.compile(r"^\s*$")
+
+# --- End Helper functions --- #
+
+# Known next section headers that terminate this parser
+KNOWN_NEXT_SECTION_STARTS = [
+    "SA-NTO Decomposition",  # Spin-Unrestricted or Spin-Restricted
+    "Natural Transition Orbital Analysis",  # Alternative NTO block name
+    "Spin-Flip NTO analysis",  # Another NTO variant
+]
 
 
 class TransitionDensityMatrixParser(SectionParser):
-    """Parses the 'Transition Density Matrix Analysis' block."""
+    """
+    Parses the "Transition Density Matrix Analysis" section from Q-Chem output.
+    This section typically follows excited state calculations (TDDFT/TDA) and provides
+    detailed analysis for each state's transition density matrix.
+    """
 
     def matches(self, line: str, current_data: _MutableCalculationData) -> bool:
-        return TRANS_DM_ANALYSIS_HEADER_PAT.search(line) is not None
+        """
+        Checks if the line marks the beginning of the Transition Density Matrix Analysis section.
+        """
+        return "Transition Density Matrix Analysis" in line and not current_data.parsed_tddft_transition_dm_analysis
 
-    def _parse_mulliken_transition_dm(
-        self, iterator: LineIterator, first_mulliken_line: str, input_geometry: Sequence[Atom] | None
-    ) -> tuple[TransitionDMMulliken | None, float | None, float | None]:
-        """Helper for Mulliken Population Analysis (Transition DM). Returns data, QTa, QT2."""
-        if not MULLIKEN_TRANS_DM_HEADER_PAT.search(first_mulliken_line):
-            logger.warning(f"Expected Mulliken Trans DM header, got: {first_mulliken_line.strip()}")
-            return None, None, None
-
-        populations: list[TransitionDMAtomPopulation] = []
-        qta: float | None = None
-        qt2: float | None = None
-        line_buffer: list[str] = []
-        line = first_mulliken_line
+    def parse(self, iterator: LineIterator, current_line: str, results: _MutableCalculationData) -> None:
+        """
+        Parses the entire Transition Density Matrix Analysis block.
+        `current_line` is the line containing "Transition Density Matrix Analysis".
+        """
+        logger.debug("Starting parsing of Transition Density Matrix Analysis section.")
 
         try:
-            # Consume table headers (Atom Trans.(e)..., and ---- lines)
-            _ = next(iterator)  # Column header
-            _ = next(iterator)  # Dashed line
-
-            # Parse atom lines
-            while True:
+            line = next(iterator)  # Consume the line after the matched header (current_line)
+            while "----" in line or not line.strip():  # Consume decorative lines
                 line = next(iterator)
-                line_buffer.append(line)
-                match_atom = MULLIKEN_TRANS_DM_ATOM_LINE_PAT.search(line)
-                if match_atom:
-                    atom_idx_one_based = int(match_atom.group(1))
-                    charge_trans_e = float(match_atom.group(3))
-                    h_plus = float(match_atom.group(4))
-                    e_minus = float(match_atom.group(5))
-                    del_q = float(match_atom.group(6))
-                    atom_symbol = "?"
-                    if input_geometry and 0 < atom_idx_one_based <= len(input_geometry):
-                        atom_symbol = input_geometry[atom_idx_one_based - 1].symbol
-                    populations.append(
-                        TransitionDMAtomPopulation(
-                            atom_index=atom_idx_one_based - 1,
-                            symbol=atom_symbol,
-                            transition_charge_e=charge_trans_e,
-                            hole_charge=h_plus,
-                            electron_charge=e_minus,
-                            delta_charge=del_q,
-                        )
-                    )
-                elif MULLIKEN_TRANS_DM_SUM_LINE_PAT.search(line):
-                    line_buffer.pop()  # Remove sum line
-                    break  # End of atom table
-                elif not line.strip():
-                    continue
-                else:  # Unexpected line in table
-                    logger.warning(f"Unexpected line in Mulliken Trans DM table: {line.strip()}")
-                    line_buffer.pop()  # Remove it
-                    iterator = iter(line_buffer + [line] + list(iterator))  # Push back with current
-                    break
-
-            # After atom table, look for QTa and QT2
-            for _ in range(4):  # Look a few lines ahead
-                line = next(iterator)
-                line_buffer.append(line)
-                if SUM_ABS_TRANS_CHARGES_PAT.search(line):
-                    qta = float(SUM_ABS_TRANS_CHARGES_PAT.search(line).group(1))
-                elif SUM_SQ_TRANS_CHARGES_PAT.search(line):
-                    qt2 = float(SUM_SQ_TRANS_CHARGES_PAT.search(line).group(1))
-                elif (
-                    CT_NUMBERS_HEADER_PAT.search(line)
-                    or EXCITON_TRANS_DM_HEADER_PAT.search(line)
-                    or STATE_HEADER_PAT.search(line)
-                    or SECTION_SEPARATOR_PAT.search(line)
-                ):
-                    line_buffer.pop()
-                    iterator = iter(line_buffer + [line] + list(iterator))
-                    break  # Start of next subsection
-                if qta is not None and qt2 is not None:
-                    break
-
         except StopIteration:
-            logger.warning("File ended unexpectedly during Mulliken Trans DM parsing.")
+            logger.warning("EOF reached unexpectedly after Transition Density Matrix Analysis header.")
+            results.parsed_tddft_transition_dm_analysis = True
+            return
 
-        iterator = iter(line_buffer + list(iterator))  # Push back unconsumed from buffer
-        mulliken_data = TransitionDMMulliken(populations=populations) if populations else None
-        return mulliken_data, qta, qt2
-
-    def _parse_ct_numbers_trans_dm(self, iterator: LineIterator, first_ct_line: str) -> TransitionDMCTNumbers | None:
-        """Helper to parse CT numbers (Mulliken) for Transition DM."""
-        if not CT_NUMBERS_HEADER_PAT.search(first_ct_line):
-            logger.warning(f"Expected CT Numbers header, got: {first_ct_line.strip()}")
-            return None
-
-        omega, two_alpha_beta, loc, loca, phe = None, None, None, None, None
-        line_buffer: list[str] = []
-        line = first_ct_line  # Already consumed by caller
-
-        try:
-            for _ in range(6):  # Max ~5 data lines + header
-                if not CT_NUMBERS_HEADER_PAT.search(line) and _ == 0 and line is not first_ct_line:
-                    logger.warning(f"CT Numbers parsing started with non-header: {line.strip()}")
-                    break
-
-                if CT_OMEGA_PAT.search(line):
-                    omega = float(CT_OMEGA_PAT.search(line).group(1))
-                elif CT_TWO_ALPHA_BETA_PAT.search(line):
-                    two_alpha_beta = float(CT_TWO_ALPHA_BETA_PAT.search(line).group(1))
-                elif CT_LOC_PAT.search(line):
-                    loc = float(CT_LOC_PAT.search(line).group(1))
-                elif CT_LOCA_PAT.search(line):
-                    loca = float(CT_LOCA_PAT.search(line).group(1))
-                elif CT_PHE_PAT.search(line):
-                    phe = float(CT_PHE_PAT.search(line).group(1))
-                    # This is typically the last line of CT numbers
-                    break
-
-                try:
-                    line = next(iterator)
-                    line_buffer.append(line)
-                    # Check for end of this sub-block
-                    if (
-                        EXCITON_TRANS_DM_HEADER_PAT.search(line)
-                        or STATE_HEADER_PAT.search(line)
-                        or SECTION_SEPARATOR_PAT.search(line)
-                        or MULLIKEN_TRANS_DM_HEADER_PAT.search(line)
-                    ):
-                        iterator = iter([line] + list(iterator))  # Push back current line
-                        line_buffer.pop()
-                        break
-                except StopIteration:
-                    break
-        except StopIteration:
-            logger.warning("File ended unexpectedly during CT Numbers (Trans DM) parsing.")
-
-        if not any([omega, two_alpha_beta, loc, loca, phe]):
-            logger.debug("No significant CT Numbers found in Transition DM block.")
-            if line_buffer:  # Push back if we consumed lines but found nothing
-                iterator = iter(line_buffer + list(iterator))
-            return None
-
-        # Push back any unconsumed lines only if the last one was a clear break header
-        if line_buffer and (
-            EXCITON_TRANS_DM_HEADER_PAT.search(line_buffer[-1])
-            or STATE_HEADER_PAT.search(line_buffer[-1])
-            or SECTION_SEPARATOR_PAT.search(line_buffer[-1])
-        ):
-            pass  # Already handled by break conditions (iterator already has the line)
-        elif (
-            line_buffer
-        ):  # If buffer has content not pushed back by break conditions (e.g. StopIteration or all items parsed)
-            iterator = iter(line_buffer + list(iterator))
-
-        return TransitionDMCTNumbers(
-            omega=omega,
-            two_alpha_beta_overlap=two_alpha_beta,
-            loc=loc,
-            loc_a=loca,
-            phe_overlap=phe,
-        )
-
-    def _parse_exciton_trans_dm(
-        self, iterator: LineIterator, first_exciton_line: str
-    ) -> ExcitonAnalysisTransitionDM | None:
-        """Helper to parse Exciton analysis of the transition density matrix."""
-        if not EXCITON_TRANS_DM_HEADER_PAT.search(first_exciton_line):
-            logger.warning(f"Expected Exciton Trans DM header, got: {first_exciton_line.strip()}")
-            return None
-
-        data = {
-            "total_transition_dipole_moment": None,
-            "transition_dipole_moment_components": None,
-            "transition_r_squared_au": None,
-            "transition_r_squared_au_components": None,
-            "hole_position_ang": None,
-            "electron_position_ang": None,
-            "hole_electron_distance_ang": None,
-            "hole_size_ang": None,
-            "hole_size_ang_components": None,
-            "electron_size_ang": None,
-            "electron_size_ang_components": None,
-            "rms_electron_hole_separation_ang": None,
-            "rms_electron_hole_separation_ang_components": None,
-            "covariance_rh_re_ang_sq": None,
-            "correlation_coefficient": None,
-            "center_of_mass_size_ang": None,
-            "center_of_mass_size_ang_components": None,
-        }
-        line_buffer: list[str] = []
-        # first_exciton_line is already consumed by the caller check
-        # and corresponds to EXCITON_TRANS_DM_HEADER_PAT
-
-        try:
-            # Context variable to know what Cartesian components refer to
-            # e.g. "dipole", "r_squared", "hole_size", "electron_size", "rms_sep", "cm_size"
-            last_scalar_metric_type: str | None = None
-
-            for _i in range(25):  # Read ahead a fixed number of lines for this block
-                line = next(iterator)
-                line_buffer.append(line)
-
-                if (
-                    STATE_HEADER_PAT.search(line)
-                    or SECTION_SEPARATOR_PAT.search(line)
-                    or MULLIKEN_TRANS_DM_HEADER_PAT.search(line)
-                    or CT_NUMBERS_HEADER_PAT.search(line)
-                ):
-                    line_buffer.pop()  # Remove the terminating line
-                    iterator = iter([line] + list(iterator))  # Push back this line
-                    break
-
-                m = TRANS_DIPOLE_MOMENT_TOTAL_PAT.search(line)
-                if m:
-                    data["total_transition_dipole_moment"] = float(m.group(1))
-                    last_scalar_metric_type = "dipole"
-                    continue
-
-                m = CARTESIAN_COMPONENTS_D_PAT.search(line)
-                if m and last_scalar_metric_type == "dipole":
-                    data["transition_dipole_moment_components"] = (
-                        float(m.group(1)),
-                        float(m.group(2)),
-                        float(m.group(3)),
-                    )
-                    last_scalar_metric_type = None  # Reset context
-                    continue
-
-                m = TRANS_R_SQUARED_AU_PAT.search(line)
-                if m:
-                    data["transition_r_squared_au"] = float(m.group(1))
-                    last_scalar_metric_type = "r_squared"
-                    continue
-
-                m = CARTESIAN_COMPONENTS_AU_PAT.search(line)
-                if m and last_scalar_metric_type == "r_squared":
-                    data["transition_r_squared_au_components"] = (
-                        float(m.group(1)),
-                        float(m.group(2)),
-                        float(m.group(3)),
-                    )
-                    last_scalar_metric_type = None  # Reset context
-                    continue
-
-                m = EXCITON_RH_PAT.search(line)
-                if m:
-                    data["hole_position_ang"] = (float(m.group(1)), float(m.group(2)), float(m.group(3)))
-                    continue
-
-                m = EXCITON_RE_PAT.search(line)
-                if m:
-                    data["electron_position_ang"] = (float(m.group(1)), float(m.group(2)), float(m.group(3)))
-                    continue
-
-                m = EXCITON_RE_RH_SEP_PAT.search(line)
-                if m:
-                    data["hole_electron_distance_ang"] = float(m.group(1))
-                    continue
-
-                m = EXCITON_SIZE_LINE_PAT.search(line)
-                if m:
-                    size_type, value = m.group(1), float(m.group(2))
-                    if size_type == "Hole size":
-                        data["hole_size_ang"] = value
-                        last_scalar_metric_type = "hole_size"
-                    elif size_type == "Electron size":
-                        data["electron_size_ang"] = value
-                        last_scalar_metric_type = "electron_size"
-                    continue
-
-                # Generic Angstrom components, relies on last_scalar_metric_type
-                m = CARTESIAN_COMPONENTS_ANG_PAT.search(line)
-                if m:
-                    components = (float(m.group(1)), float(m.group(2)), float(m.group(3)))
-                    if last_scalar_metric_type == "hole_size":
-                        data["hole_size_ang_components"] = components
-                        last_scalar_metric_type = None
-                    elif last_scalar_metric_type == "electron_size":
-                        data["electron_size_ang_components"] = components
-                        last_scalar_metric_type = None
-                    elif last_scalar_metric_type == "rms_sep":  # Context set by RMS_ELECTRON_HOLE_SEP_PAT
-                        data["rms_electron_hole_separation_ang_components"] = components
-                        last_scalar_metric_type = None
-                    elif last_scalar_metric_type == "cm_size":  # Context set by CENTER_OF_MASS_SIZE_PAT
-                        data["center_of_mass_size_ang_components"] = components
-                        last_scalar_metric_type = None
-                    else:  # Could be <r_h> or <r_e> if they weren't direct matches, but they are.
-                        # This path is more for RMS sep and CM size components
-                        logger.debug(
-                            f"CARTESIAN_COMPONENTS_ANG_PAT matched but context '{last_scalar_metric_type}' unclear: {line.strip()}"
-                        )
-                    continue
-
-                m = RMS_ELECTRON_HOLE_SEP_PAT.search(line)
-                if m:
-                    data["rms_electron_hole_separation_ang"] = float(m.group(1))
-                    last_scalar_metric_type = "rms_sep"
-                    continue
-
-                m = COVARIANCE_RH_RE_PAT.search(line)
-                if m:
-                    data["covariance_rh_re_ang_sq"] = float(m.group(1))
-                    last_scalar_metric_type = None  # No components
-                    continue
-
-                m = CORRELATION_COEFF_PAT.search(line)
-                if m:
-                    data["correlation_coefficient"] = float(m.group(1))
-                    last_scalar_metric_type = None  # No components
-                    continue
-
-                m = CENTER_OF_MASS_SIZE_PAT.search(line)
-                if m:
-                    data["center_of_mass_size_ang"] = float(m.group(1))
-                    last_scalar_metric_type = "cm_size"
-                    continue
-
-                if not line.strip():  # Skip blank lines
-                    continue
-
-                # If no pattern matched, it might be the end or an unknown line
-                logger.debug(f"Unparsed line in Exciton Trans DM: {line.strip()}")
-                # Do not break here, allow loop to continue for other lines or stop via iteration limit/headers
-
-        except StopIteration:
-            logger.debug("File ended during Exciton Trans DM parsing for a state.")
-        finally:  # Push back any unconsumed lines from local buffer if loop broke early
-            # This is tricky if the loop finishes by iterating 25 times vs. header break.
-            # The header break condition already handles pushback of the header itself.
-            # If it finishes due to _i, unconsumed lines in line_buffer are lost unless handled.
-            # However, standard practice is to let outer loop manage iterator.
-            # The main concern is that if we _don't_ find a terminating header,
-            # the line_buffer might contain lines that the _next_ parser needs.
-            # For simplicity here, if loop terminates by exhaustion, this buffer is not pushed back.
-            # This assumes subsections are contiguous and well-behaved.
-            pass
-
-        if not any(v is not None for v in data.values()):
-            logger.debug("No significant Exciton Trans DM data found.")
-            # Push back all consumed lines if nothing was found
-            iterator = iter(line_buffer + list(iterator))
-            return None
-
-        return ExcitonAnalysisTransitionDM(**data)
-
-    def parse(self, iterator: LineIterator, first_line: str, results: _MutableCalculationData) -> None:
-        logger.debug("Starting parsing of Transition Density Matrix Analysis block.")
-        # Similar structure to ExcitedStateAnalysisParser: loop through states (Singlet X, ...)
-        # Within each state, parse Mulliken (Trans DM), CT numbers, Exciton (Trans DM)
-
-        current_qta: float | None = None  # For current state
-        current_qt2: float | None = None  # For current state
-        lines_buffer: list[str] = []
-
+        # Main loop to parse each state's analysis
         while True:
-            try:
-                if lines_buffer:
-                    line = lines_buffer.pop(0)
-                else:
-                    line = next(iterator)
-            except StopIteration:
+            if results.buffered_line:
+                line = results.buffered_line
+                results.buffered_line = None
+            # else: line is already set from previous iteration or initial consumption
+
+            if any(known_start in line for known_start in KNOWN_NEXT_SECTION_STARTS):
+                logger.debug(f"Transition Density Matrix Analysis parsing stopped by next section: {line.strip()}")
+                results.buffered_line = line
                 break
 
-            if SECTION_SEPARATOR_PAT.search(line) and not line.strip("-\s"):
+            state_match = re.match(r"^\s*(Singlet|Triplet)\s+(\d+)\s*:\s*$", line.strip())
+            if state_match:
+                multiplicity = state_match.group(1)
+                state_number = int(state_match.group(2))
+                logger.debug(f"Parsing Transition DM for {multiplicity} state {state_number}")
+
+                mulliken_data: TransitionDMMulliken | None = None
+                ct_numbers_data: TransitionDMCTNumbers | None = None
+                exciton_analysis_data: ExcitonAnalysisTransitionDM | None = None
+
+                # This variable will hold the current line being processed *within* this state's block
+                line_for_current_state: str | None = None
+
                 try:
-                    next_peek_line = next(iterator)
-                    lines_buffer.append(next_peek_line)
-                    if not STATE_HEADER_PAT.search(next_peek_line) and not (
-                        TRANS_DM_ANALYSIS_HEADER_PAT.search(next_peek_line)
-                        or re.search(r"^\s*SA-NTO Decomposition\s*$", next_peek_line)
-                    ):
-                        break
+                    # Fetch the first line of content/fluff *after* the "Singlet X :" header
+                    line_for_current_state = next(iterator)
+
+                    while line_for_current_state is not None:
+                        line_strip = line_for_current_state.strip()
+
+                        # Explicitly skip empty lines or '----' decorative lines first
+                        if not line_strip or line_strip.startswith("----"):
+                            try:
+                                line_for_current_state = next(iterator)
+                            except StopIteration:
+                                line_for_current_state = None  # EOF
+                            continue  # Continue to the next line of the state
+
+                        # Check if this line signals end of current state (i.e., start of new state or major section)
+                        if any(
+                            known_start in line_for_current_state for known_start in KNOWN_NEXT_SECTION_STARTS
+                        ) or re.match(r"^\\s*(Singlet|Triplet)\\s+(\\d+)\\s*:\\s*$", line_strip):
+                            results.buffered_line = line_for_current_state  # Push back for outer loop
+                            line_for_current_state = None  # Signal to break from this state's parsing
+                            break
+
+                        # Now, check for actual content sections
+                        if "Mulliken Population Analysis (Transition DM)" in line_for_current_state:
+                            mulliken_data, line_for_current_state = self._parse_mulliken_tdm(
+                                iterator, line_for_current_state, results
+                            )
+                        elif "CT numbers (Mulliken)" in line_for_current_state:
+                            ct_numbers_data, line_for_current_state = self._parse_ct_numbers(
+                                iterator, line_for_current_state, results
+                            )
+                        elif "Exciton analysis of the transition density matrix" in line_for_current_state:
+                            exciton_analysis_data, line_for_current_state = self._parse_exciton_analysis_tdm(
+                                iterator, line_for_current_state, results
+                            )
+                        else:
+                            # Unrecognized line within a state's block means this state's data is done
+                            logger.debug(
+                                f"Unparsed line '{line_strip}' within state {state_number}, assuming end of state's data."
+                            )
+                            results.buffered_line = line_for_current_state
+                            line_for_current_state = None  # Signal to break from this state's parsing
+                            break
+
+                        # If a sub-parser hit EOF, line_for_current_state will be None
+                        if line_for_current_state is None:
+                            break
+
                 except StopIteration:
-                    break
+                    logger.debug(
+                        f"EOF reached while parsing {multiplicity} state {state_number} in Transition DM Analysis."
+                    )
+                    line_for_current_state = None  # Signal EOF
 
-            match_state = STATE_HEADER_PAT.search(line)
-            if not match_state:
-                if not BLANK_LINE_PAT.search(line) and line.strip():
-                    logger.debug(f"Skipping non-state-header line in TransDM: {line.strip()}")
-                if TRANS_DM_ANALYSIS_HEADER_PAT.search(line) or re.search(r"^\s*SA-NTO Decomposition\s*$", line):
-                    lines_buffer.insert(0, line)
-                    break
-                continue
-
-            multiplicity = match_state.group(1)
-            state_number = int(match_state.group(2))
-            logger.debug(f"Parsing Transition DM analysis for {multiplicity} {state_number}")
-
-            current_mulliken_trans_dm: TransitionDMMulliken | None = None
-            current_ct_numbers: TransitionDMCTNumbers | None = None
-            current_exciton_trans_dm: ExcitonAnalysisTransitionDM | None = None
-            # Add flags for parsed subsections for this state
-            parsed_mulliken_tdm = False
-            parsed_ct_numbers_tdm = False
-            parsed_exciton_tdm = False
-
-            temp_state_lines_buffer: list[str] = []
-            # Reset qta/qt2 for the new state
-            current_qta = None
-            current_qt2 = None
-
-            for _ in range(50):  # Max lines for subsections of one state
-                try:
-                    if temp_state_lines_buffer:
-                        line = temp_state_lines_buffer.pop(0)
-                    else:
-                        line = next(iterator)
-                except StopIteration:
-                    break
-
-                if STATE_HEADER_PAT.search(line) or SECTION_SEPARATOR_PAT.search(line):
-                    lines_buffer.insert(0, line)
-                    break
-
-                if MULLIKEN_TRANS_DM_HEADER_PAT.search(line) and not parsed_mulliken_tdm:
-                    mdata, qta_val, qt2_val = self._parse_mulliken_transition_dm(iterator, line, results.input_geometry)
-                    if mdata:
-                        current_mulliken_trans_dm = mdata
-                        current_qta = qta_val  # Store qta
-                        current_qt2 = qt2_val  # Store qt2
-                        # Removed direct assignment to mdata fields
-                        parsed_mulliken_tdm = True
-                    continue
-
-                if CT_NUMBERS_HEADER_PAT.search(line) and not parsed_ct_numbers_tdm:
-                    ct_data = self._parse_ct_numbers_trans_dm(iterator, line)
-                    if ct_data:
-                        logger.debug(f"Parsed CT Numbers for state {state_number}")
-                        current_ct_numbers = ct_data
-                        parsed_ct_numbers_tdm = True
-                    continue
-
-                if EXCITON_TRANS_DM_HEADER_PAT.search(line) and not parsed_exciton_tdm:
-                    exciton_data = self._parse_exciton_trans_dm(iterator, line)
-                    if exciton_data:
-                        logger.debug(f"Parsed Exciton (Trans DM) for state {state_number}")
-                        current_exciton_trans_dm = exciton_data
-                        parsed_exciton_tdm = True
-                    continue
-
-                if not line.strip():
-                    continue
-                temp_state_lines_buffer.append(line)
-
-            if current_mulliken_trans_dm or current_ct_numbers or current_exciton_trans_dm:  # or other data found
-                results.transition_density_matrix_detailed_analyses_list.append(
-                    TransitionDensityMatrixDetailedAnalysis(
+                if mulliken_data or ct_numbers_data or exciton_analysis_data:
+                    analysis = TransitionDensityMatrixDetailedAnalysis(
                         state_number=state_number,
                         multiplicity=multiplicity,
-                        mulliken_analysis=current_mulliken_trans_dm,
-                        ct_numbers=current_ct_numbers,
-                        exciton_analysis=current_exciton_trans_dm,
-                        sum_abs_trans_charges_qta=current_qta,
-                        sum_sq_trans_charges_qt2=current_qt2,
+                        mulliken_analysis=mulliken_data,
+                        ct_numbers=ct_numbers_data,
+                        exciton_analysis=exciton_analysis_data,
                     )
-                )
+                    results.transition_density_matrix_detailed_analyses_list.append(analysis)
+                    logger.debug(f"Stored Transition DM Analysis for {multiplicity} state {state_number}")
 
-            if temp_state_lines_buffer:
-                lines_buffer.extend(temp_state_lines_buffer)
+                # Determine how the outer loop should get its next `line`
+                if results.buffered_line:
+                    # A line (e.g. next state header) was buffered. Outer loop will use this.
+                    # No action needed here for `line` variable of outer loop.
+                    pass
+                elif line_for_current_state is None:
+                    # EOF was hit within this state's parsing. Outer loop should break.
+                    line = None  # Signal outer loop to break
+                else:
+                    # This state finished, and the last `line_for_current_state`
+                    # (returned by a sub-parser) was not a new state/section or fluff.
+                    # This implies it was an unrecognized line that ended the state.
+                    # The spec says such a line should be pushed back.
+                    # However, the logic above already buffers it if it was unrecognized.
+                    # This path should ideally not be hit if the above `else` for unrecognized lines
+                    # correctly buffers and sets line_for_current_state to None.
+                    # For safety, if line_for_current_state is NOT None and nothing is buffered,
+                    # it means the inner while loop exited because line_for_current_state was not None,
+                    # but it wasn't a new state/section (that would have set results.buffered_line).
+                    # This indicates an unprocessed line that should be the start for the next outer loop iteration.
+                    line = line_for_current_state
 
-            if lines_buffer and (re.search(r"^\s*SA-NTO Decomposition\s*$", lines_buffer[0])):
+            else:  # Line is not a state start, and not a known next section (checked at top of outer loop)
+                logger.debug(f"Transition Density Matrix Analysis parsing stopped by unrecognized line: {line.strip()}")
+                results.buffered_line = line
+                break  # Break main loop
+
+            # Prepare `line` for the next iteration of the main outer loop.
+            if results.buffered_line:
+                # This will be picked up at the top of the while True loop.
+                pass
+            elif line is None:  # EOF was signaled from state parsing
                 break
+            else:  # Current state processed, fetch next line for potential new state or end.
+                try:
+                    line = next(iterator)
+                except StopIteration:
+                    logger.debug("EOF reached at the end of Transition Density Matrix Analysis main loop.")
+                    break
 
-        if lines_buffer:
-            iterator = iter(lines_buffer + list(iterator))
-
+        results.parsed_tddft_transition_dm_analysis = True
         logger.info(
-            f"Parsed Transition DM analysis for {len(results.transition_density_matrix_detailed_analyses_list)} states."
+            f"Finished parsing Transition Density Matrix Analysis. Found {len(results.transition_density_matrix_detailed_analyses_list)} states."
         )
+
+    def _parse_mulliken_tdm(
+        self, iterator: LineIterator, current_block_line: str, results: _MutableCalculationData
+    ) -> tuple[TransitionDMMulliken | None, str | None]:
+        populations: list[TransitionDMAtomPopulation] = []
+        sum_qta: float | None = None
+        sum_qt2: float | None = None
+        line: str | None = current_block_line  # This is "Mulliken Population Analysis..."
+
+        try:
+            line = next(iterator)  # Headers: "Atom Trans. (e) ..." & "----"
+            while "----" in line or "Atom      Trans. (e)" in line or not line.strip():
+                line = next(iterator)
+
+            while "----" not in line and "Sum:" not in line.strip():
+                parts = line.split()
+                if len(parts) >= 5:
+                    try:
+                        atom_index = int(parts[0]) - 1
+                        symbol = parts[1]
+                        trans_e = float(parts[2])
+                        h_plus = float(parts[3])
+                        e_minus = float(parts[4])
+                        del_q = float(parts[5]) if len(parts) > 5 else None
+                        populations.append(
+                            TransitionDMAtomPopulation(atom_index, symbol, trans_e, h_plus, e_minus, del_q)
+                        )
+                    except (ValueError, IndexError) as e:
+                        logger.warning(f"Could not parse Mulliken TDM atom line: '{line.strip()}'. Error: {e}")
+                line = next(iterator)
+
+            if "Sum:" in line.strip():
+                line = next(iterator)
+            if "----" in line.strip():
+                line = next(iterator)  # Consume final separator
+
+            while line is not None and not line.strip():
+                line = next(iterator)
+            if line and "Sum of absolute trans. charges, QTa" in line:
+                match = re.search(r"QTa\s*=\s*(-?\d+\.\d+)", line)
+                if match:
+                    sum_qta = float(match.group(1))
+                line = next(iterator)
+
+            while line is not None and not line.strip():
+                line = next(iterator)
+            if line and "Sum of squared  trans. charges, QT2" in line:
+                match = re.search(r"QT2\s*=\s*(-?\d+\.\d+)", line)
+                if match:
+                    sum_qt2 = float(match.group(1))
+                line = next(iterator)
+
+            return TransitionDMMulliken(populations, sum_qta, sum_qt2), line
+        except StopIteration:
+            return TransitionDMMulliken(populations, sum_qta, sum_qt2) if populations else None, None
+        except Exception as e:
+            results.parsing_errors.append(f"Error in _parse_mulliken_tdm: {e} on line '{line}'")
+            logger.error(f"Error in _parse_mulliken_tdm: {e} on line '{line}'")
+            return None, line
+
+    def _parse_ct_numbers(
+        self, iterator: LineIterator, current_block_line: str, results: _MutableCalculationData
+    ) -> tuple[TransitionDMCTNumbers | None, str | None]:
+        ct_data_dict: dict[str, float] = {}
+        line: str | None = current_block_line  # This is "CT numbers..."
+        try:
+            line = next(iterator)
+            while line is not None and "=" in line:
+                line_strip = line.strip()
+                if not line_strip:
+                    line = next(iterator)
+                    continue
+                match = re.match(r"^\s*(omega|2<alpha\|beta>|LOC|LOCa|<Phe>)\s*=\s*(-?\d+\.\d+)", line_strip)
+                if match:
+                    key, val_str = match.group(1), match.group(2)
+                    norm_key = key.lower()
+                    if key == "2<alpha|beta>":
+                        norm_key = "two_alpha_beta_overlap"
+                    elif key == "<Phe>":
+                        norm_key = "phe_overlap"
+                    ct_data_dict[norm_key] = float(val_str)
+                else:
+                    break
+                line = next(iterator)
+
+            return TransitionDMCTNumbers(**cast(dict, ct_data_dict)), line
+        except StopIteration:
+            return TransitionDMCTNumbers(**cast(dict, ct_data_dict)) if ct_data_dict else None, None
+        except Exception as e:
+            results.parsing_errors.append(f"Error in _parse_ct_numbers: {e} on line '{line}'")
+            logger.error(f"Error in _parse_ct_numbers: {e} on line '{line}'")
+            return None, line
+
+    def _parse_exciton_analysis_tdm(
+        self, iterator: LineIterator, current_block_line: str, results: _MutableCalculationData
+    ) -> tuple[ExcitonAnalysisTransitionDM | None, str | None]:
+        exciton_data_dict: dict[str, Any] = {}
+        line: str | None = current_block_line  # This is "Exciton analysis..."
+
+        # Helper to parse scalar values and component lines for exciton analysis
+        def _process_exciton_line(l_str: str, data: dict[str, Any]):
+            l_s = l_str.strip()
+            # Scalar patterns (value on same line)
+            scalar_patterns = {
+                "Trans. dipole moment [D]:": "total_transition_dipole_moment",
+                "Transition <r^2> [a.u.]:": "transition_r_squared_au",
+                "|<r_e - r_h>| [Ang]:": "hole_electron_distance_ang",
+                "Covariance(r_h, r_e) [Ang^2]:": "covariance_rh_re_ang_sq",
+                "Correlation coefficient:": "correlation_coefficient",
+            }
+            # Vector patterns (value on same line, starts with key)
+            vector_same_line_patterns = {
+                "Cartesian components [D]:": "transition_dipole_moment_components",
+                "Cartesian components [a.u.]:": "transition_r_squared_au_components",
+                "<r_h> [Ang]:": "hole_position_ang",
+                "<r_e> [Ang]:": "electron_position_ang",
+            }
+            # Patterns where scalar is on current line, vector on next
+            scalar_then_vector_patterns = {
+                "Hole size [Ang]:": ("hole_size_ang", "hole_size_ang_components"),
+                "Electron size [Ang]:": ("electron_size_ang", "electron_size_ang_components"),
+                "RMS electron-hole separation [Ang]:": (
+                    "rms_electron_hole_separation_ang",
+                    "rms_electron_hole_separation_ang_components",
+                ),
+                "Center-of-mass size [Ang]:": ("center_of_mass_size_ang", "center_of_mass_size_ang_components"),
+            }
+
+            # Check for pending vector components from previous line
+            pending_vector_key = data.get("_pending_vector_key")
+            if pending_vector_key:
+                triplet = extract_float_triplet(l_s)
+                if triplet:
+                    data[pending_vector_key] = triplet
+                data.pop("_pending_vector_key")
+                return True  # Line processed
+
+            for pattern, key in scalar_patterns.items():
+                if l_s.startswith(pattern):
+                    val = safe_float(l_s.replace(pattern, "").strip())
+                    if val is not None:
+                        data[key] = val
+                    return True
+
+            for pattern, key in vector_same_line_patterns.items():
+                if l_s.startswith(pattern):
+                    triplet = extract_float_triplet(l_s.replace(pattern, ""))
+                    if triplet:
+                        data[key] = triplet
+                    return True
+
+            for pattern, (s_key, v_key) in scalar_then_vector_patterns.items():
+                if l_s.startswith(pattern):
+                    val = safe_float(l_s.replace(pattern, "").strip())
+                    if val is not None:
+                        data[s_key] = val
+                    data["_pending_vector_key"] = v_key  # Expect vector on next line
+                    return True
+            return False  # Line not processed by this helper
+
+        try:
+            line = next(iterator)  # Consume "Exciton analysis..." line passed as current_block_line
+            while line is not None:
+                line_strip = line.strip()
+                if not line_strip:  # Empty line can mark end of sub-block
+                    # Peek ahead to see if it's truly the end or just a blank line within
+                    try:
+                        peek_line = next(iterator)
+                        results.buffered_line = peek_line  # Must buffer peeked line
+                        if (
+                            not peek_line.strip()
+                            or any(known_start in peek_line for known_start in KNOWN_NEXT_SECTION_STARTS)
+                            or re.match(r"^\s*(Singlet|Triplet)\s+(\d+)\s*:\s*$", peek_line.strip())
+                            or "Mulliken Population Analysis" in peek_line
+                            or "CT numbers (Mulliken)" in peek_line
+                        ):
+                            break  # End of exciton block confirmed by empty line then new section/state
+                        else:  # Not end, continue with peek_line as current line
+                            line = peek_line
+                            results.buffered_line = None  # consumed peek_line
+                            if not _process_exciton_line(line, exciton_data_dict):
+                                break  # If peeked line is not part of exciton, break
+                    except StopIteration:
+                        break  # EOF means end of block
+                else:
+                    if not _process_exciton_line(line, exciton_data_dict):
+                        break  # Line not processed, assume end of exciton data for this state
+
+                if not exciton_data_dict.get("_pending_vector_key") and line is not None:
+                    # Only advance if not waiting for vector comp and not EOF
+                    line = next(iterator)
+                elif line is None:  # Should not happen if _process_exciton_line is last call before loop check
+                    break
+
+            exciton_data_dict.pop("_pending_vector_key", None)  # Clean up
+            return ExcitonAnalysisTransitionDM(**exciton_data_dict), line
+
+        except StopIteration:
+            exciton_data_dict.pop("_pending_vector_key", None)
+            return ExcitonAnalysisTransitionDM(**exciton_data_dict) if exciton_data_dict else None, None
+        except Exception as e:
+            results.parsing_errors.append(f"Error in _parse_exciton_analysis_tdm: {e} on line '{line}'")
+            logger.error(f"Error in _parse_exciton_analysis_tdm: {e} on line '{line}'")
+            return None, line

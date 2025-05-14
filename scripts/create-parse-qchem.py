@@ -7,7 +7,8 @@ from calcflow.inputs.slurm import SlurmArgs
 from calcflow.parsers.qchem import parse_qchem_sp_output, parse_qchem_tddft_output
 from calcflow.utils import logger
 
-logger.setLevel(logging.WARNING)
+# logger.setLevel(logging.WARNING)
+logger.setLevel(logging.INFO)
 
 data_path = Path(__file__).resolve().parents[1] / "data"
 calcs_path = data_path / "calculations"
@@ -87,5 +88,8 @@ if run["parse"]:
 
         print("Unrelaxed excited state properties:")
         print(tddft_pc2.tddft_data.excited_state_analyses)
+
+        print("\n\n Transition Density Matrix Analysis:")
+        print(tddft_pc2.tddft_data.transition_density_matrix_analyses)
 
         # breakpoint()

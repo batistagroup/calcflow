@@ -20,6 +20,7 @@ from calcflow.parsers.qchem.blocks.tddft import (
     GroundStateReferenceParser,
     TDAExcitationEnergiesParser,
     TDDFTExcitationEnergiesParser,
+    TransitionDensityMatrixParser,
     UnrelaxedExcitedStatePropertiesParser,
 )
 from calcflow.parsers.qchem.typing import (
@@ -73,6 +74,7 @@ PARSER_REGISTRY_TDDFT: Sequence[SectionParser] = [
     TDDFTExcitationEnergiesParser(),
     GroundStateReferenceParser(),  # Parses specific GS ref data within ESA block
     UnrelaxedExcitedStatePropertiesParser(),
+    TransitionDensityMatrixParser(),
     OrbitalParser(),  # Orbitals are relevant
     # Ground state properties usually appear before TDDFT specific blocks
     MultipoleParser(),  # Main ground state multipoles
