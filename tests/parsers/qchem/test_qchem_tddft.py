@@ -6,10 +6,23 @@ from calcflow.parsers.qchem.typing import (
     DipoleMomentData,
     HexadecapoleMoments,
     OctopoleMoments,
+    # ExcitedStateProperties,
     OrbitalTransition,
+    # ExcitedStateDetailedAnalysis,
+    # ExcitedStateNOData,
+    # ExcitedStateMulliken,
+    # ExcitedStateAtomPopulation,
+    # ExcitedStateMultipole,
+    # ExcitedStateExcitonDifferenceDM,
+    # TransitionDensityMatrixDetailedAnalysis,
+    # TransitionDMMulliken,
+    # TransitionDMAtomPopulation,
+    # TransitionDMCTNumbers,
+    # ExcitonAnalysisTransitionDM,
+    # NTOStateAnalysis,
+    # NTOContribution,
     QuadrupoleMoments,
     ScfData,
-    # TDDFT specific imports
     TddftData,
 )
 
@@ -159,14 +172,9 @@ def test_parse_qchem_tddft_output_h2o(parsed_tddft_pc2_data: CalculationData) ->
     assert tda_es1.trans_moment_z == approx(0.1092)
     assert tda_es1.oscillator_strength == approx(0.0518861703)
     assert len(tda_es1.transitions) >= 1
-    assert tda_es1.transitions[0] == OrbitalTransition(
-        from_orbital_type="D",
-        from_orbital_index=5,
-        to_orbital_type="V",
-        to_orbital_index=1,
-        amplitude=approx(0.9957),
-        is_alpha_spin=None,
-    )  # Spin not specified for RKS
+    # fmt:off
+    assert tda_es1.transitions[0] == OrbitalTransition(from_orbital_type="D", from_orbital_index=5, to_orbital_type="V", to_orbital_index=1, amplitude=approx(0.9957), is_alpha_spin=None) # Spin not specified for RKS
+    # fmt:on
 
     # Check State 3 (TDA)
     tda_es3 = tddft_results.tda_excited_states[2]
@@ -189,50 +197,12 @@ def test_parse_qchem_tddft_output_h2o(parsed_tddft_pc2_data: CalculationData) ->
     assert tda_es10.excitation_energy_ev == approx(16.8451)
     assert tda_es10.oscillator_strength == approx(0.0194126086)
     assert len(tda_es10.transitions) == 4
-    assert (
-        OrbitalTransition(
-            from_orbital_type="D",
-            from_orbital_index=3,
-            to_orbital_type="V",
-            to_orbital_index=2,
-            amplitude=approx(-0.2130),
-            is_alpha_spin=None,
-        )
-        in tda_es10.transitions
-    )
-    assert (
-        OrbitalTransition(
-            from_orbital_type="D",
-            from_orbital_index=4,
-            to_orbital_type="V",
-            to_orbital_index=4,
-            amplitude=approx(0.6069),
-            is_alpha_spin=None,
-        )
-        in tda_es10.transitions
-    )
-    assert (
-        OrbitalTransition(
-            from_orbital_type="D",
-            from_orbital_index=4,
-            to_orbital_type="V",
-            to_orbital_index=5,
-            amplitude=approx(-0.4794),
-            is_alpha_spin=None,
-        )
-        in tda_es10.transitions
-    )
-    assert (
-        OrbitalTransition(
-            from_orbital_type="D",
-            from_orbital_index=5,
-            to_orbital_type="V",
-            to_orbital_index=6,
-            amplitude=approx(-0.5917),
-            is_alpha_spin=None,
-        )
-        in tda_es10.transitions
-    )
+    # fmt:off
+    assert OrbitalTransition(from_orbital_type="D", from_orbital_index=3, to_orbital_type="V", to_orbital_index=2, amplitude=approx(-0.2130), is_alpha_spin=None) in tda_es10.transitions
+    assert OrbitalTransition(from_orbital_type="D", from_orbital_index=4, to_orbital_type="V", to_orbital_index=4, amplitude=approx(0.6069), is_alpha_spin=None) in tda_es10.transitions
+    assert OrbitalTransition(from_orbital_type="D", from_orbital_index=4, to_orbital_type="V", to_orbital_index=5, amplitude=approx(-0.4794), is_alpha_spin=None) in tda_es10.transitions
+    assert OrbitalTransition(from_orbital_type="D", from_orbital_index=5, to_orbital_type="V", to_orbital_index=6, amplitude=approx(-0.5917), is_alpha_spin=None) in tda_es10.transitions
+    # fmt:on
 
     # --- Full TDDFT (RPA) Excited States ---
     assert tddft_results.tddft_excited_states is not None
@@ -252,14 +222,9 @@ def test_parse_qchem_tddft_output_h2o(parsed_tddft_pc2_data: CalculationData) ->
     # The parser currently stores all transitions under 'transitions'. QChem output has X: D(...) and Y: D(...)
     # Assuming parser collects all of them, or primarily X. For TDDFT, output format is "X: D( 5) --> V( 1) amplitude = 0.9957"
     # The OrbitalTransition type does not distinguish X/Y, so we expect a single list.
-    assert tddft_es1.transitions[0] == OrbitalTransition(
-        from_orbital_type="D",
-        from_orbital_index=5,
-        to_orbital_type="V",
-        to_orbital_index=1,
-        amplitude=approx(0.9957),
-        is_alpha_spin=None,
-    )
+    # fmt:off
+    assert tddft_es1.transitions[0] == OrbitalTransition(from_orbital_type="D", from_orbital_index=5, to_orbital_type="V", to_orbital_index=1, amplitude=approx(0.9957), is_alpha_spin=None)
+    # fmt:on
 
     # Check State 3 (TDDFT)
     tddft_es3 = tddft_results.tddft_excited_states[2]
@@ -267,14 +232,9 @@ def test_parse_qchem_tddft_output_h2o(parsed_tddft_pc2_data: CalculationData) ->
     assert tddft_es3.excitation_energy_ev == approx(9.7830)
     assert tddft_es3.oscillator_strength == approx(0.1055651660)
     assert len(tddft_es3.transitions) >= 1
-    assert tddft_es3.transitions[0] == OrbitalTransition(
-        from_orbital_type="D",
-        from_orbital_index=4,
-        to_orbital_type="V",
-        to_orbital_index=1,
-        amplitude=approx(0.9934),
-        is_alpha_spin=None,
-    )
+    # fmt:off
+    assert tddft_es3.transitions[0] == OrbitalTransition(from_orbital_type="D", from_orbital_index=4, to_orbital_type="V", to_orbital_index=1, amplitude=approx(0.9934), is_alpha_spin=None)
+    # fmt:on
 
     # Check State 10 (TDDFT) - multiple transitions
     tddft_es10 = tddft_results.tddft_excited_states[9]
@@ -282,51 +242,12 @@ def test_parse_qchem_tddft_output_h2o(parsed_tddft_pc2_data: CalculationData) ->
     assert tddft_es10.excitation_energy_ev == approx(16.7974)
     assert tddft_es10.oscillator_strength == approx(0.0160088859)
     assert len(tddft_es10.transitions) == 4
-    assert (
-        OrbitalTransition(
-            from_orbital_type="D",
-            from_orbital_index=3,
-            to_orbital_type="V",
-            to_orbital_index=2,
-            amplitude=approx(-0.2248),
-            is_alpha_spin=None,
-        )
-        in tddft_es10.transitions
-    )
-    assert (
-        OrbitalTransition(
-            from_orbital_type="D",
-            from_orbital_index=4,
-            to_orbital_type="V",
-            to_orbital_index=4,
-            amplitude=approx(0.5374),
-            is_alpha_spin=None,
-        )
-        in tddft_es10.transitions
-    )
-    assert (
-        OrbitalTransition(
-            from_orbital_type="D",
-            from_orbital_index=4,
-            to_orbital_type="V",
-            to_orbital_index=5,
-            amplitude=approx(-0.4757),
-            is_alpha_spin=None,
-        )
-        in tddft_es10.transitions
-    )
-    assert (
-        OrbitalTransition(
-            from_orbital_type="D",
-            from_orbital_index=5,
-            to_orbital_type="V",
-            to_orbital_index=6,
-            amplitude=approx(-0.6556),
-            is_alpha_spin=None,
-        )
-        in tddft_es10.transitions
-    )
-
+    # fmt:off
+    assert OrbitalTransition(from_orbital_type="D", from_orbital_index=3, to_orbital_type="V", to_orbital_index=2, amplitude=approx(-0.2248), is_alpha_spin=None) in tddft_es10.transitions
+    assert OrbitalTransition(from_orbital_type="D", from_orbital_index=4, to_orbital_type="V", to_orbital_index=4, amplitude=approx(0.5374), is_alpha_spin=None) in tddft_es10.transitions
+    assert OrbitalTransition(from_orbital_type="D", from_orbital_index=4, to_orbital_type="V", to_orbital_index=5, amplitude=approx(-0.4757), is_alpha_spin=None) in tddft_es10.transitions
+    assert OrbitalTransition(from_orbital_type="D", from_orbital_index=5, to_orbital_type="V", to_orbital_index=6, amplitude=approx(-0.6556), is_alpha_spin=None) in tddft_es10.transitions
+    # fmt:on
     # # --- Detailed Excited State Analysis (for TDDFT states) ---
     # assert tddft_results.excited_state_analyses is not None
     # assert len(tddft_results.excited_state_analyses) == 10 # Should match number of TDDFT states if STATE_ANALYSIS is on
