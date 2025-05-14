@@ -12,6 +12,7 @@ from calcflow.parsers.qchem.blocks.tddft import (
     TDAExcitationEnergiesParser,
     TDDFTExcitationEnergiesParser,
     TransitionDensityMatrixParser,
+    UnrelaxedExcitedStatePropertiesParser,
 )
 
 __all__ = [
@@ -27,5 +28,6 @@ __all__ = [
     "TDDFTExcitationEnergiesParser",
     "GroundStateReferenceParser",
     "TransitionDensityMatrixParser",
+    "UnrelaxedExcitedStatePropertiesParser",
     "NTOParser",
 ]

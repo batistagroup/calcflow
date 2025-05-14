@@ -1,3 +1,8 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
 # Parser Design Specification
 
 The core philosophy for parsing output files is: **Every parser is a specialist. It knows its own section, and as soon as it sees something that's not its business, it stops, puts the line back, and lets the next specialist take a look.** No heroics, no guessing.

@@ -78,7 +78,14 @@ if run["parse"]:
         print(tddft_pc2)
         print(tddft_pc2.tddft_data)
         # print(tddft_pc2.tddft_data.excited_state_analyses)
+        print("Ground state reference analysis:")
         print(tddft_pc2.ground_state_reference_analysis)
+        print("Multipole:")
         print(tddft_pc2.multipole)
+        print("Orbitals:")
         print(tddft_pc2.orbitals)
+
+        print("Unrelaxed excited state properties:")
+        print(tddft_pc2.tddft_data.excited_state_analyses)
+
         # breakpoint()

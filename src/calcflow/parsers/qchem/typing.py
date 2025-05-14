@@ -359,8 +359,10 @@ class ExcitedStateExcitonDifferenceDM:
     hole_center_ang: tuple[float, float, float] | None = None  # <r_h>
     electron_center_ang: tuple[float, float, float] | None = None  # <r_e>
     electron_hole_separation_ang: float | None = None  # |<r_e - r_h>|
-    hole_size_ang: tuple[float, float, float] | None = None  # Cartesian components
-    electron_size_ang: tuple[float, float, float] | None = None  # Cartesian components
+    hole_size_ang: float | None = None
+    hole_size_ang_comps: tuple[float, float, float] | None = None  # Cartesian components
+    electron_size_ang: float | None = None
+    electron_size_ang_comps: tuple[float, float, float] | None = None  # Cartesian components
 
 
 @dataclass(frozen=True)
@@ -573,6 +575,7 @@ class _MutableCalculationData:
     parsed_meta_method: bool = False
     parsed_meta_basis: bool = False
     # Add more flags as needed
+    parsed_unrelaxed_excited_state_properties: bool = False
 
     # TDDFT data
     tda_excited_states_list: list[ExcitedStateProperties] = field(default_factory=list)
