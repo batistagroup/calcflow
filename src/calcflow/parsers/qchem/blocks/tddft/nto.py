@@ -1,6 +1,5 @@
 import re
 
-from calcflow.parsers.qchem.core import NORMAL_TERM_PAT
 from calcflow.parsers.qchem.typing import (
     LineIterator,
     NTOContribution,
@@ -53,15 +52,6 @@ class NTOParser(SectionParser):
             except StopIteration:
                 logger.debug("End of file reached during NTO parsing.")
                 break
-
-            # Check for termination conditions (e.g., start of another major section or normal termination)
-            if NORMAL_TERM_PAT.search(line):
-                logger.debug(f"NTO parsing stopped by normal termination pattern: {line.strip()}")
-                lines_buffer.insert(0, line)  # Push back for other parsers
-                break
-
-            # Add other potential section headers that might terminate NTO block if necessary
-            # For now, relying on NORMAL_TERM_PAT and specific parsing logic.
 
             match_state = STATE_HEADER_PAT.search(line)
             if not match_state:
@@ -156,7 +146,6 @@ class NTOParser(SectionParser):
                 if (
                     STATE_HEADER_PAT.search(line)
                     or SECTION_SEPARATOR_PAT.search(line)
-                    or NORMAL_TERM_PAT.search(line)
                     or NTO_SECTION_HEADER_PAT.search(line)
                 ):
                     lines_buffer.insert(0, line)  # Push back for outer loop or next parser

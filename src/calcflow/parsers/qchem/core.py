@@ -39,7 +39,7 @@ FINAL_ENERGY_PAT = re.compile(r"^ Total energy =\s+(-?\d+\.\d+)")
 # Termination Patterns
 # Make the pattern search for the message anywhere on the line, ignoring surrounding characters
 NORMAL_TERM_PAT = re.compile(r"^ {8}\* {2}Thank you very much for using Q-Chem\. {2}Have a nice day\. {2}\*$")
-# TODO: Identify robust patterns for various Q-Chem error terminations
+
 ERROR_TERM_PAT = re.compile(r"(ERROR:|error:|aborting|failed)", re.IGNORECASE)
 
 # --- Parser Registry --- #

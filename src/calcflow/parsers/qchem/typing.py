@@ -366,20 +366,26 @@ class TransitionDMCTNumbers:
 
 
 @dataclass(frozen=True)
-class TransitionDMExciton:
-    """Exciton analysis of the transition density matrix."""
+class ExcitonAnalysisTransitionDM:
+    """Exciton analysis of the transition density matrix, matching parser output."""
 
-    trans_dipole_moment_debye: DipoleMomentData | None = None
-    transition_r_squared_au: tuple[float, float, float] | None = None  # Cartesian components
-    hole_center_ang: tuple[float, float, float] | None = None  # <r_h>
-    electron_center_ang: tuple[float, float, float] | None = None  # <r_e>
-    electron_hole_separation_ang: float | None = None  # |<r_e - r_h>|
-    hole_size_ang: tuple[float, float, float] | None = None  # Cartesian components
-    electron_size_ang: tuple[float, float, float] | None = None  # Cartesian components
-    rms_electron_hole_separation_ang: tuple[float, float, float] | None = None  # Cartesian components
-    covariance_rh_re_ang2: float | None = None
+    total_transition_dipole_moment: float | None = None
+    transition_dipole_moment_components: tuple[float, float, float] | None = None
+    transition_r_squared_au: float | None = None
+    transition_r_squared_au_components: tuple[float, float, float] | None = None
+    hole_position_ang: tuple[float, float, float] | None = None
+    electron_position_ang: tuple[float, float, float] | None = None
+    hole_electron_distance_ang: float | None = None
+    hole_size_ang: float | None = None
+    hole_size_ang_components: tuple[float, float, float] | None = None
+    electron_size_ang: float | None = None
+    electron_size_ang_components: tuple[float, float, float] | None = None
+    rms_electron_hole_separation_ang: float | None = None
+    rms_electron_hole_separation_ang_components: tuple[float, float, float] | None = None
+    covariance_rh_re_ang_sq: float | None = None
     correlation_coefficient: float | None = None
-    center_of_mass_size_ang: tuple[float, float, float] | None = None  # Cartesian components
+    center_of_mass_size_ang: float | None = None
+    center_of_mass_size_ang_components: tuple[float, float, float] | None = None
 
 
 @dataclass(frozen=True)
@@ -424,7 +430,7 @@ class TransitionDensityMatrixDetailedAnalysis:
     multiplicity: str  # e.g., "Singlet"
     mulliken_analysis: TransitionDMMulliken | None = None
     ct_numbers: TransitionDMCTNumbers | None = None
-    exciton_analysis: TransitionDMExciton | None = None
+    exciton_analysis: ExcitonAnalysisTransitionDM | None = None
     sum_abs_trans_charges_qta: float | None = None
     sum_sq_trans_charges_qt2: float | None = None
 

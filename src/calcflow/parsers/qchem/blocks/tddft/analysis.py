@@ -4,7 +4,6 @@ import re
 from collections.abc import Sequence
 
 from calcflow.exceptions import ParsingError
-from calcflow.parsers.qchem.core import NORMAL_TERM_PAT
 from calcflow.parsers.qchem.typing import (
     Atom,
     DipoleMomentData,
@@ -525,7 +524,6 @@ class ExcitedStateAnalysisParser(SectionParser):
                         EXCITED_STATE_ANALYSIS_HEADER_PAT.search(next_peek_line)
                         or re.search(r"^\s*Transition Density Matrix Analysis\s*$", next_peek_line)
                         or re.search(r"^\s*SA-NTO Decomposition\s*$", next_peek_line)
-                        or NORMAL_TERM_PAT.search(next_peek_line)
                     ):
                         # If not a new state or major block, this separator was internal to a sub-parser
                         # or the end of the entire ESA block. For now, assume end of ESA block.
@@ -547,7 +545,6 @@ class ExcitedStateAnalysisParser(SectionParser):
                     EXCITED_STATE_ANALYSIS_HEADER_PAT.search(line)  # Should not happen
                     or re.search(r"^\s*Transition Density Matrix Analysis\s*$", line)
                     or re.search(r"^\s*SA-NTO Decomposition\s*$", line)
-                    or NORMAL_TERM_PAT.search(line)
                 ):
                     logger.debug("Found start of next major block. Ending Excited State Analysis parsing.")
                     lines_buffer.insert(0, line)  # Push back this line
@@ -683,7 +680,6 @@ class ExcitedStateAnalysisParser(SectionParser):
             if lines_buffer and (
                 re.search(r"^\s*Transition Density Matrix Analysis\s*$", lines_buffer[0])
                 or re.search(r"^\s*SA-NTO Decomposition\s*$", lines_buffer[0])
-                or NORMAL_TERM_PAT.search(lines_buffer[0])
             ):
                 logger.debug("Next major block detected. Finalizing Excited State Analysis.")
                 break  # Exit main state loop

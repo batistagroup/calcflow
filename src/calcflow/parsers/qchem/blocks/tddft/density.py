@@ -3,7 +3,6 @@
 import re
 from collections.abc import Sequence
 
-from calcflow.parsers.qchem.core import NORMAL_TERM_PAT
 from calcflow.parsers.qchem.typing import (
     Atom,
     ExcitonAnalysisTransitionDM,
@@ -440,7 +439,6 @@ class TransitionDensityMatrixParser(SectionParser):
                     if not STATE_HEADER_PAT.search(next_peek_line) and not (
                         TRANS_DM_ANALYSIS_HEADER_PAT.search(next_peek_line)
                         or re.search(r"^\s*SA-NTO Decomposition\s*$", next_peek_line)
-                        or NORMAL_TERM_PAT.search(next_peek_line)
                     ):
                         break
                 except StopIteration:
@@ -450,11 +448,7 @@ class TransitionDensityMatrixParser(SectionParser):
             if not match_state:
                 if not BLANK_LINE_PAT.search(line) and line.strip():
                     logger.debug(f"Skipping non-state-header line in TransDM: {line.strip()}")
-                if (
-                    TRANS_DM_ANALYSIS_HEADER_PAT.search(line)
-                    or re.search(r"^\s*SA-NTO Decomposition\s*$", line)
-                    or NORMAL_TERM_PAT.search(line)
-                ):
+                if TRANS_DM_ANALYSIS_HEADER_PAT.search(line) or re.search(r"^\s*SA-NTO Decomposition\s*$", line):
                     lines_buffer.insert(0, line)
                     break
                 continue
@@ -535,9 +529,7 @@ class TransitionDensityMatrixParser(SectionParser):
             if temp_state_lines_buffer:
                 lines_buffer.extend(temp_state_lines_buffer)
 
-            if lines_buffer and (
-                re.search(r"^\s*SA-NTO Decomposition\s*$", lines_buffer[0]) or NORMAL_TERM_PAT.search(lines_buffer[0])
-            ):
+            if lines_buffer and (re.search(r"^\s*SA-NTO Decomposition\s*$", lines_buffer[0])):
                 break
 
         if lines_buffer:
