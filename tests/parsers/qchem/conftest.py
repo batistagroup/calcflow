@@ -11,7 +11,7 @@ EXAMPLE_SP_OUT_PATH = ex_folder / "h2o" / "sp-sto.out"
 
 
 @pytest.fixture(scope="module")
-def parsed_sp_data() -> CalculationData:
+def parsed_sp_sto_data() -> CalculationData:
     """Fixture to parse the standard single point output file."""
     return qchem.parse_qchem_sp_output(EXAMPLE_SP_OUT_PATH.read_text())
 
@@ -19,7 +19,7 @@ def parsed_sp_data() -> CalculationData:
 @pytest.fixture(scope="module")
 def parsed_sp_sto_smd_data() -> CalculationData:
     """Fixture to parse the standard single point output file."""
-    return qchem.parse_qchem_sp_output(ex_folder / "h2o" / "sp-sto-smd.out".read_text())
+    return qchem.parse_qchem_sp_output((ex_folder / "h2o" / "sp-sto-smd.out").read_text())
 
 
 @pytest.fixture

@@ -1,9 +1,13 @@
+import logging
 from pathlib import Path
 
 from calcflow.geometry.static import Geometry
 from calcflow.inputs.qchem import QchemInput
 from calcflow.inputs.slurm import SlurmArgs
 from calcflow.parsers.qchem import parse_qchem_sp_output
+from calcflow.utils import logger
+
+logger.setLevel(logging.ERROR)
 
 data_path = Path(__file__).resolve().parents[1] / "data"
 calcs_path = data_path / "calculations"
@@ -38,12 +42,21 @@ if run["create"]:
         f.write(job.export_input_file(xyz_1h2o))
 
 if run["parse"]:
+    print("------- SP STO-3G ---------")
     sp_sto = parse_qchem_sp_output((clc_folder / "sp-sto.out").read_text())
     print(sp_sto.metadata)
     print(sp_sto.final_energy_eh)
-    # sp_tzvppd = parse_qchem_sp_output((clc_folder / "sp-tzvppd.out").read_text())
+    print("------- SP STO-3G-SMD ---------")
     sp_sto_smd = parse_qchem_sp_output((clc_folder / "sp-sto-smd.out").read_text())
     print(sp_sto_smd.metadata)
     print(sp_sto_smd.final_energy_eh)
     print(sp_sto_smd.smd_data)
-    # breakpoint()
+    print("------- SP TZVPPD-D3 ---------")
+    sp_tzvppd = parse_qchem_sp_output((clc_folder / "sp-tzvppd.out").read_text())
+    print(sp_tzvppd.metadata)
+    print(sp_tzvppd.final_energy_eh)
+    print("------- SP TZVPPD-SMD ---------")
+    sp_tzvppd_smd = parse_qchem_sp_output((clc_folder / "sp-tzvppd-smd.out").read_text())
+    print(sp_tzvppd_smd.metadata)
+    print(sp_tzvppd_smd.final_energy_eh)
+    print(sp_tzvppd_smd.smd_data)
