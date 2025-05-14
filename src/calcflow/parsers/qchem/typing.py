@@ -264,6 +264,16 @@ class OrbitalTransition:
     amplitude: float
     is_alpha_spin: bool | None = None  # True for alpha, False for beta, None if not specified
 
+    def __repr__(self) -> str:
+        spin = ""
+        if self.is_alpha_spin is not None:
+            spin = " (alpha)" if self.is_alpha_spin else " (beta)"
+        return (
+            f"{self.from_orbital_type}({self.from_orbital_index}) -> "
+            f"{self.to_orbital_type}({self.to_orbital_index}) "
+            f"(amp={self.amplitude:.4f}){spin}"
+        )
+
 
 @dataclass(frozen=True)
 class ExcitedStateProperties:
@@ -278,6 +288,26 @@ class ExcitedStateProperties:
     trans_moment_z: float | None = None
     oscillator_strength: float | None = None  # Unitless
     transitions: Sequence[OrbitalTransition] = field(default_factory=list)
+
+    def __repr__(self) -> str:
+        parts = [
+            f"state_number={self.state_number}",
+            f"excitation_energy_ev={self.excitation_energy_ev:.4f} eV",
+            f"total_energy_au={self.total_energy_au:.6f} au",
+            f"multiplicity='{self.multiplicity}'",
+        ]
+        if self.oscillator_strength is not None:
+            parts.append(f"oscillator_strength={self.oscillator_strength:.4f}")
+
+        if self.trans_moment_x is not None and self.trans_moment_y is not None and self.trans_moment_z is not None:
+            parts.append(
+                f"trans_moment=[{self.trans_moment_x:.2f}, {self.trans_moment_y:.2f}, {self.trans_moment_z:.2f}]"
+            )
+
+        parts.append(f"transitions_count={len(self.transitions)}")
+
+        body = ",\n    ".join(parts)
+        return f"{type(self).__name__}(\n    {body}\n)"
 
 
 @dataclass(frozen=True)
@@ -447,6 +477,35 @@ class TddftData:
     excited_state_analyses: Sequence[ExcitedStateDetailedAnalysis] | None = None
     transition_density_matrix_analyses: Sequence[TransitionDensityMatrixDetailedAnalysis] | None = None
     nto_state_analyses: Sequence[NTOStateAnalysis] | None = None  # Renamed from nto_decompositions: Sequence[NTOData]
+
+    def __repr__(self) -> str:
+        parts = []
+        if self.tda_excited_states:
+            parts.append(f"tda_excited_states={len(self.tda_excited_states)} states")
+        else:
+            parts.append("tda_excited_states=None")
+
+        if self.tddft_excited_states:
+            parts.append(f"tddft_excited_states={len(self.tddft_excited_states)} states")
+        else:
+            parts.append("tddft_excited_states=None")
+
+        if self.excited_state_analyses:
+            parts.append(f"excited_state_analyses={len(self.excited_state_analyses)} analyses")
+        else:
+            parts.append("excited_state_analyses=None")
+
+        if self.transition_density_matrix_analyses:
+            parts.append(f"transition_density_matrix_analyses={len(self.transition_density_matrix_analyses)} analyses")
+        else:
+            parts.append("transition_density_matrix_analyses=None")
+
+        if self.nto_state_analyses:
+            parts.append(f"nto_state_analyses={len(self.nto_state_analyses)} analyses")
+        else:
+            parts.append("nto_state_analyses=None")
+
+        return f"{type(self).__name__}({', '.join(parts)})"
 
 
 # --- Main Data Structures --- #

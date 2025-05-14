@@ -1,13 +1,11 @@
-import logging
 from pathlib import Path
 
 from calcflow.geometry.static import Geometry
 from calcflow.inputs.qchem import QchemInput
 from calcflow.inputs.slurm import SlurmArgs
-from calcflow.parsers.qchem import parse_qchem_sp_output
-from calcflow.utils import logger
+from calcflow.parsers.qchem import parse_qchem_sp_output, parse_qchem_tddft_output
 
-logger.setLevel(logging.ERROR)
+# logger.setLevel(logging.DEBUG)
 
 data_path = Path(__file__).resolve().parents[1] / "data"
 calcs_path = data_path / "calculations"
@@ -74,5 +72,9 @@ if run["parse"]:
 
     if todo["tddft"]:
         print("------- TDDFT STO-3G ---------")
-        tddft_pc2 = parse_qchem_sp_output((clc_folder / "tddft-rks-pc2.out").read_text())
+        tddft_pc2 = parse_qchem_tddft_output((clc_folder / "tddft-rks-pc2.out").read_text())
         print(tddft_pc2)
+        print(tddft_pc2.tddft_data)
+        # print(tddft_pc2.tddft_data.tddft_excited_states)
+        print(tddft_pc2.tddft_data.tda_excited_states)
+        breakpoint()

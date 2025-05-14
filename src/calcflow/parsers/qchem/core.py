@@ -19,6 +19,7 @@ from calcflow.parsers.qchem.blocks.smx import SmxBlockParser
 from calcflow.parsers.qchem.blocks.tddft import (
     ExcitedStateAnalysisParser,
     NTOParser,
+    TDAExcitationEnergiesParser,
     TDDFTExcitationEnergiesParser,
     TransitionDensityMatrixParser,
 )
@@ -57,6 +58,9 @@ PARSER_REGISTRY_SP: Sequence[SectionParser] = [
     # Add other specific block parsers here later for SP if any
 ]
 
+ExcitedStateAnalysisParser()
+TransitionDensityMatrixParser()
+NTOParser()
 PARSER_REGISTRY_TDDFT: Sequence[SectionParser] = [
     MetadataParser(),
     RemBlockParser(),
@@ -67,10 +71,8 @@ PARSER_REGISTRY_TDDFT: Sequence[SectionParser] = [
     MullikenChargesParser(),  # Ground state charges
     MultipoleParser(),  # Ground state multipoles
     # TDDFT specific parsers
+    TDAExcitationEnergiesParser(),
     TDDFTExcitationEnergiesParser(),
-    ExcitedStateAnalysisParser(),
-    TransitionDensityMatrixParser(),
-    NTOParser(),
     # Note: Order within TDDFT parsers might matter if sections can be ambiguous
     # or if one relies on data partially parsed by another (though ideally they are independent)
 ]
@@ -109,6 +111,10 @@ def _parse_qchem_generic_output(output: str, parser_registry: Sequence[SectionPa
             parser_found = False
             for parser in parser_registry:  # Use the passed parser_registry
                 try:
+                    # Log the line being presented to each parser
+                    logger.debug(
+                        f"Main loop: Presenting line {current_line_num} ('{line.strip()}') to {type(parser).__name__}"
+                    )
                     if parser.matches(line, results):
                         block_start_line = current_line_num
                         logger.debug(f"Line {block_start_line}: Matched {type(parser).__name__}")
