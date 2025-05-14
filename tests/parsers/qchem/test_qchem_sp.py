@@ -483,3 +483,144 @@ def test_parse_qchem_sp_output_h2o_smd(parsed_sp_sto_smd_data: CalculationData) 
 
     # --- Error/Warning Checks ---
     # For now, rely on fixture and successful parsing to imply no errors.
+
+
+def test_parse_qchem_sp_output_h2o_tzvppd_smd(parsed_sp_tzvppd_smd_data: CalculationData) -> None:
+    """
+    Integration test for parsing the H2O SP output file with SMD solvation and def2-tzvppd basis.
+
+    Verifies that the main fields extracted by parse_qchem_sp_output match
+    the expected values from the data/calculations/examples/qchem/h2o/sp-tzvppd-smd.out file.
+    """
+    data = parsed_sp_tzvppd_smd_data
+
+    # --- Top-Level Checks ---
+    assert data.termination_status == "NORMAL"
+    assert data.final_energy_eh == approx(-76.45372896)  # G(tot) from SMD output
+    assert data.nuclear_repulsion_eh == approx(8.93764808)
+
+    # --- Metadata Checks ---
+    assert data.metadata.qchem_version == "6.2"
+    assert data.metadata.host == "login30"
+    # assert data.metadata.run_date == "Sun May  4 14:52:49 2025" # Date is dynamic
+    assert data.metadata.calculation_method == "wb97x-d3"
+    assert data.metadata.basis_set == "def2-tzvppd"
+    assert data.metadata.solvent_method == "smd"
+    assert data.metadata.solvent_name == "water"
+
+    # --- Geometry Checks ---
+    assert data.input_geometry is not None
+    assert len(data.input_geometry) == 3
+    assert data.input_geometry[0] == Atom(symbol="H", x=1.36499, y=1.69385, z=-0.19748)
+    assert data.input_geometry[1] == Atom(symbol="O", x=2.32877, y=1.56294, z=-0.04168)
+    assert data.input_geometry[2] == Atom(symbol="H", x=2.70244, y=1.31157, z=-0.91665)
+
+    assert data.standard_orientation_geometry is not None
+    assert len(data.standard_orientation_geometry) == 3
+    assert data.standard_orientation_geometry[0] == Atom(symbol="H", x=1.3649900000, y=1.6938500000, z=-0.1974800000)
+    assert data.standard_orientation_geometry[1] == Atom(symbol="O", x=2.3287700000, y=1.5629400000, z=-0.0416800000)
+    assert data.standard_orientation_geometry[2] == Atom(symbol="H", x=2.7024400000, y=1.3115700000, z=-0.9166500000)
+
+    # --- SCF Checks ---
+    assert data.scf is not None
+    scf: ScfData = data.scf
+    assert scf.converged is True
+    assert scf.energy_eh == approx(-76.45607642)  # E_SCF (including G_PCM)
+    assert scf.n_iterations == 7
+    assert len(scf.iteration_history) == 7
+    assert scf.iteration_history[0].iteration == 1
+    assert scf.iteration_history[0].energy_eh == approx(-76.3019247487)
+    assert scf.iteration_history[0].diis_error == approx(4.14e-02)
+    assert scf.iteration_history[-1].iteration == 7
+    assert scf.iteration_history[-1].energy_eh == approx(-76.4560764224)
+    assert scf.iteration_history[-1].diis_error == approx(5.94e-06)
+
+    # --- Orbital Checks ---
+    assert data.orbitals is not None
+    assert data.orbitals.beta_orbitals is None  # Restricted calculation
+    assert data.orbitals.alpha_orbitals is not None
+    alpha_orbitals = data.orbitals.alpha_orbitals
+    assert len(alpha_orbitals) == 74  # 5 occupied + 69 virtual for def2-tzvppd
+
+    assert alpha_orbitals[0].index == 0
+    assert alpha_orbitals[0].energy_eh == approx(-19.2349)
+    assert alpha_orbitals[0].occupation is None
+    assert alpha_orbitals[4].index == 4  # HOMO
+    assert alpha_orbitals[4].energy_eh == approx(-0.4206)
+    assert alpha_orbitals[4].occupation is None
+
+    assert alpha_orbitals[5].index == 5  # LUMO
+    assert alpha_orbitals[5].energy_eh == approx(0.0815)
+    assert alpha_orbitals[5].occupation is None
+    assert alpha_orbitals[6].index == 6  # LUMO+1
+    assert alpha_orbitals[6].energy_eh == approx(0.1133)
+    assert alpha_orbitals[6].occupation is None
+
+    # --- Atomic Charges Checks ---
+    assert len(data.atomic_charges) == 1
+    mulliken = data.atomic_charges[0]
+    assert mulliken.method == "Mulliken"
+    assert mulliken.charges[0] == approx(0.258251)  # H
+    assert mulliken.charges[1] == approx(-0.515681)  # O
+    assert mulliken.charges[2] == approx(0.257430)  # H
+
+    # --- Multipole Checks ---
+    assert data.multipole is not None
+    assert data.multipole.charge_esu == approx(-0.0000)
+
+    assert data.multipole.dipole is not None
+    dipole: DipoleMomentData = data.multipole.dipole
+    assert dipole.x_debye == approx(-1.2166)
+    assert dipole.y_debye == approx(-0.2484)
+    assert dipole.z_debye == approx(-2.1256)
+    assert dipole.total_debye == approx(2.4617)
+
+    assert data.multipole.quadrupole is not None
+    quad: QuadrupoleMoments = data.multipole.quadrupole
+    assert quad.xx == approx(-10.2609)
+    assert quad.xy == approx(-3.1695)
+    assert quad.yy == approx(-8.4016)
+    assert quad.xz == approx(-5.5077)
+    assert quad.yz == approx(-2.7052)
+    assert quad.zz == approx(-5.3504)
+
+    assert data.multipole.octopole is not None
+    octo: OctopoleMoments = data.multipole.octopole
+    assert octo.xxx == approx(-53.2148)
+    assert octo.xxy == approx(-20.3433)
+    assert octo.xyy == approx(-24.4478)
+    assert octo.yyy == approx(-37.4666)
+    assert octo.xxz == approx(-14.1705)
+    assert octo.xyz == approx(-6.9000)
+    assert octo.yyz == approx(-2.6870)
+    assert octo.xzz == approx(-11.5574)
+    assert octo.yzz == approx(-8.8172)
+    assert octo.zzz == approx(0.2702)
+
+    assert data.multipole.hexadecapole is not None
+    hexa: HexadecapoleMoments = data.multipole.hexadecapole
+    assert hexa.xxxx == approx(-229.0175)
+    assert hexa.xxxy == approx(-96.1184)
+    assert hexa.xxyy == approx(-81.3512)
+    assert hexa.xyyy == approx(-95.7993)
+    assert hexa.yyyy == approx(-122.7738)
+    assert hexa.xxxz == approx(-35.9972)
+    assert hexa.xxyz == approx(-17.5148)
+    assert hexa.xyyz == approx(-6.8408)
+    assert hexa.yyyz == approx(-0.8927)
+    assert hexa.xxzz == approx(-27.1713)
+    assert hexa.xyzz == approx(-19.3476)
+    assert hexa.yyzz == approx(-17.0816)
+    assert hexa.xzzz == approx(-0.1908)
+    assert hexa.yzzz == approx(0.8986)
+    assert hexa.zzzz == approx(-6.6403)
+
+    # Check SMD specific data
+    assert data.smd_data is not None
+    assert data.smd_data.g_pcm_kcal_mol == approx(-10.8438)
+    assert data.smd_data.g_cds_kcal_mol == approx(1.4731)
+    assert data.smd_data.g_enp_au == approx(-76.45607642)
+    assert data.smd_data.g_tot_au == approx(-76.45372896)
+
+    # --- Error/Warning Checks ---
+    # For now, rely on fixture and successful parsing to imply no errors.
