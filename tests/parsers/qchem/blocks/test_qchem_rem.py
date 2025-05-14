@@ -50,6 +50,19 @@ REM_BLOCK_UNTERMINATED = """$rem
    BASIS           sto-3g
    """.splitlines()
 
+REM_BLOCK_WITH_SOLVENT = """$rem
+   METHOD          wb97x-d3
+   BASIS           sto-3g
+   SOLVENT_METHOD  smd
+$end
+Yet another line""".splitlines()
+
+REM_BLOCK_SOLVENT_CASE_INSENSITIVE = """$rem
+   method          PBE0
+   basis           def2-svp
+   SoLvEnT_MeThoD  CpCm
+$end""".splitlines()
+
 NON_REM_LINE = "This is not a rem block start line"
 REM_START_LINE = "$rem"
 
@@ -99,6 +112,16 @@ def test_rem_matches_returns_true_if_method_missing(
     """Verify matches() returns True if method is not yet parsed."""
     initial_data.parsed_meta_method = False
     initial_data.parsed_meta_basis = True
+    assert rem_parser.matches(REM_START_LINE, initial_data) is True
+
+
+def test_rem_matches_returns_true_if_solvent_method_missing(
+    rem_parser: RemBlockParser, initial_data: _MutableCalculationData
+) -> None:
+    """Verify matches() returns True if solvent_method is not yet parsed but others are."""
+    initial_data.parsed_meta_method = True
+    initial_data.parsed_meta_basis = True
+    initial_data.solvent_method = None  # Explicitly None, though default
     assert rem_parser.matches(REM_START_LINE, initial_data) is True
 
 
@@ -169,12 +192,15 @@ def test_rem_parse_empty_block(rem_parser: RemBlockParser, initial_data: _Mutabl
     assert len(initial_data.parsing_warnings) == 2
     assert "METHOD not found" in initial_data.parsing_warnings[0]
     assert "BASIS not found" in initial_data.parsing_warnings[1]
+    # Add check for solvent_method if a specific warning is expected for it in empty blocks
+    # For now, the parser doesn't add a specific warning for missing solvent_method from empty block
+    assert initial_data.solvent_method is None
 
 
 def test_rem_parse_unterminated_block(rem_parser: RemBlockParser, initial_data: _MutableCalculationData) -> None:
     """Test parsing raises ParsingError for an unterminated block."""
     lines_iter = iter(REM_BLOCK_UNTERMINATED[1:])
-    with pytest.raises(ParsingError, match="Unexpected end of file in \$rem block"):
+    with pytest.raises(ParsingError, match=r"Unexpected end of file in \$rem block"):
         rem_parser.parse(lines_iter, REM_BLOCK_UNTERMINATED[0], initial_data)
 
     # Check state after exception (should be partially parsed)
@@ -183,3 +209,45 @@ def test_rem_parse_unterminated_block(rem_parser: RemBlockParser, initial_data: 
     assert initial_data.parsed_meta_method is True
     assert initial_data.parsed_meta_basis is True
     assert not initial_data.parsing_warnings  # Warnings are only added on successful completion
+
+
+def test_rem_parse_with_solvent_method(rem_parser: RemBlockParser, initial_data: _MutableCalculationData) -> None:
+    """Test parsing a $rem block that includes SOLVENT_METHOD."""
+    lines_iter = iter(REM_BLOCK_WITH_SOLVENT[1:])
+    rem_parser.parse(lines_iter, REM_BLOCK_WITH_SOLVENT[0], initial_data)
+
+    assert initial_data.calculation_method == "wb97x-d3"
+    assert initial_data.basis_set == "sto-3g"
+    assert initial_data.solvent_method == "smd"
+    assert initial_data.parsed_meta_method is True
+    assert initial_data.parsed_meta_basis is True
+    # Assuming a new flag parsed_meta_solvent_method would be added to _MutableCalculationData
+    # For now, we check the value directly and that no warnings specific to solvent_method appear.
+    assert not initial_data.parsing_warnings
+    assert next(lines_iter) == "Yet another line"
+
+
+def test_rem_parse_solvent_method_case_insensitive(
+    rem_parser: RemBlockParser, initial_data: _MutableCalculationData
+) -> None:
+    """Test SOLVENT_METHOD parsing is case insensitive for the value and keyword."""
+    lines_iter = iter(REM_BLOCK_SOLVENT_CASE_INSENSITIVE[1:])
+    rem_parser.parse(lines_iter, REM_BLOCK_SOLVENT_CASE_INSENSITIVE[0], initial_data)
+
+    assert initial_data.calculation_method == "PBE0"
+    assert initial_data.basis_set == "def2-svp"
+    assert initial_data.solvent_method == "cpcm"  # Should be lowercased
+    assert not initial_data.parsing_warnings
+
+
+def test_rem_parse_missing_solvent_method(rem_parser: RemBlockParser, initial_data: _MutableCalculationData) -> None:
+    """Test parsing when SOLVENT_METHOD is missing from the block."""
+    # Using REM_BLOCK_SIMPLE which doesn't have SOLVENT_METHOD
+    lines_iter = iter(REM_BLOCK_SIMPLE[1:])
+    rem_parser.parse(lines_iter, REM_BLOCK_SIMPLE[0], initial_data)
+
+    assert initial_data.calculation_method == "wb97x-d3"
+    assert initial_data.basis_set == "sto-3g"
+    assert initial_data.solvent_method is None
+    # No warning should be generated just because it's missing, unless other conditions trigger it.
+    assert not any("SOLVENT_METHOD not found" in w for w in initial_data.parsing_warnings)
