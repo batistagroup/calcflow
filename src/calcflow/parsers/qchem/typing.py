@@ -453,6 +453,15 @@ class ExcitedStateDetailedAnalysis:
 
 
 @dataclass(frozen=True)
+class GroundStateReferenceAnalysis:
+    """Analysis data for the ground state reference within TDDFT output."""
+
+    no_data: ExcitedStateNOData | None = None
+    mulliken_analysis: ExcitedStateMulliken | None = None
+    multipole_analysis: ExcitedStateMultipole | None = None
+
+
+@dataclass(frozen=True)
 class TransitionDensityMatrixDetailedAnalysis:
     """Comprehensive analysis of the transition density matrix for a single excited state."""
 
@@ -582,6 +591,9 @@ class _MutableCalculationData:
     # Flags for analysis sections are more complex as they are per-state
     # We might manage this state within the respective parsers or add more granular flags if needed.
 
+    # Ground state reference data from within Excited State Analysis block
+    ground_state_reference_analysis: GroundStateReferenceAnalysis | None = None
+
 
 @dataclass(frozen=True)
 class CalculationData:
@@ -601,6 +613,7 @@ class CalculationData:
     dispersion_correction: DispersionCorrectionData | None = None
     smd_data: SmdData | None = None  # Add SmdData field
     tddft_data: TddftData | None = None  # Added TDDFT data container
+    ground_state_reference_analysis: GroundStateReferenceAnalysis | None = None  # GS Ref from ESA block
 
     def __repr__(self) -> str:
         # Basic representation, can be expanded
@@ -662,6 +675,8 @@ class CalculationData:
                 else None,
             )
 
+        gs_ref_analysis_instance: GroundStateReferenceAnalysis | None = mutable_data.ground_state_reference_analysis
+
         return cls(
             raw_output=mutable_data.raw_output,
             termination_status=mutable_data.termination_status,
@@ -677,6 +692,7 @@ class CalculationData:
             dispersion_correction=mutable_data.dispersion_correction,
             smd_data=smd_data_instance,  # Assign the new SmdData instance
             tddft_data=tddft_data_instance,  # Assign the new TddftData instance
+            ground_state_reference_analysis=gs_ref_analysis_instance,  # Assign GS Ref
         )
 
     # Add __repr__ or __str__ if desired for concise representation

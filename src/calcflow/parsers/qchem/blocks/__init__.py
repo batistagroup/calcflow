@@ -7,8 +7,9 @@ from calcflow.parsers.qchem.blocks.rem import RemBlockParser
 from calcflow.parsers.qchem.blocks.scf import ScfParser
 from calcflow.parsers.qchem.blocks.smx import SmxBlockParser
 from calcflow.parsers.qchem.blocks.tddft import (
-    ExcitedStateAnalysisParser,
+    GroundStateReferenceParser,
     NTOParser,
+    TDAExcitationEnergiesParser,
     TDDFTExcitationEnergiesParser,
     TransitionDensityMatrixParser,
 )
@@ -22,8 +23,9 @@ __all__ = [
     "MultipoleParser",
     "OrbitalParser",
     "SmxBlockParser",
-    "ExcitedStateAnalysisParser",
-    "NTOParser",
+    "TDAExcitationEnergiesParser",
     "TDDFTExcitationEnergiesParser",
+    "GroundStateReferenceParser",
     "TransitionDensityMatrixParser",
+    "NTOParser",
 ]

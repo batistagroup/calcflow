@@ -17,7 +17,7 @@ from calcflow.parsers.qchem.blocks.smx import SmxBlockParser
 
 # Import TDDFT block parsers
 from calcflow.parsers.qchem.blocks.tddft import (
-    ExcitedStateAnalysisParser,
+    GroundStateReferenceParser,
     NTOParser,
     TDAExcitationEnergiesParser,
     TDDFTExcitationEnergiesParser,
@@ -58,7 +58,7 @@ PARSER_REGISTRY_SP: Sequence[SectionParser] = [
     # Add other specific block parsers here later for SP if any
 ]
 
-ExcitedStateAnalysisParser()
+
 TransitionDensityMatrixParser()
 NTOParser()
 PARSER_REGISTRY_TDDFT: Sequence[SectionParser] = [
@@ -67,12 +67,13 @@ PARSER_REGISTRY_TDDFT: Sequence[SectionParser] = [
     SmxBlockParser(),  # Often used with TDDFT for solvation
     GeometryParser(),
     ScfParser(),  # SCF is a prerequisite for TDDFT
-    OrbitalParser(),  # Orbitals are relevant
-    MullikenChargesParser(),  # Ground state charges
-    MultipoleParser(),  # Ground state multipoles
     # TDDFT specific parsers
+    OrbitalParser(),  # Orbitals are relevant
     TDAExcitationEnergiesParser(),
     TDDFTExcitationEnergiesParser(),
+    GroundStateReferenceParser(),
+    MullikenChargesParser(),  # Ground state charges
+    MultipoleParser(),  # Ground state multipoles
     # Note: Order within TDDFT parsers might matter if sections can be ambiguous
     # or if one relies on data partially parsed by another (though ideally they are independent)
 ]
