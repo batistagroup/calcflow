@@ -38,6 +38,12 @@ if run["create"]:
         f.write(job.export_input_file(xyz_1h2o))
 
 if run["parse"]:
-    out = (clc_folder / f"{base_args.exec_fname}.out").read_text()
-    calc_data = parse_qchem_sp_output(out)
-    print(calc_data)
+    sp_sto = parse_qchem_sp_output((clc_folder / "sp-sto.out").read_text())
+    print(sp_sto.metadata)
+    print(sp_sto.final_energy_eh)
+    # sp_tzvppd = parse_qchem_sp_output((clc_folder / "sp-tzvppd.out").read_text())
+    sp_sto_smd = parse_qchem_sp_output((clc_folder / "sp-sto-smd.out").read_text())
+    print(sp_sto_smd.metadata)
+    print(sp_sto_smd.final_energy_eh)
+    print(sp_sto_smd.smd_data)
+    # breakpoint()

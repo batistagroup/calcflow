@@ -13,6 +13,7 @@ from calcflow.parsers.qchem.blocks import (
     ScfParser,
 )
 from calcflow.parsers.qchem.blocks.orbitals import OrbitalParser
+from calcflow.parsers.qchem.blocks.smx import SmxBlockParser
 from calcflow.parsers.qchem.typing import (
     CalculationData,
     LineIterator,
@@ -39,6 +40,7 @@ ERROR_TERM_PAT = re.compile(r"(ERROR:|error:|aborting|failed)", re.IGNORECASE)
 PARSER_REGISTRY: Sequence[SectionParser] = [
     MetadataParser(),
     RemBlockParser(),
+    SmxBlockParser(),
     GeometryParser(),
     ScfParser(),
     OrbitalParser(),

@@ -214,6 +214,30 @@ class DispersionCorrectionData:
 
 
 @dataclass(frozen=True)
+class SmdData:
+    """Holds results specific to the SMD solvation model."""
+
+    g_pcm_kcal_mol: float | None = None  # Polarization energy component
+    g_cds_kcal_mol: float | None = None  # Non-electrostatic (CDS) energy component
+    g_enp_au: float | None = None  # E_SCF including G_PCM (SCF energy in solvent)
+    g_tot_au: float | None = None  # Total free energy in solution (G_ENP + G_CDS)
+
+    def __str__(self) -> str:
+        parts = []
+        if self.g_enp_au is not None:
+            parts.append(f"G_ENP={self.g_enp_au:.8f} au")
+        if self.g_tot_au is not None:
+            parts.append(f"G(tot)={self.g_tot_au:.8f} au")
+        if self.g_pcm_kcal_mol is not None:
+            parts.append(f"G_PCM={self.g_pcm_kcal_mol:.4f} kcal/mol")
+        if self.g_cds_kcal_mol is not None:
+            parts.append(f"G_CDS={self.g_cds_kcal_mol:.4f} kcal/mol")
+        if not parts:
+            return f"{type(self).__name__}(Empty)"
+        return f"{type(self).__name__}({', '.join(parts)})"
+
+
+@dataclass(frozen=True)
 class CalculationMetadata:
     """Holds metadata about the Q-Chem calculation."""
 
@@ -223,6 +247,14 @@ class CalculationMetadata:
     calculation_method: str | None = None
     basis_set: str | None = None
     # Add other relevant metadata: SCF type, symmetry, etc.
+
+    # SMD specific fields
+    solvent_method: str | None = None
+    solvent_name: str | None = None
+    # smd_g_pcm_kcal_mol: float | None = None # Moved to SmdData
+    # smd_g_cds_kcal_mol: float | None = None # Moved to SmdData
+    # smd_g_enp_au: float | None = None       # Moved to SmdData
+    # smd_g_tot_au: float | None = None       # Moved to SmdData
 
 
 # Using a mutable class during parsing simplifies updates
@@ -241,6 +273,13 @@ class _MutableCalculationData:
     rem: dict[str, str | bool | int | float] = field(default_factory=dict)  # Added rem field
     calculation_method: str | None = None
     basis_set: str | None = None
+    # SMD specific fields for mutable data
+    solvent_method: str | None = None
+    solvent_name: str | None = None
+    smd_g_pcm_kcal_mol: float | None = None
+    smd_g_cds_kcal_mol: float | None = None
+    smd_g_enp_au: float | None = None
+    smd_g_tot_au: float | None = None
 
     input_geometry: Sequence[Atom] | None = None  # From $molecule block
     standard_orientation_geometry: Sequence[Atom] | None = None  # From 'Standard Nuclear Orientation'
@@ -251,6 +290,7 @@ class _MutableCalculationData:
     atomic_charges: list[AtomicCharges] = field(default_factory=list)
     multipole: MultipoleData | None = None
     dispersion_correction: DispersionCorrectionData | None = None
+    smd_data: SmdData | None = None  # Add SmdData field
     # Track errors/warnings during parsing
     parsing_errors: list[str] = field(default_factory=list)
     parsing_warnings: list[str] = field(default_factory=list)
@@ -287,6 +327,7 @@ class CalculationData:
     atomic_charges: list[AtomicCharges] = field(default_factory=list)
     multipole: MultipoleData | None = None
     dispersion_correction: DispersionCorrectionData | None = None
+    smd_data: SmdData | None = None  # Add SmdData field
 
     @classmethod
     def from_mutable(cls, mutable_data: _MutableCalculationData) -> "CalculationData":
@@ -298,7 +339,25 @@ class CalculationData:
             run_date=mutable_data.run_date,
             calculation_method=mutable_data.calculation_method,
             basis_set=mutable_data.basis_set,
+            solvent_method=mutable_data.solvent_method,
+            solvent_name=mutable_data.solvent_name,
         )
+
+        # Construct SmdData if relevant fields are present
+        smd_data_instance: SmdData | None = None
+        if (
+            mutable_data.smd_g_pcm_kcal_mol is not None
+            or mutable_data.smd_g_cds_kcal_mol is not None
+            or mutable_data.smd_g_enp_au is not None
+            or mutable_data.smd_g_tot_au is not None
+        ):
+            smd_data_instance = SmdData(
+                g_pcm_kcal_mol=mutable_data.smd_g_pcm_kcal_mol,
+                g_cds_kcal_mol=mutable_data.smd_g_cds_kcal_mol,
+                g_enp_au=mutable_data.smd_g_enp_au,
+                g_tot_au=mutable_data.smd_g_tot_au,
+            )
+
         return cls(
             raw_output=mutable_data.raw_output,
             termination_status=mutable_data.termination_status,
@@ -312,6 +371,7 @@ class CalculationData:
             atomic_charges=list(mutable_data.atomic_charges),  # Ensure list copy
             multipole=mutable_data.multipole,
             dispersion_correction=mutable_data.dispersion_correction,
+            smd_data=smd_data_instance,  # Assign the new SmdData instance
         )
 
     # Add __repr__ or __str__ if desired for concise representation
