@@ -79,68 +79,86 @@ class GroundStateReferenceParser(SectionParser):
 
     def parse(self, iterator: LineIterator, first_line: str, results: _MutableCalculationData) -> None:
         logger.debug("Starting parsing of Ground State (Reference) block.")
-        # first_line is "Ground State (Reference) :"
+        # first_line is "Ground State (Reference) :" - this line is already consumed by the main parser in core.py
+        # The iterator is positioned at the line AFTER "Ground State (Reference) :"
 
         gs_no_data: ExcitedStateNOData | None = None
         gs_mulliken_data: ExcitedStateMulliken | None = None
         gs_multipole_data: ExcitedStateMultipole | None = None
 
-        # Consume the header line passed as first_line, iterator starts from the next line.
-        # However, our sub-parsers expect the header of their specific section.
+        max_lines_to_scan = 150  # Safeguard for the entire GS Ref block
+        lines_scanned = 0
 
-        line_buffer: list[str] = []  # To push back the UNRELAXED_DM_HEADER_PAT if found by this parser
-
-        while True:
+        while lines_scanned < max_lines_to_scan:
             try:
                 line = next(iterator)
-                line_buffer.append(line)  # Buffer lines in case we need to push them back
+                lines_scanned += 1
             except StopIteration:
                 logger.debug("Reached end of iterator during Ground State Reference parsing.")
                 break
 
+            # Priority 1: Check for the hard stop signal for this entire block
             if UNRELAXED_DM_HEADER_PAT.search(line):
-                logger.debug("Found 'Analysis of Unrelaxed Density Matrices' header; ending GS parse.")
-                # Push back this line for the next parser
-                iterator = iter([line] + list(iterator))
-                line_buffer.pop()  # Remove it from our buffer as it's handled
+                logger.debug(
+                    f"Found '{UNRELAXED_DM_HEADER_PAT.pattern}' header; current GS Ref section ends. Buffering line."
+                )
+                results.buffered_line = line  # Buffer the line
                 break
 
-            # Skip blank lines or section separators that are not the main unrelaxed DM header
-            if not line.strip() or (SECTION_SEPARATOR_PAT.search(line) and not UNRELAXED_DM_HEADER_PAT.search(line)):
-                line_buffer.pop()  # Consume and discard this line from buffer
+            # Priority 2: Check if all expected components have been parsed
+            # If so, the current line 'line' is the first line *after* the GS ref block content.
+            if gs_no_data and gs_mulliken_data and gs_multipole_data:
+                logger.debug("All expected components of Ground State Reference parsed. Buffering current line.")
+                results.buffered_line = line  # Buffer the line that came after the last component
+                break
+
+            # Priority 3: Try to parse specific sub-sections if not already done
+            if gs_no_data is None and NOS_HEADER_PAT.search(line):
+                logger.debug("Calling _parse_no_data for Ground State Reference.")
+                # Pass results so sub-parser can buffer if it reads too far
+                gs_no_data = self._parse_no_data(iterator, line, results)
+                if results.buffered_line:
+                    logger.debug("_parse_no_data buffered a line. Ending GS Ref parse.")
+                    break  # Sub-parser decided the section is over
                 continue
 
-            # Check for NOs section
-            if NOS_HEADER_PAT.search(line) and gs_no_data is None:
-                logger.debug("Parsing NOs for Ground State Reference.")
-                # _parse_no_data expects 'line' to be the NOS_HEADER
-                gs_no_data = self._parse_no_data(iterator, line)
-                line_buffer.clear()  # Sub-parser manages iterator, clear buffer
-                continue  # Get fresh line with next(iterator)
-
-            # Check for Mulliken Population (State DM for GS)
-            elif MULLIKEN_GS_POP_HEADER_PAT.search(line) and gs_mulliken_data is None:
-                logger.debug("Parsing Mulliken (State DM) for Ground State Reference.")
-                gs_mulliken_data = self._parse_mulliken_ground_state_dm(iterator, line, results.input_geometry)
-                line_buffer.clear()
+            if gs_mulliken_data is None and MULLIKEN_GS_POP_HEADER_PAT.search(line):
+                logger.debug("Calling _parse_mulliken_ground_state_dm for Ground State Reference.")
+                gs_mulliken_data = self._parse_mulliken_ground_state_dm(iterator, line, results.input_geometry, results)
+                if results.buffered_line:
+                    logger.debug("_parse_mulliken_ground_state_dm buffered a line. Ending GS Ref parse.")
+                    break
                 continue
 
-            # Check for Multipole Moment Analysis
-            elif MULTIPOLE_DM_HEADER_PAT.search(line) and gs_multipole_data is None:
-                logger.debug("Parsing Multipole DM for Ground State Reference.")
-                gs_multipole_data = self._parse_multipole_state_dm(iterator, line)
-                line_buffer.clear()
+            if gs_multipole_data is None and MULTIPOLE_DM_HEADER_PAT.search(line):
+                logger.debug("Calling _parse_multipole_state_dm for Ground State Reference.")
+                gs_multipole_data = self._parse_multipole_state_dm(iterator, line, results)
+                if results.buffered_line:
+                    logger.debug("_parse_multipole_state_dm buffered a line. Ending GS Ref parse.")
+                    break
                 continue
 
-            # If line is not a known sub-header, and not yet the UNRELAXED_DM_HEADER
-            # it might be an issue or just an unexpected line within GS block.
-            # For now, we consume it from buffer and log if it's not blank/sep.
-            # The main loop continues with next(iterator).
-            if line.strip() and not SECTION_SEPARATOR_PAT.search(line):  # Avoid logging for separators already handled
-                logger.debug(f"Skipping unrecognized line in Ground State Reference block: {line.strip()}")
-            if line_buffer:
-                line_buffer.pop()
+            # Priority 4: Handle lines that are not headers for this parser, not UNRELAXED_DM,
+            # and not yet at the point where all components are parsed.
+            # These are typically blank lines or separators *within* the GS Reference block.
+            if line.strip() == "" or SECTION_SEPARATOR_PAT.search(line):
+                logger.debug(f"Consuming blank line or separator within GS Ref: '{line.strip()}'")
+                continue  # Consume and move to the next line
 
+            # Fallthrough: Line is unrecognized within the GS Ref block content area.
+            # This means the GS Reference section is over, or we've encountered unexpected data.
+            # Buffer the line and terminate parsing for this section.
+            logger.warning(
+                f"Unrecognized line encountered in Ground State Reference block: '{line.strip()}'. "
+                "Assuming end of this block and buffering line."
+            )
+            results.buffered_line = line  # Buffer the unrecognized line
+            break  # Exit the while loop, GS Reference parsing is done.
+
+        if lines_scanned >= max_lines_to_scan and not results.buffered_line:
+            logger.warning("GroundStateReferenceParser exceeded max lines scan.")
+
+        # Store results if any component was parsed
         if gs_no_data or gs_mulliken_data or gs_multipole_data:
             results.ground_state_reference_analysis = GroundStateReferenceAnalysis(
                 no_data=gs_no_data,
@@ -149,14 +167,15 @@ class GroundStateReferenceParser(SectionParser):
             )
             logger.info("Stored Ground State Reference analysis data.")
         else:
-            logger.warning("No data parsed for Ground State Reference block.")
+            # This will be hit if the loop exited (e.g., UNRELAXED_DM_HEADER found) before any sub-section was parsed.
+            logger.warning("No data components (NOs, Mulliken, Multipole) parsed for Ground State Reference block.")
+            results.parsing_warnings.append(
+                "No data components (NOs, Mulliken, Multipole) parsed for Ground State Reference block."
+            )
 
-        # Push back any remaining lines in line_buffer if they were not consumed
-        # This happens if loop broke due to StopIteration before UNRELAXED_DM_HEADER was found
-        if line_buffer:
-            iterator = iter(line_buffer + list(iterator))
-
-    def _parse_no_data(self, iterator: LineIterator, first_no_line: str) -> ExcitedStateNOData:
+    def _parse_no_data(
+        self, iterator: LineIterator, first_no_line: str, results: _MutableCalculationData
+    ) -> ExcitedStateNOData:
         frontier_occ: list[float] | None = None
         num_e: float | None = None
         nu: float | None = None
@@ -165,8 +184,8 @@ class GroundStateReferenceParser(SectionParser):
         line = first_no_line
         for _i in range(5):
             if not NOS_HEADER_PAT.search(line) and _i == 0:
-                if line is not first_no_line:
-                    iterator = iter([line] + list(iterator))
+                if line is not first_no_line and line.strip():  # If it was a meaningful non-header line
+                    results.buffered_line = line
                 return ExcitedStateNOData()
             if m := NOS_FRONTIER_PAT.search(line):
                 frontier_occ = [float(m.group(1)), float(m.group(2))]
@@ -188,19 +207,23 @@ class GroundStateReferenceParser(SectionParser):
                     or STATE_HEADER_PAT.search(line)
                     or UNRELAXED_DM_HEADER_PAT.search(line)
                 ):
-                    iterator = iter([line] + list(iterator))
-                    line = prev_line
+                    results.buffered_line = line  # Buffer the terminating line
+                    line = prev_line  # effectively unread 'line' for current processing
                     break
             except StopIteration:
                 break
         return ExcitedStateNOData(frontier_occ, num_e, nu, nunl, pr_no)
 
     def _parse_mulliken_ground_state_dm(
-        self, iterator: LineIterator, first_mulliken_gs_line: str, input_geometry: Sequence[Atom] | None
+        self,
+        iterator: LineIterator,
+        first_mulliken_gs_line: str,
+        input_geometry: Sequence[Atom] | None,
+        results: _MutableCalculationData,
     ) -> ExcitedStateMulliken | None:
         if not MULLIKEN_GS_POP_HEADER_PAT.search(first_mulliken_gs_line):
             if first_mulliken_gs_line.strip():  # If it was a meaningful line, push it back
-                iterator = iter([first_mulliken_gs_line] + list(iterator))
+                results.buffered_line = first_mulliken_gs_line
             return None
 
         populations: list[ExcitedStateAtomPopulation] = []
@@ -213,7 +236,7 @@ class GroundStateReferenceParser(SectionParser):
 
             # Iterator is now at the first potential atom line.
             while True:
-                line = next(iterator)  # Read the next line
+                line = next(iterator)
 
                 # Check for known next section headers FIRST to ensure we push them back
                 if (
@@ -221,7 +244,7 @@ class GroundStateReferenceParser(SectionParser):
                     or UNRELAXED_DM_HEADER_PAT.search(line)
                     or STATE_HEADER_PAT.search(line)
                 ):
-                    iterator = iter([line] + list(iterator))
+                    results.buffered_line = line  # Buffer the terminating line
                     break
 
                 if m_atom := MULLIKEN_GS_ATOM_LINE_PAT.search(line):
@@ -253,7 +276,7 @@ class GroundStateReferenceParser(SectionParser):
 
                 # If the line is not any of the above:
                 logger.warning(f"Unexpected line in Mulliken (GS State DM) table: {line.strip()}")
-                iterator = iter([line] + list(iterator))  # Push this unexpected line back
+                results.buffered_line = line  # Buffer this unexpected line
                 break
 
         except StopIteration:
@@ -265,11 +288,11 @@ class GroundStateReferenceParser(SectionParser):
         return ExcitedStateMulliken(populations=populations)
 
     def _parse_multipole_state_dm(
-        self, iterator: LineIterator, first_multipole_line: str
+        self, iterator: LineIterator, first_multipole_line: str, results: _MutableCalculationData
     ) -> ExcitedStateMultipole | None:
         if not MULTIPOLE_DM_HEADER_PAT.search(first_multipole_line):
             if first_multipole_line.strip():
-                iterator = iter([first_multipole_line] + list(iterator))
+                results.buffered_line = first_multipole_line
             return None
         mol_chg, num_e, cec_xyz, cnc_xyz, dip_tot, dip_xyz, rms_tot, rms_xyz = [None] * 8
         line_buffer: list[str] = []
@@ -313,8 +336,8 @@ class GroundStateReferenceParser(SectionParser):
                         or MULLIKEN_POP_HEADER_PAT.search(line)  # Distinguish from MULLIKEN_GS_POP_HEADER_PAT
                         or UNRELAXED_DM_HEADER_PAT.search(line)  # Definite end of GS reference context
                     ):
-                        iterator = iter([line] + list(iterator))  # Push back the terminating line
-                        line_buffer.pop()  # Remove from local buffer
+                        results.buffered_line = line  # Buffer the terminating line
+                        line_buffer.pop()  # Remove from local buffer as it's now globally buffered
                         # line = prev_line # No need to re-process prev_line, loop will break
                         break
                 except StopIteration:
@@ -344,7 +367,17 @@ class GroundStateReferenceParser(SectionParser):
                 f"cnc_xyz_present={cnc_xyz is not None}, rms_xyz_present={rms_xyz is not None}"
             )
             if line_buffer:  # Push back any lines consumed by this sub-parser if it effectively failed
-                iterator = iter(line_buffer + list(iterator))
+                # This part is tricky. If sub-parser fails AND buffered lines exist, what to do?
+                # For now, if significant data was parsed, we assume the buffer is from *after* this section.
+                # If no significant data, then the first line of line_buffer might be the one to re-process.
+                # This suggests maybe sub-parsers shouldn't use their own line_buffer if they can use results.buffered_line.
+                # For simplicity now, if a sub-parser fails badly, it might not buffer correctly.
+                # The main parser loop buffering should be the primary guard.
+                # Let's remove this iterator recreation to avoid prior issues.
+                # iterator = iter(line_buffer + list(iterator))
+                logger.warning(
+                    "Sub-parser _parse_multipole_state_dm had leftover lines in its internal buffer, not re-buffering globally."
+                )
             return None
 
         logger.debug(

@@ -18,10 +18,8 @@ from calcflow.parsers.qchem.blocks.smx import SmxBlockParser
 # Import TDDFT block parsers
 from calcflow.parsers.qchem.blocks.tddft import (
     GroundStateReferenceParser,
-    NTOParser,
     TDAExcitationEnergiesParser,
     TDDFTExcitationEnergiesParser,
-    TransitionDensityMatrixParser,
 )
 from calcflow.parsers.qchem.typing import (
     CalculationData,
@@ -59,8 +57,10 @@ PARSER_REGISTRY_SP: Sequence[SectionParser] = [
 ]
 
 
-TransitionDensityMatrixParser()
-NTOParser()
+# TransitionDensityMatrixParser()
+# NTOParser()
+
+
 PARSER_REGISTRY_TDDFT: Sequence[SectionParser] = [
     MetadataParser(),
     RemBlockParser(),
@@ -68,14 +68,15 @@ PARSER_REGISTRY_TDDFT: Sequence[SectionParser] = [
     GeometryParser(),
     ScfParser(),  # SCF is a prerequisite for TDDFT
     # TDDFT specific parsers
-    OrbitalParser(),  # Orbitals are relevant
     TDAExcitationEnergiesParser(),
     TDDFTExcitationEnergiesParser(),
-    GroundStateReferenceParser(),
-    MullikenChargesParser(),  # Ground state charges
-    MultipoleParser(),  # Ground state multipoles
-    # Note: Order within TDDFT parsers might matter if sections can be ambiguous
-    # or if one relies on data partially parsed by another (though ideally they are independent)
+    GroundStateReferenceParser(),  # Parses specific GS ref data within ESA block
+    OrbitalParser(),  # Orbitals are relevant
+    # Ground state properties usually appear before TDDFT specific blocks
+    MultipoleParser(),  # Main ground state multipoles
+    MullikenChargesParser(),  # Main ground state charges
+    # TransitionDensityMatrixParser(), # Add when ready
+    # NTOParser(), # Add when ready
 ]
 
 
@@ -102,53 +103,94 @@ def _parse_qchem_generic_output(output: str, parser_registry: Sequence[SectionPa
     try:
         while True:
             try:
-                line = next(line_iterator)
-                current_line_num += 1
+                if results.buffered_line is not None:
+                    line = results.buffered_line
+                    results.buffered_line = None  # Consume the buffered line
+                    logger.debug(
+                        f"Core main loop: Using buffered line {current_line_num} (from previous parser). Content: '{line.strip()}'"
+                    )
+                    # Note: current_line_num might be off by one for buffered lines if we don't adjust,
+                    # but it's mostly for approximate error reporting.
+                else:
+                    line = next(line_iterator)
+                    current_line_num += 1
+                    logger.debug(f"Core main loop: Advanced to line {current_line_num}. Content: '{line.strip()}'")
             except StopIteration:
-                logger.debug("Reached end of input.")
-                break
+                if results.buffered_line is not None:  # Should not happen if logic is correct
+                    logger.error("StopIteration reached with a buffered line pending. This is a bug.")
+                    line = results.buffered_line
+                    results.buffered_line = None
+                    # Continue to process this last buffered line
+                else:
+                    logger.debug("Core main loop: Reached end of input.")
+                    break
 
             # --- Handle Block Parsing --- #
             parser_found = False
+            # Keep track of which parser matched for logging after the loop
+            # and for error messages if parse() fails.
+            successful_parser_name_for_block = "None"
+            match_line_num = -1  # Line number where a parser matched
+
             for parser in parser_registry:  # Use the passed parser_registry
+                current_parser_being_tried = type(parser).__name__
                 try:
-                    # Log the line being presented to each parser
+                    # MODIFIED LOG: More specific about "presenting for matching"
                     logger.debug(
-                        f"Main loop: Presenting line {current_line_num} ('{line.strip()}') to {type(parser).__name__}"
+                        f"Core dispatch: Presenting line {current_line_num} ('{line.strip()}') to {current_parser_being_tried} for matching."
                     )
                     if parser.matches(line, results):
-                        block_start_line = current_line_num
-                        logger.debug(f"Line {block_start_line}: Matched {type(parser).__name__}")
-                        # Parsers consume lines within their parse method.
+                        match_line_num = current_line_num  # Capture line number of the match
+                        successful_parser_name_for_block = current_parser_being_tried
+
+                        # MODIFIED LOG: Use INFO for match and parse invocation
+                        logger.info(
+                            f"Core dispatch: Line {match_line_num} ('{line.strip()}')"
+                            f" MATCHED by {successful_parser_name_for_block}. Calling .parse()."
+                        )
+
                         parser.parse(line_iterator, line, results)
+
+                        # MODIFIED LOG: Use INFO for parse completion
+                        logger.info(
+                            f"Core dispatch: {successful_parser_name_for_block} .parse() completed."
+                            f" Iterator advanced by this parser."
+                        )
                         parser_found = True
                         break  # Only one parser should handle the start of a block
                 except ParsingError as e:
+                    err_line_ref = match_line_num if match_line_num != -1 else current_line_num
                     logger.error(
-                        f"Parser {type(parser).__name__} failed critically near line {block_start_line}: {e}",
+                        f"Parser {current_parser_being_tried} failed critically near line {err_line_ref}: {e}",
                         exc_info=True,
                     )
                     raise
                 except StopIteration as e:
-                    # This indicates a parser consumed the rest of the file unexpectedly
+                    err_line_ref = match_line_num if match_line_num != -1 else current_line_num
                     logger.error(
-                        f"Parser {type(parser).__name__} unexpectedly consumed end of iterator near line {block_start_line}.",
+                        f"Parser {current_parser_being_tried} unexpectedly consumed end of iterator near line {err_line_ref}.",
                         exc_info=True,
                     )
-                    # Raise a specific error, as this usually means parsing is incomplete
-                    raise ParsingError(f"File ended unexpectedly during {type(parser).__name__} parsing.") from e
+                    raise ParsingError(f"File ended unexpectedly during {current_parser_being_tried} parsing.") from e
                 except Exception as e:
+                    err_line_ref = match_line_num if match_line_num != -1 else current_line_num
                     logger.error(
-                        f"Unexpected error in {type(parser).__name__} near line {block_start_line}: {e}", exc_info=True
+                        f"Unexpected error in {current_parser_being_tried} near line {err_line_ref}: {e}", exc_info=True
                     )
-                    results.parsing_errors.append(f"Error in {type(parser).__name__} near line {block_start_line}: {e}")
-                    # Depending on severity, might raise or just log
+                    results.parsing_errors.append(
+                        f"Error in {current_parser_being_tried} near line {err_line_ref}: {e}"
+                    )
                     raise ParsingError(
-                        f"Unexpected error in {type(parser).__name__} near line {block_start_line}: {e}"
+                        f"Unexpected error in {current_parser_being_tried} near line {err_line_ref}: {e}"
                     ) from e
 
             # If a block parser handled the line, move to the next line
             if parser_found:
+                # MODIFIED LOG: Clarify which parser handled the block and where it started
+                logger.debug(
+                    f"Core main loop: {successful_parser_name_for_block} handled block starting at line {match_line_num}."
+                    " Continuing to next line from iterator's new state."
+                )
                 continue
 
             # --- Handle Standalone Information (if not handled by a block parser) --- #

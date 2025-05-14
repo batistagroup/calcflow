@@ -594,6 +594,9 @@ class _MutableCalculationData:
     # Ground state reference data from within Excited State Analysis block
     ground_state_reference_analysis: GroundStateReferenceAnalysis | None = None
 
+    # Buffer for a line that was read ahead by a parser and needs to be re-processed by the main loop
+    buffered_line: str | None = None
+
 
 @dataclass(frozen=True)
 class CalculationData:
