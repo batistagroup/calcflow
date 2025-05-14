@@ -114,27 +114,20 @@ class GroundStateReferenceParser(SectionParser):
 
             # Priority 3: Try to parse specific sub-sections if not already done
             if gs_no_data is None and NOS_HEADER_PAT.search(line):
-                logger.debug("Calling _parse_no_data for Ground State Reference.")
-                # Pass results so sub-parser can buffer if it reads too far
                 gs_no_data = self._parse_no_data(iterator, line, results)
                 if results.buffered_line:
-                    logger.debug("_parse_no_data buffered a line. Ending GS Ref parse.")
                     break  # Sub-parser decided the section is over
                 continue
 
             if gs_mulliken_data is None and MULLIKEN_GS_POP_HEADER_PAT.search(line):
-                logger.debug("Calling _parse_mulliken_ground_state_dm for Ground State Reference.")
                 gs_mulliken_data = self._parse_mulliken_ground_state_dm(iterator, line, results.input_geometry, results)
                 if results.buffered_line:
-                    logger.debug("_parse_mulliken_ground_state_dm buffered a line. Ending GS Ref parse.")
                     break
                 continue
 
             if gs_multipole_data is None and MULTIPOLE_DM_HEADER_PAT.search(line):
-                logger.debug("Calling _parse_multipole_state_dm for Ground State Reference.")
                 gs_multipole_data = self._parse_multipole_state_dm(iterator, line, results)
                 if results.buffered_line:
-                    logger.debug("_parse_multipole_state_dm buffered a line. Ending GS Ref parse.")
                     break
                 continue
 
@@ -142,7 +135,6 @@ class GroundStateReferenceParser(SectionParser):
             # and not yet at the point where all components are parsed.
             # These are typically blank lines or separators *within* the GS Reference block.
             if line.strip() == "" or SECTION_SEPARATOR_PAT.search(line):
-                logger.debug(f"Consuming blank line or separator within GS Ref: '{line.strip()}'")
                 continue  # Consume and move to the next line
 
             # Fallthrough: Line is unrecognized within the GS Ref block content area.
@@ -172,6 +164,8 @@ class GroundStateReferenceParser(SectionParser):
             results.parsing_warnings.append(
                 "No data components (NOs, Mulliken, Multipole) parsed for Ground State Reference block."
             )
+
+        logger.debug("Finished parsing Ground State (Reference) block.")
 
     def _parse_no_data(
         self, iterator: LineIterator, first_no_line: str, results: _MutableCalculationData
@@ -262,12 +256,10 @@ class GroundStateReferenceParser(SectionParser):
                 # Check for the internal separator line (e.g., "--------------------") AFTER atoms
                 if internal_separator_pat.search(line):
                     # This is the separator before the "Sum:" line. Consume it and continue.
-                    logger.debug(f"Consumed internal Mulliken separator: {line.strip()}")
                     continue
 
                 if MULLIKEN_SUM_LINE_PAT.search(line):
                     # Consumed the "Sum:" line. This is the end of Mulliken atom data.
-                    logger.debug(f"Consumed Mulliken Sum line: {line.strip()}")
                     break
 
                 if not line.strip():
@@ -294,7 +286,14 @@ class GroundStateReferenceParser(SectionParser):
             if first_multipole_line.strip():
                 results.buffered_line = first_multipole_line
             return None
-        mol_chg, num_e, cec_xyz, cnc_xyz, dip_tot, dip_xyz, rms_tot, rms_xyz = [None] * 8
+        mol_chg: float | None = None
+        num_e: float | None = None
+        cec_xyz: tuple[float, float, float] | None = None
+        cnc_xyz: tuple[float, float, float] | None = None
+        dip_tot: float | None = None
+        dip_xyz: tuple[float, float, float] | None = None
+        rms_xyz: tuple[float, float, float] | None = None
+
         line_buffer: list[str] = []
         line = first_multipole_line
         try:
@@ -322,7 +321,6 @@ class GroundStateReferenceParser(SectionParser):
                 if m_rms_match := RMS_DENSITY_SIZE_COMPONENTS_PAT.search(line):
                     # This specific line is for RMS density components.
                     rms_xyz = tuple(map(float, m_rms_match.groups()))
-                    logger.debug(f"Parsed RMS density components: {rms_xyz}")
                     # This is typically the last relevant line in the GS multipole block.
                     break
 

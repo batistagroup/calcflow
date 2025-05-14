@@ -106,15 +106,9 @@ def _parse_qchem_generic_output(output: str, parser_registry: Sequence[SectionPa
                 if results.buffered_line is not None:
                     line = results.buffered_line
                     results.buffered_line = None  # Consume the buffered line
-                    logger.debug(
-                        f"Core main loop: Using buffered line {current_line_num} (from previous parser). Content: '{line.strip()}'"
-                    )
-                    # Note: current_line_num might be off by one for buffered lines if we don't adjust,
-                    # but it's mostly for approximate error reporting.
                 else:
                     line = next(line_iterator)
                     current_line_num += 1
-                    logger.debug(f"Core main loop: Advanced to line {current_line_num}. Content: '{line.strip()}'")
             except StopIteration:
                 if results.buffered_line is not None:  # Should not happen if logic is correct
                     logger.error("StopIteration reached with a buffered line pending. This is a bug.")
@@ -135,15 +129,10 @@ def _parse_qchem_generic_output(output: str, parser_registry: Sequence[SectionPa
             for parser in parser_registry:  # Use the passed parser_registry
                 current_parser_being_tried = type(parser).__name__
                 try:
-                    # MODIFIED LOG: More specific about "presenting for matching"
-                    logger.debug(
-                        f"Core dispatch: Presenting line {current_line_num} ('{line.strip()}') to {current_parser_being_tried} for matching."
-                    )
                     if parser.matches(line, results):
                         match_line_num = current_line_num  # Capture line number of the match
                         successful_parser_name_for_block = current_parser_being_tried
 
-                        # MODIFIED LOG: Use INFO for match and parse invocation
                         logger.info(
                             f"Core dispatch: Line {match_line_num} ('{line.strip()}')"
                             f" MATCHED by {successful_parser_name_for_block}. Calling .parse()."
@@ -151,11 +140,7 @@ def _parse_qchem_generic_output(output: str, parser_registry: Sequence[SectionPa
 
                         parser.parse(line_iterator, line, results)
 
-                        # MODIFIED LOG: Use INFO for parse completion
-                        logger.info(
-                            f"Core dispatch: {successful_parser_name_for_block} .parse() completed."
-                            f" Iterator advanced by this parser."
-                        )
+                        logger.info(f"Core dispatch: {successful_parser_name_for_block} .parse() completed.")
                         parser_found = True
                         break  # Only one parser should handle the start of a block
                 except ParsingError as e:
@@ -186,11 +171,6 @@ def _parse_qchem_generic_output(output: str, parser_registry: Sequence[SectionPa
 
             # If a block parser handled the line, move to the next line
             if parser_found:
-                # MODIFIED LOG: Clarify which parser handled the block and where it started
-                logger.debug(
-                    f"Core main loop: {successful_parser_name_for_block} handled block starting at line {match_line_num}."
-                    " Continuing to next line from iterator's new state."
-                )
                 continue
 
             # --- Handle Standalone Information (if not handled by a block parser) --- #

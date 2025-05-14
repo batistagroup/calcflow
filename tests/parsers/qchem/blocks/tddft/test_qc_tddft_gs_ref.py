@@ -64,16 +64,6 @@ def test_gs_ref_multipole_analysis(parsed_tddft_pc2_data):
     assert multipole is not None
     assert isinstance(multipole, ExcitedStateMultipole)
 
-    # Expected values from tddft-rks-pc2.out
-    # Molecular charge:                      -0.000000
-    # Number of electrons:                   10.000000
-    # Center of electronic charge [Ang]: [  2.290492,   1.555131,  -0.108525]
-    # Center of nuclear charge [Ang]:    [  2.269759,   1.550894,  -0.144757]
-    # Dipole moment [D]:                     2.015379
-    # Cartesian components [D]:          [ -0.995831,  -0.203503,  -1.740304]
-    # RMS size of the density [Ang]: (total is 0.747014 - not stored directly in ExcitedStateMultipole)
-    # Cartesian components [Ang]:        [  0.451777,   0.403206,   0.437437]
-
     assert multipole.molecular_charge == approx(-0.0)
     assert multipole.num_electrons == approx(10.0)
 
