@@ -14,6 +14,14 @@ from calcflow.parsers.qchem.blocks import (
 )
 from calcflow.parsers.qchem.blocks.orbitals import OrbitalParser
 from calcflow.parsers.qchem.blocks.smx import SmxBlockParser
+
+# Import TDDFT block parsers
+from calcflow.parsers.qchem.blocks.tddft import (
+    ExcitedStateAnalysisParser,
+    NTOParser,
+    TDDFTExcitationEnergiesParser,
+    TransitionDensityMatrixParser,
+)
 from calcflow.parsers.qchem.typing import (
     CalculationData,
     LineIterator,
@@ -37,7 +45,7 @@ ERROR_TERM_PAT = re.compile(r"(ERROR:|error:|aborting|failed)", re.IGNORECASE)
 # --- Parser Registry --- #
 # Order matters: Parse $rem before geometry/scf which might appear later.
 # Metadata can appear anywhere.
-PARSER_REGISTRY: Sequence[SectionParser] = [
+PARSER_REGISTRY_SP: Sequence[SectionParser] = [
     MetadataParser(),
     RemBlockParser(),
     SmxBlockParser(),
@@ -46,17 +54,36 @@ PARSER_REGISTRY: Sequence[SectionParser] = [
     OrbitalParser(),
     MullikenChargesParser(),
     MultipoleParser(),
-    # Add other specific block parsers here later
+    # Add other specific block parsers here later for SP if any
+]
+
+PARSER_REGISTRY_TDDFT: Sequence[SectionParser] = [
+    MetadataParser(),
+    RemBlockParser(),
+    SmxBlockParser(),  # Often used with TDDFT for solvation
+    GeometryParser(),
+    ScfParser(),  # SCF is a prerequisite for TDDFT
+    OrbitalParser(),  # Orbitals are relevant
+    MullikenChargesParser(),  # Ground state charges
+    MultipoleParser(),  # Ground state multipoles
+    # TDDFT specific parsers
+    TDDFTExcitationEnergiesParser(),
+    ExcitedStateAnalysisParser(),
+    TransitionDensityMatrixParser(),
+    NTOParser(),
+    # Note: Order within TDDFT parsers might matter if sections can be ambiguous
+    # or if one relies on data partially parsed by another (though ideally they are independent)
 ]
 
 
-# --- Main Parsing Function --- #
-def parse_qchem_sp_output(output: str) -> CalculationData:
+# --- Main Parsing Function (Internal Generic) --- #
+def _parse_qchem_generic_output(output: str, parser_registry: Sequence[SectionParser]) -> CalculationData:
     """
-    Parses the text output of a Q-Chem single-point calculation.
+    Parses the text output of a Q-Chem calculation using a given parser registry.
 
     Args:
         output: The string content of the Q-Chem output file.
+        parser_registry: A sequence of SectionParser instances to use.
 
     Returns:
         A CalculationData object containing the parsed results.
@@ -80,7 +107,7 @@ def parse_qchem_sp_output(output: str) -> CalculationData:
 
             # --- Handle Block Parsing --- #
             parser_found = False
-            for parser in PARSER_REGISTRY:
+            for parser in parser_registry:  # Use the passed parser_registry
                 try:
                     if parser.matches(line, results):
                         block_start_line = current_line_num
@@ -191,3 +218,33 @@ def parse_qchem_sp_output(output: str) -> CalculationData:
 
     # Convert mutable data to the final immutable structure
     return CalculationData.from_mutable(results)
+
+
+# --- Public Entry Point for SP Calculations --- #
+def parse_qchem_sp_output(output: str) -> CalculationData:
+    """
+    Parses the text output of a Q-Chem single-point calculation.
+
+    Args:
+        output: The string content of the Q-Chem output file.
+
+    Returns:
+        A CalculationData object containing the parsed results.
+    """
+    logger.info("Starting Q-Chem Single Point (SP) output parsing.")
+    return _parse_qchem_generic_output(output, PARSER_REGISTRY_SP)
+
+
+# --- Public Entry Point for TDDFT Calculations --- #
+def parse_qchem_tddft_output(output: str) -> CalculationData:
+    """
+    Parses the text output of a Q-Chem TDDFT calculation.
+
+    Args:
+        output: The string content of the Q-Chem output file.
+
+    Returns:
+        A CalculationData object containing the parsed results.
+    """
+    logger.info("Starting Q-Chem TDDFT output parsing.")
+    return _parse_qchem_generic_output(output, PARSER_REGISTRY_TDDFT)
