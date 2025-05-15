@@ -5,7 +5,7 @@ from pytest import LogCaptureFixture
 
 from calcflow.parsers.qchem.blocks.multipole import MultipoleParser
 from calcflow.parsers.qchem.typing import (
-    DipoleMomentData,
+    DipoleMoment,
     HexadecapoleMoments,
     OctopoleMoments,
     QuadrupoleMoments,
@@ -131,9 +131,7 @@ def test_multipole_parse_full_section(parser: MultipoleParser, results: _Mutable
     assert results.multipole is not None
     assert results.multipole.charge_esu == -0.0000
 
-    assert results.multipole.dipole == DipoleMomentData(
-        x_debye=-0.8135, y_debye=-0.1666, z_debye=-1.4237, total_debye=1.6482
-    )
+    assert results.multipole.dipole == DipoleMoment(x=-0.8135, y=-0.1666, z=-1.4237, magnitude=1.6482)
     assert results.multipole.quadrupole == QuadrupoleMoments(
         xx=-8.3319, xy=-1.9775, yy=-6.5229, xz=-3.5103, yz=-1.9205, zz=-4.7954
     )

@@ -1,6 +1,6 @@
 from pytest import approx
 
-from calcflow.parsers.qchem.typing import DipoleMomentData, ExcitedStateMultipole, GroundStateReferenceAnalysis
+from calcflow.parsers.qchem.typing import DipoleMoment, ExcitedStateMultipole, GroundStateReferenceAnalysis
 
 
 def test_ground_state_reference_analysis_exists(parsed_tddft_pc2_data):
@@ -79,11 +79,11 @@ def test_gs_ref_multipole_analysis(parsed_tddft_pc2_data):
 
     assert multipole.dipole_moment_debye is not None
     dipole = multipole.dipole_moment_debye
-    assert isinstance(dipole, DipoleMomentData)
-    assert dipole.total_debye == approx(2.015379)
-    assert dipole.x_debye == approx(-0.995831)
-    assert dipole.y_debye == approx(-0.203503)
-    assert dipole.z_debye == approx(-1.740304)
+    assert isinstance(dipole, DipoleMoment)
+    assert dipole.magnitude == approx(2.015379)
+    assert dipole.x == approx(-0.995831)
+    assert dipole.y == approx(-0.203503)
+    assert dipole.z == approx(-1.740304)
 
     assert multipole.rms_density_size_ang is not None
     assert multipole.rms_density_size_ang[0] == approx(0.451777)

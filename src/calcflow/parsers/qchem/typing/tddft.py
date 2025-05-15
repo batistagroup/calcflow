@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Literal
 
-from calcflow.parsers.qchem.typing.properties import DipoleMomentData
+from calcflow.parsers.qchem.typing.properties import DipoleMoment
 
 
 @dataclass(frozen=True)
@@ -100,7 +100,7 @@ class ExcitedStateMultipole:
     num_electrons: float | None = None
     center_electronic_charge_ang: tuple[float, float, float] | None = None
     center_nuclear_charge_ang: tuple[float, float, float] | None = None
-    dipole_moment_debye: DipoleMomentData | None = None  # Reusing existing DipoleMomentData
+    dipole_moment_debye: DipoleMoment | None = None  # Reusing existing DipoleMoment
     rms_density_size_ang: tuple[float, float, float] | None = None  # Cartesian components
 
 

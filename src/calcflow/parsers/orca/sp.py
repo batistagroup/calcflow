@@ -13,7 +13,7 @@ from calcflow.parsers.orca.blocks.scf import ScfParser
 from calcflow.parsers.orca.typing import (
     Atom,
     AtomicCharges,
-    DipoleMomentData,
+    DipoleMoment,
     DispersionCorrectionData,
     OrbitalsSet,
     ScfData,
@@ -41,7 +41,7 @@ class CalculationData:
     scf: ScfData | None = None
     orbitals: OrbitalsSet | None = None
     atomic_charges: list[AtomicCharges] = field(default_factory=list)
-    dipole_moment: DipoleMomentData | None = None
+    dipole_moment: DipoleMoment | None = None
     dispersion_correction: DispersionCorrectionData | None = None
 
     @classmethod

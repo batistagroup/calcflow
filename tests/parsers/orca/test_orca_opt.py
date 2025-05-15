@@ -241,7 +241,7 @@ def test_dipole_moment(parsed_opt_data: OptimizationData) -> None:
     # Access attribute directly, checking for None
     final_dipole = parsed_opt_data.final_dipole
     assert final_dipole is not None, "Final dipole object not found in parsed data"
-    actual_dipole_debye = final_dipole.total_debye
+    actual_dipole_debye = final_dipole.magnitude
     assert actual_dipole_debye is not None, "Dipole magnitude not found in dipole object"
     assert isinstance(actual_dipole_debye, float), "Dipole magnitude should be float"
 

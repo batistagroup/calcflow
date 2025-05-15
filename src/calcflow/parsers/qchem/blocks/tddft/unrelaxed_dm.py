@@ -2,7 +2,7 @@ import re
 from dataclasses import replace
 
 from calcflow.parsers.qchem.typing import (
-    DipoleMomentData,
+    DipoleMoment,
     ExcitedStateAtomPopulation,
     ExcitedStateDetailedAnalysis,
     ExcitedStateExcitonDifferenceDM,
@@ -198,7 +198,7 @@ class UnrelaxedExcitedStatePropertiesParser:
         num_electrons: float | None = None
         center_elec_chg: tuple[float, float, float] | None = None
         center_nucl_chg: tuple[float, float, float] | None = None
-        dipole: DipoleMomentData | None = None
+        dipole: DipoleMoment | None = None
         rms_density_size: tuple[float, float, float] | None = None
         found_data = False
 
@@ -266,11 +266,11 @@ class UnrelaxedExcitedStatePropertiesParser:
                         r"Cartesian components \[D\]:\s*\[\s*(-?[\d.]+),\s*(-?[\d.]+),\s*(-?[\d.]+)\]", next_line_cart
                     )
                     if cart_match:
-                        dipole = DipoleMomentData(
-                            x_debye=float(cart_match.group(1)),
-                            y_debye=float(cart_match.group(2)),
-                            z_debye=float(cart_match.group(3)),
-                            total_debye=total_d,
+                        dipole = DipoleMoment(
+                            x=float(cart_match.group(1)),
+                            y=float(cart_match.group(2)),
+                            z=float(cart_match.group(3)),
+                            magnitude=total_d,
                         )
                         found_data = True
                     else:

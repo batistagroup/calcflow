@@ -9,7 +9,7 @@ from calcflow.parsers.qchem.typing.core import (
 from calcflow.parsers.qchem.typing.orbitals import Orbital, OrbitalsSet
 from calcflow.parsers.qchem.typing.properties import (
     AtomicCharges,
-    DipoleMomentData,
+    DipoleMoment,
     DispersionCorrectionData,
     HexadecapoleMoments,
     MultipoleData,
@@ -51,7 +51,7 @@ __all__ = [
     "OrbitalsSet",
     # from properties
     "AtomicCharges",
-    "DipoleMomentData",
+    "DipoleMoment",
     "QuadrupoleMoments",
     "OctopoleMoments",
     "HexadecapoleMoments",

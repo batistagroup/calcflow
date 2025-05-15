@@ -119,14 +119,14 @@ class AtomicCharges:
 
 
 @dataclass(frozen=True)
-class DipoleMomentData:
+class DipoleMoment:
     """Represents the molecular dipole moment."""
 
     x_au: float
     y_au: float
     z_au: float
     total_au: float
-    total_debye: float
+    magnitude: float
 
 
 @dataclass(frozen=True)
@@ -149,7 +149,7 @@ class _MutableCalculationData:
     scf: ScfData | None = None
     orbitals: OrbitalsSet | None = None
     atomic_charges: list[AtomicCharges] = field(default_factory=list)
-    dipole_moment: DipoleMomentData | None = None
+    dipole_moment: DipoleMoment | None = None
     dispersion_correction: DispersionCorrectionData | None = None
     # Track errors/warnings during parsing
     parsing_errors: list[str] = field(default_factory=list)
@@ -212,7 +212,7 @@ class _MutableOptData:
     final_scf: ScfData | None = None
     final_orbitals: OrbitalsSet | None = None
     final_charges: list[AtomicCharges] = field(default_factory=list)
-    final_dipole: DipoleMomentData | None = None
+    final_dipole: DipoleMoment | None = None
     final_dispersion: DispersionCorrectionData | None = None
     n_cycles: int = 0  # Track number of cycles parsed
 

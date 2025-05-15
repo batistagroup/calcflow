@@ -1,7 +1,7 @@
 import re
 
 from calcflow.exceptions import ParsingError
-from calcflow.parsers.orca.typing import DipoleMomentData, LineIterator, SectionParser, _MutableCalculationData
+from calcflow.parsers.orca.typing import DipoleMoment, LineIterator, SectionParser, _MutableCalculationData
 from calcflow.utils import logger
 
 # --- Dipole Moment Parser --- #
@@ -25,7 +25,7 @@ class DipoleParser(SectionParser):
         y_au: float | None = None
         z_au: float | None = None
         total_au: float | None = None
-        total_debye: float | None = None
+        magnitude: float | None = None
 
         try:
             for line in iterator:
@@ -48,26 +48,26 @@ class DipoleParser(SectionParser):
                 mag_debye_match = DIPOLE_MAG_DEBYE_PAT.search(line)
                 if mag_debye_match:
                     try:
-                        total_debye = float(mag_debye_match.group(1))
+                        magnitude = float(mag_debye_match.group(1))
                     except (ValueError, IndexError) as e:
                         raise ParsingError(f"Could not parse dipole magnitude (Debye): {line.strip()}") from e
                     continue
 
                 if "Rotational spectrum" in line:
-                    if None in [x_au, y_au, z_au, total_au, total_debye]:
+                    if None in [x_au, y_au, z_au, total_au, magnitude]:
                         logger.warning(f"Exiting dipole block prematurely due to terminator: '{line.strip()}'")
                     break
 
-                if None not in [x_au, y_au, z_au, total_au, total_debye]:
+                if None not in [x_au, y_au, z_au, total_au, magnitude]:
                     logger.debug("All dipole components found, breaking loop.")
                     break
 
-            if None in [x_au, y_au, z_au, total_au, total_debye]:
+            if None in [x_au, y_au, z_au, total_au, magnitude]:
                 missing = [
                     name
                     for name, val in zip(
                         ["X", "Y", "Z", "Mag(au)", "Mag(Debye)"],
-                        [x_au, y_au, z_au, total_au, total_debye],
+                        [x_au, y_au, z_au, total_au, magnitude],
                         strict=False,
                     )
                     if val is None
@@ -75,9 +75,9 @@ class DipoleParser(SectionParser):
                 raise ParsingError(f"Dipole Moment block found but could not parse components: {', '.join(missing)}")
 
             assert x_au is not None and y_au is not None and z_au is not None
-            assert total_au is not None and total_debye is not None
+            assert total_au is not None and magnitude is not None
 
-            dipole_data = DipoleMomentData(x_au=x_au, y_au=y_au, z_au=z_au, total_au=total_au, total_debye=total_debye)
+            dipole_data = DipoleMoment(x_au=x_au, y_au=y_au, z_au=z_au, total_au=total_au, magnitude=magnitude)
             results.dipole_moment = dipole_data
             results.parsed_dipole = True
             logger.debug(f"Successfully parsed dipole moment: {repr(dipole_data)}")

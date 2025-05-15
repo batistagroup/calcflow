@@ -1,7 +1,7 @@
 import re
 
 from calcflow.parsers.qchem.typing import (
-    DipoleMomentData,
+    DipoleMoment,
     HexadecapoleMoments,
     LineIterator,
     MultipoleData,
@@ -50,7 +50,7 @@ class MultipoleParser(SectionParser):
         logger.debug("Entering Multipole Moments section.")
 
         charge: float | None = None
-        dipole: DipoleMomentData | None = None
+        dipole: DipoleMoment | None = None
         quadrupole: QuadrupoleMoments | None = None
         octopole: OctopoleMoments | None = None
         hexadecapole: HexadecapoleMoments | None = None
@@ -82,11 +82,11 @@ class MultipoleParser(SectionParser):
                     line_tot = next(iterator)
                     match_tot = TOTAL_DIPOLE_PAT.search(line_tot)
                     if match_xyz and match_tot:
-                        dipole = DipoleMomentData(
-                            x_debye=float(match_xyz.group(1)),
-                            y_debye=float(match_xyz.group(2)),
-                            z_debye=float(match_xyz.group(3)),
-                            total_debye=float(match_tot.group(1)),
+                        dipole = DipoleMoment(
+                            x=float(match_xyz.group(1)),
+                            y=float(match_xyz.group(2)),
+                            z=float(match_xyz.group(3)),
+                            magnitude=float(match_tot.group(1)),
                         )
                     else:
                         logger.warning("Could not parse dipole moment values.")

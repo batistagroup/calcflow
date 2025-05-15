@@ -49,7 +49,7 @@ def test_calculation_data_repr_with_optional_fields(parsed_sp_data: orca.Calcula
     assert "scf=ScfData" in repr_str
     assert "orbitals=OrbitalsSet" in repr_str
     assert "atomic_charges=[" in repr_str
-    assert "dipole_moment=DipoleMomentData" in repr_str
+    assert "dipole_moment=DipoleMoment" in repr_str
     # Dispersion might not be in the default test file, check its presence conditionally
     if parsed_sp_data.dispersion_correction:
         assert "dispersion_correction=DispersionCorrectionData" in repr_str

@@ -3,7 +3,7 @@ from pytest import approx
 from calcflow.parsers.qchem.typing import (
     Atom,
     CalculationData,
-    DipoleMomentData,
+    DipoleMoment,
     HexadecapoleMoments,
     OctopoleMoments,
     OrbitalTransition,
@@ -110,11 +110,11 @@ def test_parse_qchem_tddft_output_h2o(parsed_tddft_pc2_data: CalculationData) ->
     assert data.multipole.charge_esu == approx(-0.0000)
 
     assert data.multipole.dipole is not None
-    dipole: DipoleMomentData = data.multipole.dipole  # type: ignore
-    assert dipole.x_debye == approx(-0.9958)  # From "Cartesian Multipole Moments"
-    assert dipole.y_debye == approx(-0.2035)
-    assert dipole.z_debye == approx(-1.7403)
-    assert dipole.total_debye == approx(2.0154)
+    dipole: DipoleMoment = data.multipole.dipole  # type: ignore
+    assert dipole.x == approx(-0.9958)  # From "Cartesian Multipole Moments"
+    assert dipole.y == approx(-0.2035)
+    assert dipole.z == approx(-1.7403)
+    assert dipole.magnitude == approx(2.0154)
 
     assert data.multipole.quadrupole is not None
     quad: QuadrupoleMoments = data.multipole.quadrupole  # type: ignore

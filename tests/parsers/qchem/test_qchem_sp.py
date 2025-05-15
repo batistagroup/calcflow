@@ -6,7 +6,7 @@ from calcflow.parsers import qchem
 from calcflow.parsers.qchem.typing import (
     Atom,
     CalculationData,
-    DipoleMomentData,
+    DipoleMoment,
     HexadecapoleMoments,
     OctopoleMoments,
     QuadrupoleMoments,
@@ -108,11 +108,11 @@ def test_parse_qchem_sp_output_h2o(parsed_sp_sto_data: CalculationData) -> None:
     assert data.multipole.charge_esu == approx(-0.0000)
 
     assert data.multipole.dipole is not None
-    dipole: DipoleMomentData = data.multipole.dipole
-    assert dipole.x_debye == approx(-0.8135)
-    assert dipole.y_debye == approx(-0.1666)
-    assert dipole.z_debye == approx(-1.4237)
-    assert dipole.total_debye == approx(1.6482)
+    dipole: DipoleMoment = data.multipole.dipole
+    assert dipole.x == approx(-0.8135)
+    assert dipole.y == approx(-0.1666)
+    assert dipole.z == approx(-1.4237)
+    assert dipole.magnitude == approx(1.6482)
 
     assert data.multipole.quadrupole is not None
     quad: QuadrupoleMoments = data.multipole.quadrupole
@@ -428,11 +428,11 @@ def test_parse_qchem_sp_output_h2o_smd(parsed_sp_sto_smd_data: CalculationData) 
     assert data.multipole.charge_esu == approx(-0.0000)
 
     assert data.multipole.dipole is not None
-    dipole: DipoleMomentData = data.multipole.dipole
-    assert dipole.x_debye == approx(-0.8826)
-    assert dipole.y_debye == approx(-0.1808)
-    assert dipole.z_debye == approx(-1.5445)
-    assert dipole.total_debye == approx(1.7880)
+    dipole: DipoleMoment = data.multipole.dipole
+    assert dipole.x == approx(-0.8826)
+    assert dipole.y == approx(-0.1808)
+    assert dipole.z == approx(-1.5445)
+    assert dipole.magnitude == approx(1.7880)
 
     assert data.multipole.quadrupole is not None
     quad: QuadrupoleMoments = data.multipole.quadrupole
@@ -569,11 +569,11 @@ def test_parse_qchem_sp_output_h2o_tzvppd_smd(parsed_sp_tzvppd_smd_data: Calcula
     assert data.multipole.charge_esu == approx(-0.0000)
 
     assert data.multipole.dipole is not None
-    dipole: DipoleMomentData = data.multipole.dipole
-    assert dipole.x_debye == approx(-1.2166)
-    assert dipole.y_debye == approx(-0.2484)
-    assert dipole.z_debye == approx(-2.1256)
-    assert dipole.total_debye == approx(2.4617)
+    dipole: DipoleMoment = data.multipole.dipole
+    assert dipole.x == approx(-1.2166)
+    assert dipole.y == approx(-0.2484)
+    assert dipole.z == approx(-2.1256)
+    assert dipole.magnitude == approx(2.4617)
 
     assert data.multipole.quadrupole is not None
     quad: QuadrupoleMoments = data.multipole.quadrupole

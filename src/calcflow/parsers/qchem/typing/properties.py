@@ -18,13 +18,13 @@ class AtomicCharges:
 
 
 @dataclass(frozen=True)
-class DipoleMomentData:
-    """Represents the molecular dipole moment from Q-Chem."""
+class DipoleMoment:
+    """Stores dipole moment and components in Debye."""
 
-    x_debye: float
-    y_debye: float
-    z_debye: float
-    total_debye: float
+    x: float
+    y: float
+    z: float
+    magnitude: float
 
 
 @dataclass(frozen=True)
@@ -81,7 +81,7 @@ class MultipoleData:
     """Container for various electric multipole moments."""
 
     charge_esu: float | None = None
-    dipole: DipoleMomentData | None = None
+    dipole: DipoleMoment | None = None
     quadrupole: QuadrupoleMoments | None = None
     octopole: OctopoleMoments | None = None
     hexadecapole: HexadecapoleMoments | None = None
@@ -107,7 +107,7 @@ class MultipoleData:
         if self.charge_esu is not None:
             summary.append(f"Charge={self.charge_esu:.4f}")
         if self.dipole:
-            summary.append(f"Dipole={self.dipole.total_debye:.4f} D")
+            summary.append(f"Dipole={self.dipole.magnitude:.4f} D")
         has_higher_moments = self.quadrupole or self.octopole or self.hexadecapole
         if has_higher_moments:
             summary.append("Higher moments present")

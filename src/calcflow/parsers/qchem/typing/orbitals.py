@@ -16,7 +16,6 @@ class Orbital:
 class OrbitalsSet:
     """Holds information about molecular orbitals from Q-Chem."""
 
-    # Q-Chem separates Alpha and Beta orbitals
     alpha_orbitals: Sequence[Orbital] | None = None
     beta_orbitals: Sequence[Orbital] | None = None
     # HOMO/LUMO indices might need calculation based on occupations
