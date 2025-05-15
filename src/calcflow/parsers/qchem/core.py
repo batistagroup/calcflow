@@ -232,7 +232,7 @@ def _parse_qchem_generic_output(output: str, parser_registry: Sequence[SectionPa
     # --- Final Checks and Refinements --- #
 
     # Example Check: Ensure standard orientation geometry was parsed
-    if results.standard_orientation_geometry is None:
+    if results.final_geometry is None:
         logger.warning("Standard orientation geometry block was not found or parsed.")
         results.parsing_warnings.append("Standard orientation geometry not parsed.")
     if results.input_geometry is None:

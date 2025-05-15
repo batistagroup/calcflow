@@ -46,11 +46,11 @@ def test_parse_qchem_sp_output_h2o(parsed_sp_sto_data: CalculationData) -> None:
     assert data.input_geometry[2] == Atom(symbol="H", x=2.70244, y=1.31157, z=-0.91665)
 
     # Standard Orientation Geometry
-    assert data.standard_orientation_geometry is not None
-    assert len(data.standard_orientation_geometry) == 3
-    assert data.standard_orientation_geometry[0] == Atom(symbol="H", x=1.3649900000, y=1.6938500000, z=-0.1974800000)
-    assert data.standard_orientation_geometry[1] == Atom(symbol="O", x=2.3287700000, y=1.5629400000, z=-0.0416800000)
-    assert data.standard_orientation_geometry[2] == Atom(symbol="H", x=2.7024400000, y=1.3115700000, z=-0.9166500000)
+    assert data.final_geometry is not None
+    assert len(data.final_geometry) == 3
+    assert data.final_geometry[0] == Atom(symbol="H", x=1.3649900000, y=1.6938500000, z=-0.1974800000)
+    assert data.final_geometry[1] == Atom(symbol="O", x=2.3287700000, y=1.5629400000, z=-0.0416800000)
+    assert data.final_geometry[2] == Atom(symbol="H", x=2.7024400000, y=1.3115700000, z=-0.9166500000)
 
     # --- SCF Checks ---
     assert data.scf is not None
@@ -260,7 +260,7 @@ def test_missing_input_geometry(caplog: LogCaptureFixture) -> None:
     with caplog.at_level(logging.WARNING):  # Error is logged at ERROR level, warning at WARNING
         data = qchem.parse_qchem_sp_output(MISSING_INPUT_GEOMETRY)
     assert data.input_geometry is None
-    assert data.standard_orientation_geometry is not None  # Should still parse this
+    assert data.final_geometry is not None  # Should still parse this
     assert data.termination_status == "NORMAL"  # Ends normally
     assert "Input geometry block ($molecule) was not found or parsed." in caplog.text
 
@@ -311,7 +311,7 @@ def test_empty_input(caplog: LogCaptureFixture) -> None:
     assert data.termination_status == "ERROR"
     assert data.final_energy is None
     assert data.input_geometry is None
-    assert data.standard_orientation_geometry is None
+    assert data.final_geometry is None
     assert "Standard orientation geometry block was not found or parsed." in caplog.text
     assert "Input geometry block ($molecule) was not found or parsed." in caplog.text
     assert "Termination status unknown after parsing, assuming ERROR." in caplog.text
@@ -330,7 +330,7 @@ def test_minimal_header_input(caplog: LogCaptureFixture) -> None:
     assert data.termination_status == "ERROR"
     assert data.final_energy is None
     assert data.input_geometry is None
-    assert data.standard_orientation_geometry is None
+    assert data.final_geometry is None
     assert "Standard orientation geometry block was not found or parsed." in caplog.text
     assert "Input geometry block ($molecule) was not found or parsed." in caplog.text
     assert "Termination status unknown after parsing, assuming ERROR." in caplog.text
@@ -339,14 +339,14 @@ def test_minimal_header_input(caplog: LogCaptureFixture) -> None:
 # --- Test for SP with SMD ---
 
 
-def test_parse_qchem_sp_output_h2o_smd(parsed_sp_sto_smd_data: CalculationData) -> None:
+def test_parse_qchem_sp_output_h2o_smd(parsed_sp_sto_smd: CalculationData) -> None:
     """
     Integration test for parsing the H2O SP output file with SMD solvation.
 
     Verifies that the main fields extracted by parse_qchem_sp_output match
     the expected values from the data/calculations/examples/qchem/h2o/sp-sto-smd.out file.
     """
-    data = parsed_sp_sto_smd_data
+    data = parsed_sp_sto_smd
 
     # --- Top-Level Checks ---
     assert data.termination_status == "NORMAL"
@@ -371,11 +371,11 @@ def test_parse_qchem_sp_output_h2o_smd(parsed_sp_sto_smd_data: CalculationData) 
     assert data.input_geometry[2] == Atom(symbol="H", x=2.70244, y=1.31157, z=-0.91665)
 
     # Standard Orientation Geometry
-    assert data.standard_orientation_geometry is not None
-    assert len(data.standard_orientation_geometry) == 3
-    assert data.standard_orientation_geometry[0] == Atom(symbol="H", x=1.3649900000, y=1.6938500000, z=-0.1974800000)
-    assert data.standard_orientation_geometry[1] == Atom(symbol="O", x=2.3287700000, y=1.5629400000, z=-0.0416800000)
-    assert data.standard_orientation_geometry[2] == Atom(symbol="H", x=2.7024400000, y=1.3115700000, z=-0.9166500000)
+    assert data.final_geometry is not None
+    assert len(data.final_geometry) == 3
+    assert data.final_geometry[0] == Atom(symbol="H", x=1.3649900000, y=1.6938500000, z=-0.1974800000)
+    assert data.final_geometry[1] == Atom(symbol="O", x=2.3287700000, y=1.5629400000, z=-0.0416800000)
+    assert data.final_geometry[2] == Atom(symbol="H", x=2.7024400000, y=1.3115700000, z=-0.9166500000)
 
     # --- SCF Checks ---
     assert data.scf is not None
@@ -475,24 +475,24 @@ def test_parse_qchem_sp_output_h2o_smd(parsed_sp_sto_smd_data: CalculationData) 
     assert hexa.zzzz == approx(-5.3042)
 
     # Check SMD specific data
-    assert data.smd_data is not None
-    assert data.smd_data.g_pcm_kcal_mol == approx(-6.0201)
-    assert data.smd_data.g_cds_kcal_mol == approx(1.4731)
-    assert data.smd_data.g_enp_au == approx(-75.32080770)
-    assert data.smd_data.g_tot_au == approx(-75.31846024)
+    assert data.smd is not None
+    assert data.smd.g_pcm_kcal_mol == approx(-6.0201)
+    assert data.smd.g_cds_kcal_mol == approx(1.4731)
+    assert data.smd.g_enp_au == approx(-75.32080770)
+    assert data.smd.g_tot_au == approx(-75.31846024)
 
     # --- Error/Warning Checks ---
     # For now, rely on fixture and successful parsing to imply no errors.
 
 
-def test_parse_qchem_sp_output_h2o_tzvppd_smd(parsed_sp_tzvppd_smd_data: CalculationData) -> None:
+def test_parse_qchem_sp_output_h2o_tzvppd_smd(parsed_sp_tzvppd_smd: CalculationData) -> None:
     """
     Integration test for parsing the H2O SP output file with SMD solvation and def2-tzvppd basis.
 
     Verifies that the main fields extracted by parse_qchem_sp_output match
     the expected values from the data/calculations/examples/qchem/h2o/sp-tzvppd-smd.out file.
     """
-    data = parsed_sp_tzvppd_smd_data
+    data = parsed_sp_tzvppd_smd
 
     # --- Top-Level Checks ---
     assert data.termination_status == "NORMAL"
@@ -515,11 +515,11 @@ def test_parse_qchem_sp_output_h2o_tzvppd_smd(parsed_sp_tzvppd_smd_data: Calcula
     assert data.input_geometry[1] == Atom(symbol="O", x=2.32877, y=1.56294, z=-0.04168)
     assert data.input_geometry[2] == Atom(symbol="H", x=2.70244, y=1.31157, z=-0.91665)
 
-    assert data.standard_orientation_geometry is not None
-    assert len(data.standard_orientation_geometry) == 3
-    assert data.standard_orientation_geometry[0] == Atom(symbol="H", x=1.3649900000, y=1.6938500000, z=-0.1974800000)
-    assert data.standard_orientation_geometry[1] == Atom(symbol="O", x=2.3287700000, y=1.5629400000, z=-0.0416800000)
-    assert data.standard_orientation_geometry[2] == Atom(symbol="H", x=2.7024400000, y=1.3115700000, z=-0.9166500000)
+    assert data.final_geometry is not None
+    assert len(data.final_geometry) == 3
+    assert data.final_geometry[0] == Atom(symbol="H", x=1.3649900000, y=1.6938500000, z=-0.1974800000)
+    assert data.final_geometry[1] == Atom(symbol="O", x=2.3287700000, y=1.5629400000, z=-0.0416800000)
+    assert data.final_geometry[2] == Atom(symbol="H", x=2.7024400000, y=1.3115700000, z=-0.9166500000)
 
     # --- SCF Checks ---
     assert data.scf is not None
@@ -616,11 +616,11 @@ def test_parse_qchem_sp_output_h2o_tzvppd_smd(parsed_sp_tzvppd_smd_data: Calcula
     assert hexa.zzzz == approx(-6.6403)
 
     # Check SMD specific data
-    assert data.smd_data is not None
-    assert data.smd_data.g_pcm_kcal_mol == approx(-10.8438)
-    assert data.smd_data.g_cds_kcal_mol == approx(1.4731)
-    assert data.smd_data.g_enp_au == approx(-76.45607642)
-    assert data.smd_data.g_tot_au == approx(-76.45372896)
+    assert data.smd is not None
+    assert data.smd.g_pcm_kcal_mol == approx(-10.8438)
+    assert data.smd.g_cds_kcal_mol == approx(1.4731)
+    assert data.smd.g_enp_au == approx(-76.45607642)
+    assert data.smd.g_tot_au == approx(-76.45372896)
 
     # --- Error/Warning Checks ---
     # For now, rely on fixture and successful parsing to imply no errors.

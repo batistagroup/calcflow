@@ -138,6 +138,6 @@ class GeometryParser(SectionParser):
             results.parsed_input_geometry = True
             logger.info(f"Parsed input geometry with {len(atoms)} atoms.")
         elif parsing_standard_geom:
-            results.standard_orientation_geometry = atoms
+            results.final_geometry = atoms
             results.parsed_standard_geometry = True
             logger.info(f"Parsed standard orientation geometry with {len(atoms)} atoms.")

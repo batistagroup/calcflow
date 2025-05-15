@@ -147,7 +147,7 @@ def test_parse_input_geometry_valid(parser: GeometryParser, initial_data: _Mutab
     parser.parse(line_iter, start_line, results)
 
     assert results.parsed_input_geometry is True
-    assert results.standard_orientation_geometry is None
+    assert results.final_geometry is None
     assert results.input_geometry is not None
     assert len(results.input_geometry) == 3
     assert results.input_geometry[0] == Atom(symbol="H", x=1.36499, y=1.69385, z=-0.19748)
@@ -167,11 +167,11 @@ def test_parse_standard_geometry_valid(parser: GeometryParser, initial_data: _Mu
 
     assert results.parsed_standard_geometry is True
     assert results.input_geometry is None
-    assert results.standard_orientation_geometry is not None
-    assert len(results.standard_orientation_geometry) == 3
-    assert results.standard_orientation_geometry[0] == Atom(symbol="H", x=1.36499, y=1.69385, z=-0.19748)
-    assert results.standard_orientation_geometry[1] == Atom(symbol="O", x=2.32877, y=1.56294, z=-0.04168)
-    assert results.standard_orientation_geometry[2] == Atom(symbol="H", x=2.70244, y=1.31157, z=-0.91665)
+    assert results.final_geometry is not None
+    assert len(results.final_geometry) == 3
+    assert results.final_geometry[0] == Atom(symbol="H", x=1.36499, y=1.69385, z=-0.19748)
+    assert results.final_geometry[1] == Atom(symbol="O", x=2.32877, y=1.56294, z=-0.04168)
+    assert results.final_geometry[2] == Atom(symbol="H", x=2.70244, y=1.31157, z=-0.91665)
     # Ensure iterator stopped correctly
     assert next(line_iter) == " Nuclear Repulsion Energy ="
 
@@ -221,7 +221,7 @@ def test_parse_standard_geom_no_atoms(parser: GeometryParser, initial_data: _Mut
     parser.parse(line_iter, start_line, results)
 
     assert results.parsed_standard_geometry is True
-    assert results.standard_orientation_geometry == []
+    assert results.final_geometry == []
 
 
 def test_parse_input_geom_unexpected_line(parser: GeometryParser, initial_data: _MutableCalculationData) -> None:
@@ -250,7 +250,7 @@ def test_parse_standard_geom_unexpected_line(parser: GeometryParser, initial_dat
     parser.parse(line_iter, start_line, results)
 
     assert results.parsed_standard_geometry is True
-    assert results.standard_orientation_geometry is not None
-    assert len(results.standard_orientation_geometry) == 2  # Only two valid atoms parsed
-    assert results.standard_orientation_geometry[0].symbol == "H"
-    assert results.standard_orientation_geometry[1].symbol == "O"
+    assert results.final_geometry is not None
+    assert len(results.final_geometry) == 2  # Only two valid atoms parsed
+    assert results.final_geometry[0].symbol == "H"
+    assert results.final_geometry[1].symbol == "O"

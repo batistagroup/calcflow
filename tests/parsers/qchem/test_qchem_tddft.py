@@ -53,11 +53,11 @@ def test_parse_qchem_tddft_output_h2o(parsed_tddft_pc2_data: CalculationData) ->
     assert data.input_geometry[2] == Atom(symbol="H", x=2.70244, y=1.31157, z=-0.91665)
 
     # Standard Orientation Geometry
-    assert data.standard_orientation_geometry is not None
-    assert len(data.standard_orientation_geometry) == 3
-    assert data.standard_orientation_geometry[0] == Atom(symbol="H", x=1.3649900000, y=1.6938500000, z=-0.1974800000)
-    assert data.standard_orientation_geometry[1] == Atom(symbol="O", x=2.3287700000, y=1.5629400000, z=-0.0416800000)
-    assert data.standard_orientation_geometry[2] == Atom(symbol="H", x=2.7024400000, y=1.3115700000, z=-0.9166500000)
+    assert data.final_geometry is not None
+    assert len(data.final_geometry) == 3
+    assert data.final_geometry[0] == Atom(symbol="H", x=1.3649900000, y=1.6938500000, z=-0.1974800000)
+    assert data.final_geometry[1] == Atom(symbol="O", x=2.3287700000, y=1.5629400000, z=-0.0416800000)
+    assert data.final_geometry[2] == Atom(symbol="H", x=2.7024400000, y=1.3115700000, z=-0.9166500000)
 
     # --- SCF Checks ---
     assert data.scf is not None

@@ -56,7 +56,7 @@ if run["parse"]:
         sp_sto_smd = parse_qchem_sp_output((clc_folder / "sp-sto-smd.out").read_text())
         print(sp_sto_smd.metadata)
         print(sp_sto_smd.final_energy)
-        print(sp_sto_smd.smd_data)
+        print(sp_sto_smd.smd)
         print("------- SP TZVPPD-D3 ---------")
         sp_tzvppd = parse_qchem_sp_output((clc_folder / "sp-tzvppd.out").read_text())
         print(sp_tzvppd.metadata)
@@ -65,13 +65,13 @@ if run["parse"]:
         sp_tzvppd_smd = parse_qchem_sp_output((clc_folder / "sp-tzvppd-smd.out").read_text())
         print(sp_tzvppd_smd.metadata)
         print(sp_tzvppd_smd.final_energy)
-        print(sp_tzvppd_smd.smd_data)
+        print(sp_tzvppd_smd.smd)
 
         print("------- SP TZVPPD-SMD ---------")
         sp_tzvppd_smd = parse_qchem_sp_output((clc_folder / "sp-tzvppd-smd.out").read_text())
         print(sp_tzvppd_smd.metadata)
         print(sp_tzvppd_smd.final_energy)
-        print(sp_tzvppd_smd.smd_data)
+        print(sp_tzvppd_smd.smd)
 
     if todo["tddft"]:
         print("------- TDDFT STO-3G ---------")
