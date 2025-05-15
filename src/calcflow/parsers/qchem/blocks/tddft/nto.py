@@ -1,4 +1,5 @@
 import re
+from typing import Literal, cast
 
 from calcflow.parsers.qchem.typing import (
     LineIterator,
@@ -160,9 +161,11 @@ class NTODecompositionParser(SectionParser):
                     continue  # Skip this line
 
                 hole_ref = contribution_match.group(1)  # "H" or "V"
+                assert hole_ref in ["H", "V"]
                 hole_sign = contribution_match.group(2)  # "+" or "-"
                 hole_num = contribution_match.group(3)  # e.g. "2"
                 elec_ref = contribution_match.group(4)  # "L" or "V"
+                assert elec_ref in ["L", "V"]
                 elec_sign = contribution_match.group(5)  # "+" or "-"
                 elec_num = contribution_match.group(6)  # e.g. "3"
                 coeff = float(contribution_match.group(7))
@@ -172,9 +175,9 @@ class NTODecompositionParser(SectionParser):
                 elec_offset = int(elec_sign + elec_num)  # e.g. "+3"
 
                 contribution = NTOContribution(
-                    hole_reference=hole_ref,
+                    hole_reference=cast(Literal["H", "V"], hole_ref),
                     hole_offset=hole_offset,
-                    electron_reference=elec_ref,
+                    electron_reference=cast(Literal["L", "V"], elec_ref),
                     electron_offset=elec_offset,
                     coefficient=coeff,
                     weight_percent=weight,

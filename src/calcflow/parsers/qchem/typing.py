@@ -706,8 +706,6 @@ class CalculationData:
 
 # --- Parsing Logic Abstractions --- #
 
-type LineIterator = Iterator[str]
-
 
 class SectionParser(Protocol):
     """Protocol for Q-Chem section parsers."""

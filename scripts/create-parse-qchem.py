@@ -93,6 +93,7 @@ if run["parse"]:
         # print(tddft_pc2.tddft_data.transition_density_matrix_analyses)
 
         print("\n\n NTO Decomposition:")
+        assert tddft_pc2.tddft_data is not None
         print(tddft_pc2.tddft_data.nto_state_analyses)
 
         # breakpoint()

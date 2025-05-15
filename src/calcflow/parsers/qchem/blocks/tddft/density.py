@@ -1,5 +1,5 @@
 import re
-from typing import Any, cast
+from typing import Any
 
 from calcflow.parsers.qchem.typing import (
     ExcitonAnalysisTransitionDM,
@@ -77,7 +77,6 @@ class TransitionDensityMatrixParser(SectionParser):
         `current_line` is the line containing "Transition Density Matrix Analysis".
         """
         logger.debug("Starting parsing of Transition Density Matrix Analysis section.")
-
         try:
             line = next(iterator)  # Consume the line after the matched header (current_line)
             while "----" in line or not line.strip():  # Consume decorative lines
@@ -369,10 +368,10 @@ class TransitionDensityMatrixParser(SectionParser):
                 else:  # Line doesn't match CT number format, end of this block
                     break
 
-            return TransitionDMCTNumbers(**cast(dict, ct_data_dict)) if ct_data_dict else None, current_parse_line
+            return TransitionDMCTNumbers(**ct_data_dict) if ct_data_dict else None, current_parse_line
         except StopIteration:
             # EOF reached while parsing CT number lines
-            return TransitionDMCTNumbers(**cast(dict, ct_data_dict)) if ct_data_dict else None, None
+            return TransitionDMCTNumbers(**ct_data_dict) if ct_data_dict else None, None
         except Exception as e:  # Catches the __init__ error if keys are still wrong, or other issues
             logger.error(f"Error in _parse_ct_numbers. Line: '{current_parse_line}'. Error: {e}", exc_info=True)
             return None, current_parse_line  # Return problematic line

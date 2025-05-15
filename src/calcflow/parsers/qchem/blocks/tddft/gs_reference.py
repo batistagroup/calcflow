@@ -306,13 +306,16 @@ class GroundStateReferenceParser(SectionParser):
                 if m := NUM_ELECTRONS_MULTIPOLE_PAT.search(line):
                     num_e = float(m.group(1))
                 if m := CENTER_ELECTRONIC_CHARGE_PAT.search(line):
-                    cec_xyz = tuple(map(float, m.groups()))
+                    g1, g2, g3 = m.groups()
+                    cec_xyz = (float(g1), float(g2), float(g3))
                 if m := CENTER_NUCLEAR_CHARGE_PAT.search(line):
-                    cnc_xyz = tuple(map(float, m.groups()))
+                    g1, g2, g3 = m.groups()
+                    cnc_xyz = (float(g1), float(g2), float(g3))
                 if m := DIPOLE_TOTAL_PAT.search(line):
                     dip_tot = float(m.group(1))
                 if m := DIPOLE_MOMENT_COMPONENTS_PAT.search(line):
-                    dip_xyz = tuple(map(float, m.groups()))
+                    g1, g2, g3 = m.groups()
+                    dip_xyz = (float(g1), float(g2), float(g3))
                 if m := RMS_TOTAL_SIZE_PAT.search(line):
                     # rms_tot = float(m.group(1))
                     pass
@@ -320,7 +323,8 @@ class GroundStateReferenceParser(SectionParser):
                 # Refined logic for RMS density components
                 if m_rms_match := RMS_DENSITY_SIZE_COMPONENTS_PAT.search(line):
                     # This specific line is for RMS density components.
-                    rms_xyz = tuple(map(float, m_rms_match.groups()))
+                    g1, g2, g3 = m_rms_match.groups()
+                    rms_xyz = (float(g1), float(g2), float(g3))
                     # This is typically the last relevant line in the GS multipole block.
                     break
 

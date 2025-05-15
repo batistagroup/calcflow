@@ -350,14 +350,16 @@ class UnrelaxedExcitedStatePropertiesParser:
             if stripped_line.startswith("<r_h> [Ang]:"):
                 match = re.search(r"\[\s*(-?[\d.]+),\s*(-?[\d.]+),\s*(-?[\d.]+)\]", stripped_line)
                 if match:
-                    hole_center = tuple(map(float, match.groups()))
+                    g1, g2, g3 = match.groups()
+                    hole_center = (float(g1), float(g2), float(g3))
                     found_data = True
                 else:
                     logger.warning(f"Failed to parse <r_h>: {stripped_line}")
             elif stripped_line.startswith("<r_e> [Ang]:"):
                 match = re.search(r"\[\s*(-?[\d.]+),\s*(-?[\d.]+),\s*(-?[\d.]+)\]", stripped_line)
                 if match:
-                    elec_center = tuple(map(float, match.groups()))
+                    g1, g2, g3 = match.groups()
+                    elec_center = (float(g1), float(g2), float(g3))
                     found_data = True
                 else:
                     logger.warning(f"Failed to parse <r_e>: {stripped_line}")
@@ -379,7 +381,8 @@ class UnrelaxedExcitedStatePropertiesParser:
                         next_line_comps,
                     )
                     if comp_match:
-                        hole_size_comps = tuple(map(float, comp_match.groups()))
+                        g1, g2, g3 = comp_match.groups()
+                        hole_size_comps = (float(g1), float(g2), float(g3))
                         found_data = True
                     else:
                         logger.warning(f"Could not parse Hole size Cartesian components from: {next_line_comps}")
@@ -396,7 +399,8 @@ class UnrelaxedExcitedStatePropertiesParser:
                         next_line_comps,
                     )
                     if comp_match:
-                        elec_size_comps = tuple(map(float, comp_match.groups()))
+                        g1, g2, g3 = comp_match.groups()
+                        elec_size_comps = (float(g1), float(g2), float(g3))
                         found_data = True
                     else:
                         logger.warning(f"Could not parse Electron size Cartesian components from: {next_line_comps}")
