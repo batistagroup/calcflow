@@ -11,9 +11,9 @@ from calcflow.parsers.orca.typing import Orbital, _MutableCalculationData
 
 
 def test_orbital_data_presence(parsed_sp_data: orca.CalculationData) -> None:
-    """Verify that the OrbitalData object is present."""
+    """Verify that the OrbitalsSet object is present."""
     assert parsed_sp_data.orbitals is not None
-    assert isinstance(parsed_sp_data.orbitals, orca.OrbitalData)
+    assert isinstance(parsed_sp_data.orbitals, orca.OrbitalsSet)
 
 
 def test_orbital_energies(parsed_sp_data: orca.CalculationData) -> None:
@@ -234,7 +234,7 @@ def test_unexpected_exception_during_loop(monkeypatch: pytest.MonkeyPatch, caplo
 
 
 def test_unexpected_exception_post_loop(monkeypatch: pytest.MonkeyPatch, caplog: LogCaptureFixture) -> None:
-    """Test handling of an unexpected exception after the loop (e.g., in OrbitalData creation)."""
+    """Test handling of an unexpected exception after the loop (e.g., in OrbitalsSet creation)."""
     lines = [
         "                       ORBITAL ENERGIES",
         "                       ----------------",
@@ -248,12 +248,12 @@ def test_unexpected_exception_post_loop(monkeypatch: pytest.MonkeyPatch, caplog:
     iterator = iter(lines)
     start_line = next(iterator)
 
-    # Mock OrbitalData creation to raise an error
+    # Mock OrbitalsSet creation to raise an error
     def mock_orbital_data_init(*args: Any, **kwargs: Any) -> NoReturn:
         raise ValueError("Simulated data processing error")
 
     monkeypatch.setattr(
-        "calcflow.parsers.orca.blocks.orbitals.OrbitalData", mock_orbital_data_init
+        "calcflow.parsers.orca.blocks.orbitals.OrbitalsSet", mock_orbital_data_init
     )  # Use string path for patching
 
     # Parse should catch the exception, log it, and mark as attempted

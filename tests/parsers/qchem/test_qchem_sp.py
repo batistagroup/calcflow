@@ -76,24 +76,24 @@ def test_parse_qchem_sp_output_h2o(parsed_sp_sto_data: CalculationData) -> None:
     assert len(alpha_orbitals) == 7  # 5 occupied + 2 virtual
 
     # Check specific occupied orbitals
-    # assert alpha_orbitals[0] == Orbital(index=0, energy_eh=approx(-18.9359), occupation=None)  # HOMO-4
+    # assert alpha_orbitals[0] == Orbital(index=0, energy_eh=approx(-18.9359), occ=None)  # HOMO-4
     assert alpha_orbitals[0].index == 0
     assert alpha_orbitals[0].energy == approx(-18.9359)
-    assert alpha_orbitals[0].occupation is None
-    # assert alpha_orbitals[4] == Orbital(index=4, energy_eh=approx(-0.2436), occupation=None)  # HOMO
+    assert alpha_orbitals[0].occ is None
+    # assert alpha_orbitals[4] == Orbital(index=4, energy_eh=approx(-0.2436), occ=None)  # HOMO
     assert alpha_orbitals[4].index == 4
     assert alpha_orbitals[4].energy == approx(-0.2436)
-    assert alpha_orbitals[4].occupation is None
+    assert alpha_orbitals[4].occ is None
 
     # Check specific virtual orbitals
-    # assert alpha_orbitals[5] == Orbital(index=5, energy_eh=approx(0.4341), occupation=None)  # LUMO
+    # assert alpha_orbitals[5] == Orbital(index=5, energy_eh=approx(0.4341), occ=None)  # LUMO
     assert alpha_orbitals[5].index == 5
     assert alpha_orbitals[5].energy == approx(0.4341)
-    assert alpha_orbitals[5].occupation is None
-    # assert alpha_orbitals[6] == Orbital(index=6, energy_eh=approx(0.5498), occupation=None)  # LUMO+1
+    assert alpha_orbitals[5].occ is None
+    # assert alpha_orbitals[6] == Orbital(index=6, energy_eh=approx(0.5498), occ=None)  # LUMO+1
     assert alpha_orbitals[6].index == 6
     assert alpha_orbitals[6].energy == approx(0.5498)
-    assert alpha_orbitals[6].occupation is None
+    assert alpha_orbitals[6].occ is None
 
     # --- Atomic Charges Checks ---
     assert len(data.atomic_charges) == 1
@@ -402,18 +402,18 @@ def test_parse_qchem_sp_output_h2o_smd(parsed_sp_sto_smd_data: CalculationData) 
     # Check specific occupied orbitals
     assert alpha_orbitals[0].index == 0
     assert alpha_orbitals[0].energy == approx(-18.9200)
-    assert alpha_orbitals[0].occupation is None
+    assert alpha_orbitals[0].occ is None
     assert alpha_orbitals[4].index == 4
     assert alpha_orbitals[4].energy == approx(-0.2422)  # HOMO
-    assert alpha_orbitals[4].occupation is None
+    assert alpha_orbitals[4].occ is None
 
     # Check specific virtual orbitals
     assert alpha_orbitals[5].index == 5
     assert alpha_orbitals[5].energy == approx(0.4520)  # LUMO
-    assert alpha_orbitals[5].occupation is None
+    assert alpha_orbitals[5].occ is None
     assert alpha_orbitals[6].index == 6
     assert alpha_orbitals[6].energy == approx(0.5636)  # LUMO+1
-    assert alpha_orbitals[6].occupation is None
+    assert alpha_orbitals[6].occ is None
 
     # --- Atomic Charges Checks ---
     assert len(data.atomic_charges) == 1
@@ -544,17 +544,17 @@ def test_parse_qchem_sp_output_h2o_tzvppd_smd(parsed_sp_tzvppd_smd_data: Calcula
 
     assert alpha_orbitals[0].index == 0
     assert alpha_orbitals[0].energy == approx(-19.2349)
-    assert alpha_orbitals[0].occupation is None
+    assert alpha_orbitals[0].occ is None
     assert alpha_orbitals[4].index == 4  # HOMO
     assert alpha_orbitals[4].energy == approx(-0.4206)
-    assert alpha_orbitals[4].occupation is None
+    assert alpha_orbitals[4].occ is None
 
     assert alpha_orbitals[5].index == 5  # LUMO
     assert alpha_orbitals[5].energy == approx(0.0815)
-    assert alpha_orbitals[5].occupation is None
+    assert alpha_orbitals[5].occ is None
     assert alpha_orbitals[6].index == 6  # LUMO+1
     assert alpha_orbitals[6].energy == approx(0.1133)
-    assert alpha_orbitals[6].occupation is None
+    assert alpha_orbitals[6].occ is None
 
     # --- Atomic Charges Checks ---
     assert len(data.atomic_charges) == 1

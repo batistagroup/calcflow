@@ -82,7 +82,7 @@ class Orbital:
 
 
 @dataclass(frozen=True)
-class OrbitalData:
+class OrbitalsSet:
     """Holds information about molecular orbitals."""
 
     orbitals: Sequence[Orbital]
@@ -147,7 +147,7 @@ class _MutableCalculationData:
     input_geometry: Sequence[Atom] | None = None
     final_energy_eh: float | None = None
     scf: ScfData | None = None
-    orbitals: OrbitalData | None = None
+    orbitals: OrbitalsSet | None = None
     atomic_charges: list[AtomicCharges] = field(default_factory=list)
     dipole_moment: DipoleMomentData | None = None
     dispersion_correction: DispersionCorrectionData | None = None
@@ -210,7 +210,7 @@ class _MutableOptData:
     final_geometry: Sequence[Atom] | None = None  # Converged geometry
     final_energy_eh: float | None = None
     final_scf: ScfData | None = None
-    final_orbitals: OrbitalData | None = None
+    final_orbitals: OrbitalsSet | None = None
     final_charges: list[AtomicCharges] = field(default_factory=list)
     final_dipole: DipoleMomentData | None = None
     final_dispersion: DispersionCorrectionData | None = None

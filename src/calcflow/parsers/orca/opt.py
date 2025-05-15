@@ -18,7 +18,7 @@ from calcflow.parsers.orca.typing import (
     DipoleMomentData,
     DispersionCorrectionData,
     OptimizationCycleData,
-    OrbitalData,
+    OrbitalsSet,
     ScfData,
     SectionParser,
     _MutableCalculationData,
@@ -42,7 +42,7 @@ class OptimizationData:
     final_geometry: Sequence[Atom] | None
     final_energy_eh: float | None
     final_scf: ScfData | None
-    final_orbitals: OrbitalData | None
+    final_orbitals: OrbitalsSet | None
     final_charges: list[AtomicCharges]
     final_dipole: DipoleMomentData | None
     final_dispersion: DispersionCorrectionData | None

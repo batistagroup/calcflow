@@ -6,7 +6,7 @@ from calcflow.parsers.qchem.typing.core import (
     SectionParser,
     _MutableCalculationData,
 )
-from calcflow.parsers.qchem.typing.orbitals import Orbital, OrbitalData
+from calcflow.parsers.qchem.typing.orbitals import Orbital, OrbitalsSet
 from calcflow.parsers.qchem.typing.properties import (
     AtomicCharges,
     DipoleMomentData,
@@ -48,7 +48,7 @@ __all__ = [
     "SectionParser",
     # from orbitals
     "Orbital",
-    "OrbitalData",
+    "OrbitalsSet",
     # from properties
     "AtomicCharges",
     "DipoleMomentData",

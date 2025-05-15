@@ -2,7 +2,7 @@ from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
 from typing import Literal, Protocol
 
-from calcflow.parsers.qchem.typing.orbitals import OrbitalData
+from calcflow.parsers.qchem.typing.orbitals import OrbitalsSet
 from calcflow.parsers.qchem.typing.properties import (
     AtomicCharges,
     DispersionCorrectionData,
@@ -62,7 +62,7 @@ class _MutableCalculationData:
     final_energy_eh: float | None = None  # Typically the 'Total energy' after SCF
     nuclear_repulsion_eh: float | None = None
     scf: ScfData | None = None
-    orbitals: OrbitalData | None = None
+    orbitals: OrbitalsSet | None = None
     atomic_charges: list[AtomicCharges] = field(default_factory=list)
     multipole: MultipoleData | None = None
     dispersion_correction: DispersionCorrectionData | None = None
@@ -138,7 +138,7 @@ class CalculationData:
     final_energy_eh: float | None = None
     nuclear_repulsion_eh: float | None = None
     scf: ScfData | None = None
-    orbitals: OrbitalData | None = None
+    orbitals: OrbitalsSet | None = None
     atomic_charges: list[AtomicCharges] = field(default_factory=list)
     multipole: MultipoleData | None = None
     dispersion_correction: DispersionCorrectionData | None = None
