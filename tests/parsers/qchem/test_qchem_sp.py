@@ -7,9 +7,9 @@ from calcflow.parsers.qchem.typing import (
     Atom,
     CalculationData,
     DipoleMoment,
-    HexadecapoleMoments,
-    OctopoleMoments,
-    QuadrupoleMoments,
+    HexadecapoleMoment,
+    OctopoleMoment,
+    QuadrupoleMoment,
     ScfData,
 )
 
@@ -115,7 +115,7 @@ def test_parse_qchem_sp_output_h2o(parsed_sp_sto_data: CalculationData) -> None:
     assert dipole.magnitude == approx(1.6482)
 
     assert data.multipole.quadrupole is not None
-    quad: QuadrupoleMoments = data.multipole.quadrupole
+    quad: QuadrupoleMoment = data.multipole.quadrupole
     assert quad.xx == approx(-8.3319)
     assert quad.xy == approx(-1.9775)
     assert quad.yy == approx(-6.5229)
@@ -124,7 +124,7 @@ def test_parse_qchem_sp_output_h2o(parsed_sp_sto_data: CalculationData) -> None:
     assert quad.zz == approx(-4.7954)
 
     assert data.multipole.octopole is not None
-    octo: OctopoleMoments = data.multipole.octopole
+    octo: OctopoleMoment = data.multipole.octopole
     assert octo.xxx == approx(-44.7808)
     assert octo.xxy == approx(-15.2389)
     assert octo.xyy == approx(-17.7938)
@@ -137,7 +137,7 @@ def test_parse_qchem_sp_output_h2o(parsed_sp_sto_data: CalculationData) -> None:
     assert octo.zzz == approx(1.7889)
 
     assert data.multipole.hexadecapole is not None
-    hexa: HexadecapoleMoments = data.multipole.hexadecapole
+    hexa: HexadecapoleMoment = data.multipole.hexadecapole
     assert hexa.xxxx == approx(-193.1184)
     assert hexa.xxxy == approx(-75.8577)
     assert hexa.xxyy == approx(-59.8295)
@@ -435,7 +435,7 @@ def test_parse_qchem_sp_output_h2o_smd(parsed_sp_sto_smd_data: CalculationData) 
     assert dipole.magnitude == approx(1.7880)
 
     assert data.multipole.quadrupole is not None
-    quad: QuadrupoleMoments = data.multipole.quadrupole
+    quad: QuadrupoleMoment = data.multipole.quadrupole
     assert quad.xx == approx(-8.5235)
     assert quad.xy == approx(-2.1415)
     assert quad.yy == approx(-6.5392)
@@ -444,7 +444,7 @@ def test_parse_qchem_sp_output_h2o_smd(parsed_sp_sto_smd_data: CalculationData) 
     assert quad.zz == approx(-4.6864)
 
     assert data.multipole.octopole is not None
-    octo: OctopoleMoments = data.multipole.octopole
+    octo: OctopoleMoment = data.multipole.octopole
     assert octo.xxx == approx(-45.1424)
     assert octo.xxy == approx(-15.7146)
     assert octo.xyy == approx(-18.0848)
@@ -457,7 +457,7 @@ def test_parse_qchem_sp_output_h2o_smd(parsed_sp_sto_smd_data: CalculationData) 
     assert octo.zzz == approx(1.6208)
 
     assert data.multipole.hexadecapole is not None
-    hexa: HexadecapoleMoments = data.multipole.hexadecapole
+    hexa: HexadecapoleMoment = data.multipole.hexadecapole
     assert hexa.xxxx == approx(-193.4737)
     assert hexa.xxxy == approx(-76.9501)
     assert hexa.xxyy == approx(-60.7182)
@@ -576,7 +576,7 @@ def test_parse_qchem_sp_output_h2o_tzvppd_smd(parsed_sp_tzvppd_smd_data: Calcula
     assert dipole.magnitude == approx(2.4617)
 
     assert data.multipole.quadrupole is not None
-    quad: QuadrupoleMoments = data.multipole.quadrupole
+    quad: QuadrupoleMoment = data.multipole.quadrupole
     assert quad.xx == approx(-10.2609)
     assert quad.xy == approx(-3.1695)
     assert quad.yy == approx(-8.4016)
@@ -585,7 +585,7 @@ def test_parse_qchem_sp_output_h2o_tzvppd_smd(parsed_sp_tzvppd_smd_data: Calcula
     assert quad.zz == approx(-5.3504)
 
     assert data.multipole.octopole is not None
-    octo: OctopoleMoments = data.multipole.octopole
+    octo: OctopoleMoment = data.multipole.octopole
     assert octo.xxx == approx(-53.2148)
     assert octo.xxy == approx(-20.3433)
     assert octo.xyy == approx(-24.4478)
@@ -598,7 +598,7 @@ def test_parse_qchem_sp_output_h2o_tzvppd_smd(parsed_sp_tzvppd_smd_data: Calcula
     assert octo.zzz == approx(0.2702)
 
     assert data.multipole.hexadecapole is not None
-    hexa: HexadecapoleMoments = data.multipole.hexadecapole
+    hexa: HexadecapoleMoment = data.multipole.hexadecapole
     assert hexa.xxxx == approx(-229.0175)
     assert hexa.xxxy == approx(-96.1184)
     assert hexa.xxyy == approx(-81.3512)

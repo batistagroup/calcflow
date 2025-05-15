@@ -6,7 +6,7 @@ from calcflow.parsers.qchem.typing.orbitals import OrbitalsSet
 from calcflow.parsers.qchem.typing.properties import (
     AtomicCharges,
     DispersionCorrectionData,
-    MultipoleData,
+    MultipoleResults,
 )
 from calcflow.parsers.qchem.typing.scf import ScfData, SmdData
 from calcflow.parsers.qchem.typing.tddft import (
@@ -64,7 +64,7 @@ class _MutableCalculationData:
     scf: ScfData | None = None
     orbitals: OrbitalsSet | None = None
     atomic_charges: list[AtomicCharges] = field(default_factory=list)
-    multipole: MultipoleData | None = None
+    multipole: MultipoleResults | None = None
     dispersion_correction: DispersionCorrectionData | None = None
     smd_data: SmdData | None = None  # Add SmdData field
     # Track errors/warnings during parsing
@@ -140,7 +140,7 @@ class CalculationData:
     scf: ScfData | None = None
     orbitals: OrbitalsSet | None = None
     atomic_charges: list[AtomicCharges] = field(default_factory=list)
-    multipole: MultipoleData | None = None
+    multipole: MultipoleResults | None = None
     dispersion_correction: DispersionCorrectionData | None = None
     smd_data: SmdData | None = None  # Add SmdData field
     tddft_data: TddftData | None = None  # Added TDDFT data container

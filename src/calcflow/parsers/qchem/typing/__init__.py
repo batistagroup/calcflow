@@ -11,10 +11,10 @@ from calcflow.parsers.qchem.typing.properties import (
     AtomicCharges,
     DipoleMoment,
     DispersionCorrectionData,
-    HexadecapoleMoments,
-    MultipoleData,
-    OctopoleMoments,
-    QuadrupoleMoments,
+    HexadecapoleMoment,
+    MultipoleResults,
+    OctopoleMoment,
+    QuadrupoleMoment,
 )
 from calcflow.parsers.qchem.typing.scf import ScfData, ScfEnergyComponents, ScfIteration, SmdData
 from calcflow.parsers.qchem.typing.tddft import (
@@ -52,10 +52,10 @@ __all__ = [
     # from properties
     "AtomicCharges",
     "DipoleMoment",
-    "QuadrupoleMoments",
-    "OctopoleMoments",
-    "HexadecapoleMoments",
-    "MultipoleData",
+    "QuadrupoleMoment",
+    "OctopoleMoment",
+    "HexadecapoleMoment",
+    "MultipoleResults",
     "DispersionCorrectionData",
     # from scf
     "ScfIteration",

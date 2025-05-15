@@ -4,10 +4,10 @@ from calcflow.parsers.qchem.typing import (
     Atom,
     CalculationData,
     DipoleMoment,
-    HexadecapoleMoments,
-    OctopoleMoments,
+    HexadecapoleMoment,
+    OctopoleMoment,
     OrbitalTransition,
-    QuadrupoleMoments,
+    QuadrupoleMoment,
     ScfData,
     TddftData,
 )
@@ -117,7 +117,7 @@ def test_parse_qchem_tddft_output_h2o(parsed_tddft_pc2_data: CalculationData) ->
     assert dipole.magnitude == approx(2.0154)
 
     assert data.multipole.quadrupole is not None
-    quad: QuadrupoleMoments = data.multipole.quadrupole  # type: ignore
+    quad: QuadrupoleMoment = data.multipole.quadrupole  # type: ignore
     assert quad.xx == approx(-9.3797)
     assert quad.xy == approx(-2.6489)
     assert quad.yy == approx(-8.0621)
@@ -126,14 +126,14 @@ def test_parse_qchem_tddft_output_h2o(parsed_tddft_pc2_data: CalculationData) ->
     assert quad.zz == approx(-5.4667)
 
     assert data.multipole.octopole is not None
-    octo: OctopoleMoments = data.multipole.octopole  # type: ignore
+    octo: OctopoleMoment = data.multipole.octopole  # type: ignore
     assert octo.xxx == approx(-50.1854)
     assert octo.xxy == approx(-18.4076)
     # ... (rest of octopole moments - can be added if full coverage desired)
     assert octo.zzz == approx(0.8499)
 
     assert data.multipole.hexadecapole is not None
-    hexa: HexadecapoleMoments = data.multipole.hexadecapole  # type: ignore
+    hexa: HexadecapoleMoment = data.multipole.hexadecapole  # type: ignore
     assert hexa.xxxx == approx(-218.5681)
     assert hexa.xxxy == approx(-89.6390)
     # ... (rest of hexadecapole moments)

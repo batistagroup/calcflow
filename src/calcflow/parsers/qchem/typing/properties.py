@@ -28,7 +28,7 @@ class DipoleMoment:
 
 
 @dataclass(frozen=True)
-class QuadrupoleMoments:
+class QuadrupoleMoment:
     """Stores Cartesian quadrupole moments (Debye-Ang)."""
 
     xx: float
@@ -40,7 +40,7 @@ class QuadrupoleMoments:
 
 
 @dataclass(frozen=True)
-class OctopoleMoments:
+class OctopoleMoment:
     """Stores Cartesian octopole moments (Debye-Ang^2)."""
 
     xxx: float
@@ -56,7 +56,7 @@ class OctopoleMoments:
 
 
 @dataclass(frozen=True)
-class HexadecapoleMoments:
+class HexadecapoleMoment:
     """Stores Cartesian hexadecapole moments (Debye-Ang^3)."""
 
     xxxx: float
@@ -77,14 +77,14 @@ class HexadecapoleMoments:
 
 
 @dataclass(frozen=True)
-class MultipoleData:
+class MultipoleResults:
     """Container for various electric multipole moments."""
 
     charge_esu: float | None = None
     dipole: DipoleMoment | None = None
-    quadrupole: QuadrupoleMoments | None = None
-    octopole: OctopoleMoments | None = None
-    hexadecapole: HexadecapoleMoments | None = None
+    quadrupole: QuadrupoleMoment | None = None
+    octopole: OctopoleMoment | None = None
+    hexadecapole: HexadecapoleMoment | None = None
 
     def __repr__(self) -> str:
         parts = []
@@ -94,11 +94,11 @@ class MultipoleData:
             # Use the dipole's own repr for detail
             parts.append(f"dipole={self.dipole!r}")
         if self.quadrupole:
-            parts.append("quadrupole=QuadrupoleMoments(...)")
+            parts.append("quadrupole=QuadrupoleMoment(...)")
         if self.octopole:
-            parts.append("octopole=OctopoleMoments(...)")
+            parts.append("octopole=OctopoleMoment(...)")
         if self.hexadecapole:
-            parts.append("hexadecapole=HexadecapoleMoments(...)")
+            parts.append("hexadecapole=HexadecapoleMoment(...)")
         return f"{type(self).__name__}({', '.join(parts)})"
 
     def __str__(self) -> str:
@@ -121,6 +121,6 @@ class DispersionCorrectionData:
     """Holds details of the empirical dispersion correction (e.g., D3)."""
 
     method: str  # e.g., "D3(0)", "D3(BJ)"
-    energy_eh: float
+    energy: float
     basis_set: str | None = None
     # Add other relevant metadata: SCF type, symmetry, etc.
