@@ -7,8 +7,9 @@ class Orbital:
     """Represents a single molecular orbital in Q-Chem."""
 
     index: int  # 0-based index
-    energy_eh: float  # Energy in Hartrees
-    occupation: float | None = None  # Q-Chem might require inference for occupation
+    energy: float  # in Ha
+    # TODO: we need to infer the occupation from the Q-Chem output
+    occupation: float | None = None
 
 
 @dataclass(frozen=True)

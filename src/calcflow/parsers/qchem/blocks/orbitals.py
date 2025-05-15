@@ -155,7 +155,7 @@ class OrbitalParser(SectionParser):
                             continue
 
                         for energy in parsed_energies_on_line:
-                            orbital = Orbital(index=idx_counter, energy_eh=energy)
+                            orbital = Orbital(index=idx_counter, energy=energy)
                             target_list.append(orbital)
                             idx_counter += 1
 

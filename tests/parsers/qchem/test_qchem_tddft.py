@@ -86,15 +86,15 @@ def test_parse_qchem_tddft_output_h2o(parsed_tddft_pc2_data: CalculationData) ->
     assert (
         alpha_orbitals[0].index == 0
     )  # QChem output is 1-indexed, parser should convert to 0-indexed if that's the convention
-    assert alpha_orbitals[0].energy_eh == approx(-19.2346)
+    assert alpha_orbitals[0].energy == approx(-19.2346)
     assert alpha_orbitals[4].index == 4  # HOMO
-    assert alpha_orbitals[4].energy_eh == approx(-0.4147)
+    assert alpha_orbitals[4].energy == approx(-0.4147)
 
     # Check specific virtual orbitals
     assert alpha_orbitals[5].index == 5  # LUMO
-    assert alpha_orbitals[5].energy_eh == approx(0.0878)
+    assert alpha_orbitals[5].energy == approx(0.0878)
     assert alpha_orbitals[6].index == 6  # LUMO+1
-    assert alpha_orbitals[6].energy_eh == approx(0.1389)
+    assert alpha_orbitals[6].energy == approx(0.1389)
 
     # If state_label is not part of AtomicCharges, we might need another way to distinguish
     # For now, assuming the first Mulliken set IF state_analysis is off, or specific label if on.
