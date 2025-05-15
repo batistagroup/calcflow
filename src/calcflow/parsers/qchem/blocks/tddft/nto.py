@@ -18,24 +18,13 @@ class NTODecompositionParser(SectionParser):
     SECTION_END_TOKEN = "================================================================================"
     STATE_HEADER_PATTERN = re.compile(r"^\s*(Singlet|Triplet|Multiplet)\s*(\d+)\s*:")
     NTO_CONTRIBUTION_PATTERN = re.compile(
-        r"""
-        ^\s*
-        ([HV])           # (1) hole reference letter
-        ([+-])\s*        # (2) hole sign
-        (\d+)            # (3) hole digits
-        \s*->\s*
-        ([LV])           # (4) electron reference letter
-        ([+-])\s*        # (5) electron sign
-        (\d+)            # (6) electron digits
-        \s*:\s*
-        (-?\d+\.\d+)     # (7) coefficient
-        \s*\(\s*
-        (\d+\.\d+)       # (8) percent
-        \s*%\s*\)\s*$
-    """,
+        r"^\s* ([HV]) ([+-])\s* (\d+) \s*->\s* ([LV]) ([+-])\s* (\d+) \s*:\s* (-?\d+\.\d+) \s*\(\s* (\d+\.\d+) \s*%\s*\)\s*$",
         re.VERBOSE,
     )
-
+    # pattern above matches:
+    # (1) hole reference letter (2) hole sign (3) hole digits
+    # (4) electron reference letter (5) electron sign (6) electron digits
+    # (7) coefficient (8) percent
     OMEGA_PATTERN = re.compile(
         r"^\s*omega\s*=\s*(\d+\.\d+)\s*%\s*$",
         re.IGNORECASE,

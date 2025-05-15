@@ -71,101 +71,104 @@ class TransitionDensityMatrixParser(SectionParser):
         """
         return "Transition Density Matrix Analysis" in line and not current_data.parsed_tddft_transition_dm_analysis
 
-    def parse(self, iterator: LineIterator, current_line: str, results: _MutableCalculationData) -> None:
-        """
-        Parses the entire Transition Density Matrix Analysis block.
-        `current_line` is the line containing "Transition Density Matrix Analysis".
-        """
+    def parse(self, iterator: LineIterator, current_line_header: str, results: _MutableCalculationData) -> None:
         logger.debug("Starting parsing of Transition Density Matrix Analysis section.")
+
+        active_line: str | None
         try:
-            line = next(iterator)  # Consume the line after the matched header (current_line)
-            while "----" in line or not line.strip():  # Consume decorative lines
-                line = next(iterator)
+            # Consume the line after the matched header (current_line_header) and any decorative lines
+            active_line = next(iterator)
+            while active_line is not None and ("----" in active_line or not active_line.strip()):
+                active_line = next(iterator)
         except StopIteration:
             logger.warning("EOF reached unexpectedly after Transition Density Matrix Analysis header.")
             results.parsed_tddft_transition_dm_analysis = True
             return
 
-        # Main loop to parse each state's analysis
-        while True:
+        request_break_main_loop = False
+        if active_line is None:  # Check if EOF was hit during initial fluff consumption
+            request_break_main_loop = True
+
+        while not request_break_main_loop and active_line is not None:
+            # active_line is guaranteed to be str here by the loop condition
+            line_to_process_this_iteration: str
             if results.buffered_line:
-                line = results.buffered_line
+                line_to_process_this_iteration = results.buffered_line
                 results.buffered_line = None
-            # else: line is already set from previous iteration or initial consumption
+            else:
+                line_to_process_this_iteration = active_line  # type: ignore[assignment] # Mypy struggles here, but logic is sound
 
-            if any(known_start in line for known_start in KNOWN_NEXT_SECTION_STARTS):
-                logger.debug(f"Transition Density Matrix Analysis parsing stopped by next section: {line.strip()}")
-                results.buffered_line = line
-                break
+            if any(known_start in line_to_process_this_iteration for known_start in KNOWN_NEXT_SECTION_STARTS):
+                logger.debug(f"TDM parsing stopped by next section: {line_to_process_this_iteration.strip()}")
+                results.buffered_line = line_to_process_this_iteration
+                request_break_main_loop = True
+                continue  # Check loop condition again
 
-            state_match = re.match(r"^\s*(Singlet|Triplet)\s+(\d+)\s*:\s*$", line.strip())
+            state_match = re.match(r"^\s*(Singlet|Triplet)\s+(\d+)\s*:\s*$", line_to_process_this_iteration.strip())
             if state_match:
-                multiplicity = state_match.group(1)
-                state_number = int(state_match.group(2))
-                logger.debug(f"Parsing Transition DM for {multiplicity} state {state_number}")
+                multiplicity, state_number_str = state_match.groups()
+                state_number = int(state_number_str)
+                logger.debug(f"Parsing TDM for {multiplicity} state {state_number}")
 
                 mulliken_data: TransitionDMMulliken | None = None
                 ct_numbers_data: TransitionDMCTNumbers | None = None
                 exciton_analysis_data: ExcitonAnalysisTransitionDM | None = None
 
-                # This variable will hold the current line being processed *within* this state's block
-                line_for_current_state: str | None = None
-
+                line_within_state: str | None
                 try:
-                    # Fetch the first line of content/fluff *after* the "Singlet X :" header
-                    line_for_current_state = next(iterator)
+                    # First line of state's content or fluff after "Singlet X:" header
+                    line_within_state = next(iterator)
+                except StopIteration:
+                    logger.debug(f"EOF after {multiplicity} state {state_number} header during TDM parsing.")
+                    request_break_main_loop = True
+                    active_line = None  # Ensure outer loop terminates
+                    continue  # Check loop condition
 
-                    while line_for_current_state is not None:
-                        line_strip = line_for_current_state.strip()
+                # Inner loop for parsing sub-sections of the current state
+                while line_within_state is not None:
+                    current_line_in_state_stripped = line_within_state.strip()
 
-                        # Explicitly skip empty lines or '----' decorative lines first
-                        if not line_strip or line_strip.startswith("----"):
-                            try:
-                                line_for_current_state = next(iterator)
-                            except StopIteration:
-                                line_for_current_state = None  # EOF
-                            continue  # Continue to the next line of the state
+                    if not current_line_in_state_stripped or current_line_in_state_stripped.startswith("----"):
+                        try:
+                            line_within_state = next(iterator)
+                        except StopIteration:
+                            line_within_state = None  # EOF
+                        continue  # Next iteration of inner loop
 
-                        # Check if this line signals end of current state (i.e., start of new state or major section)
-                        if any(
-                            known_start in line_for_current_state for known_start in KNOWN_NEXT_SECTION_STARTS
-                        ) or re.match(r"^\\s*(Singlet|Triplet)\\s+(\\d+)\\s*:\\s*$", line_strip):
-                            results.buffered_line = line_for_current_state  # Push back for outer loop
-                            line_for_current_state = None  # Signal to break from this state's parsing
-                            break
+                    is_new_state_header = re.match(
+                        r"^\s*(Singlet|Triplet)\s+(\d+)\s*:\s*$", current_line_in_state_stripped
+                    )
+                    is_next_major_tdm_section = any(
+                        known_start in line_within_state for known_start in KNOWN_NEXT_SECTION_STARTS
+                    )
 
-                        # Now, check for actual content sections
-                        if "Mulliken Population Analysis (Transition DM)" in line_for_current_state:
-                            mulliken_data, line_for_current_state = self._parse_mulliken_tdm(
-                                iterator, line_for_current_state, results
+                    if is_new_state_header or is_next_major_tdm_section:
+                        results.buffered_line = line_within_state  # Buffer for main loop processing
+                        line_within_state = None  # Signal to end this state's inner loop
+                        # Do not break here, let sub-parser calls be skipped by line_within_state being None
+                    else:
+                        # Call sub-parsers
+                        if "Mulliken Population Analysis (Transition DM)" in line_within_state:
+                            mulliken_data, line_within_state = self._parse_mulliken_tdm(
+                                iterator, line_within_state, results
                             )
-                        elif "CT numbers (Mulliken)" in line_for_current_state:
-                            ct_numbers_data, line_for_current_state = self._parse_ct_numbers(
-                                iterator, line_for_current_state, results
+                        elif "CT numbers (Mulliken)" in line_within_state:
+                            ct_numbers_data, line_within_state = self._parse_ct_numbers(
+                                iterator, line_within_state, results
                             )
-                        elif "Exciton analysis of the transition density matrix" in line_for_current_state:
-                            exciton_analysis_data, line_for_current_state = self._parse_exciton_analysis_tdm(
-                                iterator, line_for_current_state, results
+                        elif "Exciton analysis of the transition density matrix" in line_within_state:
+                            exciton_analysis_data, line_within_state = self._parse_exciton_analysis_tdm(
+                                iterator, line_within_state, results
                             )
                         else:
-                            # Unrecognized line within a state's block means this state's data is done
                             logger.debug(
-                                f"Unparsed line '{line_strip}' within state {state_number}, assuming end of state's data."
+                                f"Unparsed line '{current_line_in_state_stripped}' in TDM state {state_number}, assuming end of state."
                             )
-                            results.buffered_line = line_for_current_state
-                            line_for_current_state = None  # Signal to break from this state's parsing
-                            break
+                            results.buffered_line = line_within_state  # Buffer this unrecognized line
+                            line_within_state = None  # Signal to end this state's inner loop
+                            # Do not break here, let loop condition handle it
 
-                        # If a sub-parser hit EOF, line_for_current_state will be None
-                        if line_for_current_state is None:
-                            break
-
-                except StopIteration:
-                    logger.debug(
-                        f"EOF reached while parsing {multiplicity} state {state_number} in Transition DM Analysis."
-                    )
-                    line_for_current_state = None  # Signal EOF
-
+                # After processing a state's inner loop (exited because line_within_state is None)
                 if mulliken_data or ct_numbers_data or exciton_analysis_data:
                     analysis = TransitionDensityMatrixDetailedAnalysis(
                         state_number=state_number,
@@ -175,52 +178,40 @@ class TransitionDensityMatrixParser(SectionParser):
                         exciton_analysis=exciton_analysis_data,
                     )
                     results.transition_density_matrix_detailed_analyses_list.append(analysis)
-                    logger.debug(f"Stored Transition DM Analysis for {multiplicity} state {state_number}")
+                    logger.debug(f"Stored TDM Analysis for {multiplicity} state {state_number}")
 
-                # Determine how the outer loop should get its next `line`
-                if results.buffered_line:
-                    # A line (e.g. next state header) was buffered. Outer loop will use this.
-                    # No action needed here for `line` variable of outer loop.
-                    pass
-                elif line_for_current_state is None:
-                    # EOF was hit within this state's parsing. Outer loop should break.
-                    line = None  # Signal outer loop to break
-                else:
-                    # This state finished, and the last `line_for_current_state`
-                    # (returned by a sub-parser) was not a new state/section or fluff.
-                    # This implies it was an unrecognized line that ended the state.
-                    # The spec says such a line should be pushed back.
-                    # However, the logic above already buffers it if it was unrecognized.
-                    # This path should ideally not be hit if the above `else` for unrecognized lines
-                    # correctly buffers and sets line_for_current_state to None.
-                    # For safety, if line_for_current_state is NOT None and nothing is buffered,
-                    # it means the inner while loop exited because line_for_current_state was not None,
-                    # but it wasn't a new state/section (that would have set results.buffered_line).
-                    # This indicates an unprocessed line that should be the start for the next outer loop iteration.
-                    line = line_for_current_state
+                # If a sub-parser hit EOF, line_within_state is None.
+                # If a new state/section was buffered, results.buffered_line is set.
+                # The main loop's active_line update at the end will handle fetching the next line if needed.
+                if line_within_state is None and not results.buffered_line:  # EOF from sub-parser, nothing buffered
+                    request_break_main_loop = True
+                    active_line = None  # Ensure outer loop terminates
 
-            else:  # Line is not a state start, and not a known next section (checked at top of outer loop)
-                logger.debug(f"Transition Density Matrix Analysis parsing stopped by unrecognized line: {line.strip()}")
-                results.buffered_line = line
-                break  # Break main loop
+                # No specific update to active_line here; main loop end or buffered_line handles it.
 
-            # Prepare `line` for the next iteration of the main outer loop.
-            if results.buffered_line:
-                # This will be picked up at the top of the while True loop.
-                pass
-            elif line is None:  # EOF was signaled from state parsing
-                break
-            else:  # Current state processed, fetch next line for potential new state or end.
+            else:  # Not a state_match, not a known_next_section
+                logger.debug(f"TDM parsing stopped by unrecognized line: {line_to_process_this_iteration.strip()}")
+                results.buffered_line = line_to_process_this_iteration
+                request_break_main_loop = True
+                # continue not strictly needed due to flag, but harmless
+                continue
+
+            # Fetch next line for the main loop if not breaking and no new line was buffered
+            if not request_break_main_loop and not results.buffered_line:
                 try:
-                    line = next(iterator)
+                    active_line = next(iterator)
                 except StopIteration:
-                    logger.debug("EOF reached at the end of Transition Density Matrix Analysis main loop.")
-                    break
+                    logger.debug("EOF reached at the end of TDM main parsing loop.")
+                    active_line = None  # Ensures loop condition `active_line is not None` fails
+                    request_break_main_loop = True  # Explicitly signal break
 
+        # End of main while loop
         results.parsed_tddft_transition_dm_analysis = True
-        logger.info(
-            f"Finished parsing Transition Density Matrix Analysis. Found {len(results.transition_density_matrix_detailed_analyses_list)} states."
-        )
+        count = len(results.transition_density_matrix_detailed_analyses_list)
+        if count > 0:
+            logger.info(f"Finished parsing TDM Analysis. Found {count} states.")
+        elif not results.buffered_line:  # Only warn if we didn't stop due to finding next section
+            logger.warning("Parsed TDM Analysis section but found no detailed state analyses.")
 
     def _parse_mulliken_tdm(
         self, iterator: LineIterator, current_block_line: str, results: _MutableCalculationData
