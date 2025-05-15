@@ -89,7 +89,10 @@ if run["parse"]:
         # print("Unrelaxed excited state properties:")
         # print(tddft_pc2.tddft_data.excited_state_analyses)
 
-        print("\n\n Transition Density Matrix Analysis:")
-        print(tddft_pc2.tddft_data.transition_density_matrix_analyses)
+        # print("\n\n Transition Density Matrix Analysis:")
+        # print(tddft_pc2.tddft_data.transition_density_matrix_analyses)
+
+        print("\n\n NTO Decomposition:")
+        print(tddft_pc2.tddft_data.nto_state_analyses)
 
         # breakpoint()

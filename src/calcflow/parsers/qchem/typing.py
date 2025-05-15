@@ -424,10 +424,10 @@ class ExcitonAnalysisTransitionDM:
 class NTOContribution:
     """A single Natural Transition Orbital (NTO) contribution."""
 
-    hole_nto_type: str  # e.g., "H-" or "H"
-    hole_nto_index: int  # e.g. 0
-    electron_nto_type: str  # e.g. "L+" or "L"
-    electron_nto_index: int  # e.g. 0
+    hole_reference: Literal["H", "V"]  # always 'H' for HOMO‐offset or 'V' if you ever see V- type
+    hole_offset: int  # signed offset, e.g. -2 for H-2
+    electron_reference: Literal["L", "V"]  # 'L' for LUMO‐offset
+    electron_offset: int  # e.g. +3 for L+3
     coefficient: float
     weight_percent: float  # e.g., 99.9 for 99.9%
 
@@ -590,6 +590,7 @@ class _MutableCalculationData:
     # Flags for TDDFT sections
     parsed_tda_excitations: bool = False
     parsed_tddft_excitations: bool = False
+    parsed_sa_nto_decomposition: bool = False  # Added flag for SA-NTO Decomposition
     # Flags for analysis sections are more complex as they are per-state
     # We might manage this state within the respective parsers or add more granular flags if needed.
 

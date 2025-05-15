@@ -8,7 +8,7 @@ from calcflow.parsers.qchem.blocks.scf import ScfParser
 from calcflow.parsers.qchem.blocks.smx import SmxBlockParser
 from calcflow.parsers.qchem.blocks.tddft import (
     GroundStateReferenceParser,
-    # NTOParser,
+    NTODecompositionParser,
     TDAExcitationEnergiesParser,
     TDDFTExcitationEnergiesParser,
     TransitionDensityMatrixParser,
@@ -29,5 +29,5 @@ __all__ = [
     "GroundStateReferenceParser",
     "TransitionDensityMatrixParser",
     "UnrelaxedExcitedStatePropertiesParser",
-    # "NTOParser",
+    "NTODecompositionParser",
 ]
