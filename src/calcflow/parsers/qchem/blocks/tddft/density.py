@@ -327,7 +327,13 @@ class TransitionDensityMatrixParser(SectionParser):
     def _parse_ct_numbers(
         self, iterator: LineIterator, current_block_line: str, results: _MutableCalculationData
     ) -> tuple[TransitionDMCTNumbers | None, str | None]:
-        ct_data_dict: dict[str, float] = {}
+        omega_val: float | None = None
+        two_alpha_beta_overlap_val: float | None = None
+        loc_val: float | None = None
+        loc_a_val: float | None = None
+        phe_overlap_val: float | None = None
+        found_any_data = False
+
         current_parse_line: str | None
         try:
             current_parse_line = next(iterator)  # Line after "CT numbers (Mulliken)" header
@@ -339,7 +345,6 @@ class TransitionDensityMatrixParser(SectionParser):
             while current_parse_line is not None:
                 line_strip = current_parse_line.strip()
                 if not line_strip:  # Empty line signifies end of CT numbers block
-                    # Fetch the line *after* the empty line to return it, as it might be a new section header
                     try:
                         current_parse_line = next(iterator)
                     except StopIteration:
@@ -349,29 +354,51 @@ class TransitionDensityMatrixParser(SectionParser):
                 match = re.match(r"^\s*(omega|2<alpha\|beta>|LOC|LOCa|<Phe>)\s*=\s*(-?\d+\.\d+)", line_strip)
                 if match:
                     key, val_str = match.group(1), match.group(2)
-                    norm_key = key  # Use original key first for normalization logic
-                    if key == "2<alpha|beta>":
-                        norm_key = "two_alpha_beta_overlap"
-                    elif key == "<Phe>":
-                        norm_key = "phe_overlap"
-                    elif key == "LOCa":
-                        norm_key = "loc_a"  # Corrected key for dataclass
-                    else:
-                        norm_key = key.lower()  # Default to lower case if no special mapping
-
                     val = safe_float(val_str)
-                    if val is not None:
-                        ct_data_dict[norm_key] = val
-                    else:
+                    if val is None:
                         logger.warning(f"Could not convert CT number value '{val_str}' to float for key '{key}'")
+                    else:
+                        found_any_data = True
+                        if key == "omega":
+                            omega_val = val
+                        elif key == "2<alpha|beta>":
+                            two_alpha_beta_overlap_val = val
+                        elif key == "LOC":
+                            loc_val = val
+                        elif key == "LOCa":
+                            loc_a_val = val
+                        elif key == "<Phe>":
+                            phe_overlap_val = val
+                        else:
+                            # Should not happen with the regex pattern, but good for safety
+                            logger.warning(f"Unmapped CT key: {key}")
+
                     current_parse_line = next(iterator)
                 else:  # Line doesn't match CT number format, end of this block
                     break
 
-            return TransitionDMCTNumbers(**ct_data_dict) if ct_data_dict else None, current_parse_line
+            if not found_any_data:
+                return None, current_parse_line
+
+            ct_numbers_obj = TransitionDMCTNumbers(
+                omega=omega_val,
+                two_alpha_beta_overlap=two_alpha_beta_overlap_val,
+                loc=loc_val,
+                loc_a=loc_a_val,
+                phe_overlap=phe_overlap_val,
+            )
+            return ct_numbers_obj, current_parse_line
         except StopIteration:
-            # EOF reached while parsing CT number lines
-            return TransitionDMCTNumbers(**ct_data_dict) if ct_data_dict else None, None
+            if not found_any_data:
+                return None, None
+            ct_numbers_obj_eof = TransitionDMCTNumbers(
+                omega=omega_val,
+                two_alpha_beta_overlap=two_alpha_beta_overlap_val,
+                loc=loc_val,
+                loc_a=loc_a_val,
+                phe_overlap=phe_overlap_val,
+            )
+            return ct_numbers_obj_eof, None
         except Exception as e:  # Catches the __init__ error if keys are still wrong, or other issues
             logger.error(f"Error in _parse_ct_numbers. Line: '{current_parse_line}'. Error: {e}", exc_info=True)
             return None, current_parse_line  # Return problematic line
