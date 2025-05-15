@@ -8,7 +8,7 @@ class ScfIteration:
     """Holds data for a single Q-Chem SCF iteration."""
 
     iteration: int
-    energy_eh: float
+    energy: float
     diis_error: float  # DIIS error magnitude
 
 
@@ -24,7 +24,7 @@ class ScfData:
     """Holds results specific to the Q-Chem SCF calculation step."""
 
     converged: bool
-    energy_eh: float  # Converged SCF energy (or last energy if not converged)
+    energy: float  # Converged SCF energy (or last energy if not converged)
     # components: ScfEnergyComponents | None = None # Optional for now
     n_iterations: int
     iteration_history: Sequence[ScfIteration]
@@ -38,10 +38,8 @@ class ScfData:
     def __str__(self) -> str:
         """Return a concise representation of the SCF data."""
         conv_status = "Converged" if self.converged else "Not Converged"
-        energy_str = f"{self.energy_eh:.8f}"
-        return (
-            f"{type(self).__name__}(status='{conv_status}', energy_eh={energy_str}, n_iterations={self.n_iterations})"
-        )
+        energy_str = f"{self.energy:.8f}"
+        return f"{type(self).__name__}(status='{conv_status}', energy={energy_str}, n_iterations={self.n_iterations})"
 
 
 @dataclass(frozen=True)

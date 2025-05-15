@@ -121,7 +121,7 @@ def test_cycle_1_energy(parsed_opt_data: OptimizationData) -> None:
     Verify the SCF energy calculated during the first optimization cycle.
     """
     # Arrange
-    expected_energy_eh = -75.31350443847158
+    expected_energy = -75.31350443847158
     tolerance = 1e-8
 
     # Act
@@ -129,12 +129,12 @@ def test_cycle_1_energy(parsed_opt_data: OptimizationData) -> None:
     cycle_1_data = parsed_opt_data.cycles[0]
     assert cycle_1_data is not None, "Cycle 1 data not found"
     assert cycle_1_data.scf_data is not None, "SCF data not found for cycle 1"
-    actual_energy_eh = cycle_1_data.scf_data.energy_eh  # Access energy from scf_data
+    actual_energy = cycle_1_data.scf_data.energy  # Access energy from scf_data
 
     # Assert
-    assert actual_energy_eh is not None, "Energy for cycle 1 not found"
-    assert isinstance(actual_energy_eh, float)
-    assert abs(actual_energy_eh - expected_energy_eh) < tolerance, "Energy mismatch for cycle 1"
+    assert actual_energy is not None, "Energy for cycle 1 not found"
+    assert isinstance(actual_energy, float)
+    assert abs(actual_energy - expected_energy) < tolerance, "Energy mismatch for cycle 1"
 
 
 # Use the fixture name from conftest.py ('parsed_opt_data')
@@ -143,7 +143,7 @@ def test_cycle_2_energy(parsed_opt_data: OptimizationData) -> None:
     Verify the SCF energy calculated during the second optimization cycle.
     """
     # Arrange
-    expected_energy_eh = -75.31760090240802
+    expected_energy = -75.31760090240802
     tolerance = 1e-8
 
     # Act
@@ -151,12 +151,12 @@ def test_cycle_2_energy(parsed_opt_data: OptimizationData) -> None:
     cycle_2_data = parsed_opt_data.cycles[1]
     assert cycle_2_data is not None, "Cycle 2 data not found"
     assert cycle_2_data.scf_data is not None, "SCF data not found for cycle 2"
-    actual_energy_eh = cycle_2_data.scf_data.energy_eh  # Access energy from scf_data
+    actual_energy = cycle_2_data.scf_data.energy  # Access energy from scf_data
 
     # Assert
-    assert actual_energy_eh is not None, "Energy for cycle 2 not found"
-    assert isinstance(actual_energy_eh, float)
-    assert abs(actual_energy_eh - expected_energy_eh) < tolerance, "Energy mismatch for cycle 2"
+    assert actual_energy is not None, "Energy for cycle 2 not found"
+    assert isinstance(actual_energy, float)
+    assert abs(actual_energy - expected_energy) < tolerance, "Energy mismatch for cycle 2"
 
 
 # Use the fixture name from conftest.py ('parsed_opt_data')
@@ -166,21 +166,21 @@ def test_final_energy(parsed_opt_data: OptimizationData) -> None:
     """
     # Arrange
     # FINAL SINGLE POINT ENERGY       -75.317802959907
-    expected_energy_eh = -75.317802959907
+    expected_energy = -75.317802959907
     tolerance = 1e-8  # Tolerance in Hartree
 
     # Act
     # Access attribute directly
-    actual_energy_eh = parsed_opt_data.final_energy_eh
-    assert actual_energy_eh is not None, "Final energy not found in parsed data"
+    actual_energy = parsed_opt_data.final_energy
+    assert actual_energy is not None, "Final energy not found in parsed data"
     assert parsed_opt_data.final_dispersion is not None, "Dispersion correction not found in parsed data"
-    actual_energy_eh += parsed_opt_data.final_dispersion.energy_eh
+    actual_energy += parsed_opt_data.final_dispersion.energy
 
     # Assert
-    assert actual_energy_eh is not None, "Final energy not found in parsed data"
-    assert isinstance(actual_energy_eh, (float))
+    assert actual_energy is not None, "Final energy not found in parsed data"
+    assert isinstance(actual_energy, (float))
     # Ensure it's not None before comparison
-    assert abs(actual_energy_eh - expected_energy_eh) < tolerance
+    assert abs(actual_energy - expected_energy) < tolerance
 
 
 # Use the fixture name from conftest.py ('parsed_opt_data')

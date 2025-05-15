@@ -22,7 +22,7 @@ class ScfIteration:
     """Holds data for a single SCF iteration."""
 
     iteration: int
-    energy_eh: float
+    energy: float
     delta_e_eh: float
     time_sec: float
     rmsdp: float | None = None  # RMS Density Change
@@ -32,7 +32,7 @@ class ScfIteration:
     damping: float | None = None  # Damping factor (may be None)
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}(iteration={self.iteration}, energy_eh={self.energy_eh:.8f}, delta_e_eh={self.delta_e_eh:.8f}, time_sec={self.time_sec:.2f})"
+        return f"{self.__class__.__name__}(iteration={self.iteration}, energy={self.energy:.8f}, delta_e_eh={self.delta_e_eh:.8f}, time_sec={self.time_sec:.2f})"
 
 
 @dataclass(frozen=True)
@@ -51,7 +51,7 @@ class ScfData:
     """Holds results specific to the SCF calculation step."""
 
     converged: bool
-    energy_eh: float  # Converged SCF energy (or last energy if not converged)
+    energy: float  # Converged SCF energy (or last energy if not converged)
     components: ScfEnergyComponents
     n_iterations: int
     iteration_history: Sequence[ScfIteration]  # Added field
@@ -65,10 +65,8 @@ class ScfData:
     def __str__(self) -> str:
         """Return a concise representation of the SCF data."""
         conv_status = "Converged" if self.converged else "Not Converged"
-        energy_str = f"{self.energy_eh:.8f}"
-        return (
-            f"{type(self).__name__}(status='{conv_status}', energy_eh={energy_str}, n_iterations={self.n_iterations})"
-        )
+        energy_str = f"{self.energy:.8f}"
+        return f"{type(self).__name__}(status='{conv_status}', energy={energy_str}, n_iterations={self.n_iterations})"
 
 
 @dataclass(frozen=True)
@@ -77,7 +75,7 @@ class Orbital:
 
     index: int  # 0-based index
     occupation: float
-    energy_eh: float  # Energy in Hartrees
+    energy: float  # Energy in Hartrees
     energy_ev: float  # Energy in electron Volts
 
 
@@ -91,15 +89,15 @@ class OrbitalsSet:
 
     def __repr__(self) -> str:
         n_orbitals = len(self.orbitals)
-        homo_energy = self.orbitals[self.homo_index].energy_eh if self.homo_index is not None else None
-        lumo_energy = self.orbitals[self.lumo_index].energy_eh if self.lumo_index is not None else None
+        homo_energy = self.orbitals[self.homo_index].energy if self.homo_index is not None else None
+        lumo_energy = self.orbitals[self.lumo_index].energy if self.lumo_index is not None else None
         homo_str = f"{homo_energy:.6f}" if homo_energy is not None else "None"
         lumo_str = f"{lumo_energy:.6f}" if lumo_energy is not None else "None"
         return (
             f"{type(self).__name__}(n_orbitals={n_orbitals}, "
             f"homo_index={self.homo_index}, lumo_index={self.lumo_index}, "
-            f"homo_energy_eh={homo_str}, "
-            f"lumo_energy_eh={lumo_str})"
+            f"homo_energy={homo_str}, "
+            f"lumo_energy={lumo_str})"
         )
 
 
@@ -134,7 +132,7 @@ class DispersionCorrectionData:
     """Holds details of the empirical dispersion correction."""
 
     method: str  # e.g., "D30", "D3BJ", "D4"
-    energy_eh: float
+    energy: float
 
 
 # Using a mutable class during parsing simplifies updates
@@ -145,7 +143,7 @@ class _MutableCalculationData:
     raw_output: str
     termination_status: Literal["NORMAL", "ERROR", "UNKNOWN"] = "UNKNOWN"
     input_geometry: Sequence[Atom] | None = None
-    final_energy_eh: float | None = None
+    final_energy: float | None = None
     scf: ScfData | None = None
     orbitals: OrbitalsSet | None = None
     atomic_charges: list[AtomicCharges] = field(default_factory=list)
@@ -191,7 +189,7 @@ class OptimizationCycleData:
 
     cycle_number: int
     geometry: Sequence[Atom] | None = None  # Geometry *at the start* of this cycle's calculation
-    energy_eh: float | None = None  # Usually the SCF energy for this cycle
+    energy: float | None = None  # Usually the SCF energy for this cycle
     scf_data: ScfData | None = None
     dispersion: DispersionCorrectionData | None = None
     gradient: GradientData | None = None
@@ -208,7 +206,7 @@ class _MutableOptData:
     input_geometry: Sequence[Atom] | None = None
     cycles: list[OptimizationCycleData] = field(default_factory=list)
     final_geometry: Sequence[Atom] | None = None  # Converged geometry
-    final_energy_eh: float | None = None
+    final_energy: float | None = None
     final_scf: ScfData | None = None
     final_orbitals: OrbitalsSet | None = None
     final_charges: list[AtomicCharges] = field(default_factory=list)

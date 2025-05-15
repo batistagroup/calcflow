@@ -39,13 +39,13 @@ class ScfParser(SectionParser):
     def __init__(self) -> None:
         self.converged: bool = False
         self.n_iterations: int = 0
-        self.last_scf_energy_eh: float | None = None
+        self.last_scf_energy: float | None = None
         self.nuclear_rep_eh: float | None = None
         self.electronic_eh: float | None = None
         self.one_electron_eh: float | None = None
         self.two_electron_eh: float | None = None
         self.xc_eh: float | None = None
-        self.final_refined_energy_eh: float | None = None
+        self.final_refined_energy: float | None = None
         self.iteration_history: list[ScfIteration] = []
         self.latest_iter_num: int = 0
         self._current_table_type: str | None = None
@@ -58,13 +58,13 @@ class ScfParser(SectionParser):
         """Resets parser state for a new parsing run."""
         self.converged = False
         self.n_iterations = 0
-        self.last_scf_energy_eh = None
+        self.last_scf_energy = None
         self.nuclear_rep_eh = None
         self.electronic_eh = None
         self.one_electron_eh = None
         self.two_electron_eh = None
         self.xc_eh = None
-        self.final_refined_energy_eh = None
+        self.final_refined_energy = None
         self.iteration_history = []
         self.latest_iter_num = 0
         self._current_table_type = None
@@ -81,7 +81,7 @@ class ScfParser(SectionParser):
                 try:
                     iter_data = ScfIteration(
                         iteration=int(vals[0]),
-                        energy_eh=float(vals[1]),
+                        energy=float(vals[1]),
                         delta_e_eh=float(vals[2]),
                         rmsdp=float(vals[3]),
                         maxdp=float(vals[4]),
@@ -99,7 +99,7 @@ class ScfParser(SectionParser):
                 try:
                     iter_data = ScfIteration(
                         iteration=int(vals[0]),
-                        energy_eh=float(vals[1]),
+                        energy=float(vals[1]),
                         delta_e_eh=float(vals[2]),
                         rmsdp=float(vals[3]),
                         maxdp=float(vals[4]),
@@ -113,7 +113,7 @@ class ScfParser(SectionParser):
         if iter_data:
             self.iteration_history.append(iter_data)
             self.latest_iter_num = max(self.latest_iter_num, iter_data.iteration)
-            self.last_scf_energy_eh = iter_data.energy_eh
+            self.last_scf_energy = iter_data.energy
 
         return parsed_iter_line
 
@@ -335,11 +335,11 @@ class ScfParser(SectionParser):
         warning_fallback_energy: str | None = None
         warning_refined_missing: str | None = None
 
-        if self.final_refined_energy_eh is not None:
-            final_scf_energy = self.final_refined_energy_eh
+        if self.final_refined_energy is not None:
+            final_scf_energy = self.final_refined_energy
             logger.debug(f"Using final refined SCF energy: {final_scf_energy:.8f} Eh")
         elif self.iteration_history:
-            final_scf_energy = self.iteration_history[-1].energy_eh
+            final_scf_energy = self.iteration_history[-1].energy
             # Warn if converged but refined energy was expected and not found
             if self.converged:
                 warning_refined_missing = (
@@ -347,8 +347,8 @@ class ScfParser(SectionParser):
                     f"Using last iteration energy: {final_scf_energy:.8f} Eh"
                 )
                 logger.warning(warning_refined_missing)
-        elif self.last_scf_energy_eh is not None:
-            final_scf_energy = self.last_scf_energy_eh
+        elif self.last_scf_energy is not None:
+            final_scf_energy = self.last_scf_energy
             warning_fallback_energy = (
                 f"Using last parsed SCF energy {final_scf_energy:.8f} Eh "
                 f"as iteration history is missing/incomplete{' and refined energy line missing' if self.converged else ''}."
@@ -363,9 +363,9 @@ class ScfParser(SectionParser):
                     f"Using Electronic + Nuclear Repulsion: {final_scf_energy:.8f} Eh."
                 )
                 logger.warning(warning_fallback_energy)
-                # Update last_scf_energy_eh if it was None, might still be useful if fallback is needed elsewhere
-                if self.last_scf_energy_eh is None:
-                    self.last_scf_energy_eh = final_scf_energy
+                # Update last_scf_energy if it was None, might still be useful if fallback is needed elsewhere
+                if self.last_scf_energy is None:
+                    self.last_scf_energy = final_scf_energy
             else:
                 # Not converged, no history, no refinement, components found (implies failure after component printout?)
                 raise ParsingError("Failed to determine final SCF energy (calculation state unclear).")
@@ -373,7 +373,7 @@ class ScfParser(SectionParser):
         # --- Create Result Object ---
         scf_result = ScfData(
             converged=self.converged,
-            energy_eh=final_scf_energy,
+            energy=final_scf_energy,
             components=components,
             n_iterations=self.n_iterations,
             iteration_history=tuple(self.iteration_history),
@@ -431,8 +431,8 @@ class ScfParser(SectionParser):
                 final_ref_match = SCF_FINAL_REFINED_ENERGY_PAT.search(current_processing_line)
                 if final_ref_match:
                     try:
-                        self.final_refined_energy_eh = float(final_ref_match.group(1))
-                        logger.debug(f"Found final refined energy: {self.final_refined_energy_eh:.8f} Eh")
+                        self.final_refined_energy = float(final_ref_match.group(1))
+                        logger.debug(f"Found final refined energy: {self.final_refined_energy:.8f} Eh")
                     except (ValueError, IndexError):
                         logger.warning(
                             f"Could not parse float from final refined energy line: {current_processing_line.strip()}"

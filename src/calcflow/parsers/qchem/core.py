@@ -207,8 +207,8 @@ def _parse_qchem_generic_output(output: str, parser_registry: Sequence[SectionPa
             if match_final_energy:
                 try:
                     # Overwrite if found multiple times, the last one after SCF is desired
-                    results.final_energy_eh = float(match_final_energy.group(1))
-                    logger.debug(f"Found Potential Final Energy: {results.final_energy_eh}")
+                    results.final_energy = float(match_final_energy.group(1))
+                    logger.debug(f"Found Potential Final Energy: {results.final_energy}")
                 except (ValueError, IndexError) as e:
                     logger.error(f"Could not parse final energy value from line: {line.strip()}", exc_info=True)
                     raise ParsingError("Failed to parse final energy value.") from e
@@ -248,7 +248,7 @@ def _parse_qchem_generic_output(output: str, parser_registry: Sequence[SectionPa
         results.termination_status = "ERROR"
 
     logger.info(
-        f"Q-Chem SP parsing finished. Status: {results.termination_status}, Final Energy: {results.final_energy_eh}"
+        f"Q-Chem SP parsing finished. Status: {results.termination_status}, Final Energy: {results.final_energy}"
     )
 
     # Convert mutable data to the final immutable structure

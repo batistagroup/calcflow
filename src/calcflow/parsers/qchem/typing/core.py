@@ -59,7 +59,7 @@ class _MutableCalculationData:
 
     input_geometry: Sequence[Atom] | None = None  # From $molecule block
     standard_orientation_geometry: Sequence[Atom] | None = None  # From 'Standard Nuclear Orientation'
-    final_energy_eh: float | None = None  # Typically the 'Total energy' after SCF
+    final_energy: float | None = None  # Typically the 'Total energy' after SCF
     nuclear_repulsion_eh: float | None = None
     scf: ScfData | None = None
     orbitals: OrbitalsSet | None = None
@@ -135,7 +135,7 @@ class CalculationData:
     metadata: CalculationMetadata
     input_geometry: Sequence[Atom] | None = None
     standard_orientation_geometry: Sequence[Atom] | None = None
-    final_energy_eh: float | None = None
+    final_energy: float | None = None
     nuclear_repulsion_eh: float | None = None
     scf: ScfData | None = None
     orbitals: OrbitalsSet | None = None
@@ -214,7 +214,7 @@ class CalculationData:
             metadata=metadata,  # Use the constructed metadata object
             input_geometry=mutable_data.input_geometry,
             standard_orientation_geometry=mutable_data.standard_orientation_geometry,
-            final_energy_eh=mutable_data.final_energy_eh,
+            final_energy=mutable_data.final_energy,
             nuclear_repulsion_eh=mutable_data.nuclear_repulsion_eh,
             scf=mutable_data.scf,
             orbitals=mutable_data.orbitals,

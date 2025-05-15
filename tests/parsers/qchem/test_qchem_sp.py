@@ -27,7 +27,7 @@ def test_parse_qchem_sp_output_h2o(parsed_sp_sto_data: CalculationData) -> None:
 
     # --- Top-Level Checks ---
     assert data.termination_status == "NORMAL"
-    assert data.final_energy_eh == approx(-75.31188446)
+    assert data.final_energy == approx(-75.31188446)
     assert data.nuclear_repulsion_eh == approx(8.93764808)
 
     # --- Metadata Checks ---
@@ -56,16 +56,16 @@ def test_parse_qchem_sp_output_h2o(parsed_sp_sto_data: CalculationData) -> None:
     assert data.scf is not None
     scf: ScfData = data.scf
     assert scf.converged is True
-    assert scf.energy_eh == approx(-75.31188446)
+    assert scf.energy == approx(-75.31188446)
     assert scf.n_iterations == 7
     assert len(scf.iteration_history) == 7
-    # assert scf.iteration_history[0] == ScfIteration(iteration=1, energy_eh=-75.0734525425, diis_error=approx(3.82e-01))
+    # assert scf.iteration_history[0] == ScfIteration(iteration=1, energy=-75.0734525425, diis_error=approx(3.82e-01))
     assert scf.iteration_history[0].iteration == 1
-    assert scf.iteration_history[0].energy_eh == approx(-75.0734525425)
+    assert scf.iteration_history[0].energy == approx(-75.0734525425)
     assert scf.iteration_history[0].diis_error == approx(3.82e-01)
-    # assert scf.iteration_history[-1] == ScfIteration(iteration=7, energy_eh=-75.3118844639, diis_error=approx(5.35e-08))
+    # assert scf.iteration_history[-1] == ScfIteration(iteration=7, energy=-75.3118844639, diis_error=approx(5.35e-08))
     assert scf.iteration_history[-1].iteration == 7
-    assert scf.iteration_history[-1].energy_eh == approx(-75.3118844639)
+    assert scf.iteration_history[-1].energy == approx(-75.3118844639)
     assert scf.iteration_history[-1].diis_error == approx(5.35e-08)
 
     # --- Orbital Checks ---
@@ -76,21 +76,21 @@ def test_parse_qchem_sp_output_h2o(parsed_sp_sto_data: CalculationData) -> None:
     assert len(alpha_orbitals) == 7  # 5 occupied + 2 virtual
 
     # Check specific occupied orbitals
-    # assert alpha_orbitals[0] == Orbital(index=0, energy_eh=approx(-18.9359), occ=None)  # HOMO-4
+    # assert alpha_orbitals[0] == Orbital(index=0, energy=approx(-18.9359), occ=None)  # HOMO-4
     assert alpha_orbitals[0].index == 0
     assert alpha_orbitals[0].energy == approx(-18.9359)
     assert alpha_orbitals[0].occ is None
-    # assert alpha_orbitals[4] == Orbital(index=4, energy_eh=approx(-0.2436), occ=None)  # HOMO
+    # assert alpha_orbitals[4] == Orbital(index=4, energy=approx(-0.2436), occ=None)  # HOMO
     assert alpha_orbitals[4].index == 4
     assert alpha_orbitals[4].energy == approx(-0.2436)
     assert alpha_orbitals[4].occ is None
 
     # Check specific virtual orbitals
-    # assert alpha_orbitals[5] == Orbital(index=5, energy_eh=approx(0.4341), occ=None)  # LUMO
+    # assert alpha_orbitals[5] == Orbital(index=5, energy=approx(0.4341), occ=None)  # LUMO
     assert alpha_orbitals[5].index == 5
     assert alpha_orbitals[5].energy == approx(0.4341)
     assert alpha_orbitals[5].occ is None
-    # assert alpha_orbitals[6] == Orbital(index=6, energy_eh=approx(0.5498), occ=None)  # LUMO+1
+    # assert alpha_orbitals[6] == Orbital(index=6, energy=approx(0.5498), occ=None)  # LUMO+1
     assert alpha_orbitals[6].index == 6
     assert alpha_orbitals[6].energy == approx(0.5498)
     assert alpha_orbitals[6].occ is None
@@ -174,7 +174,7 @@ def test_malformed_final_energy(caplog: LogCaptureFixture) -> None:
     with caplog.at_level(logging.WARNING):
         data = qchem.parse_qchem_sp_output(MALFORMED_FINAL_ENERGY)
 
-    assert data.final_energy_eh is None  # The malformed line is ignored
+    assert data.final_energy is None  # The malformed line is ignored
     assert data.termination_status == "ERROR"  # ERROR due to missing normal termination
     assert "Termination status unknown after parsing, assuming ERROR." in caplog.text
     # Check for other expected warnings due to minimal input
@@ -309,7 +309,7 @@ def test_empty_input(caplog: LogCaptureFixture) -> None:
         data = qchem.parse_qchem_sp_output("")
 
     assert data.termination_status == "ERROR"
-    assert data.final_energy_eh is None
+    assert data.final_energy is None
     assert data.input_geometry is None
     assert data.standard_orientation_geometry is None
     assert "Standard orientation geometry block was not found or parsed." in caplog.text
@@ -328,7 +328,7 @@ def test_minimal_header_input(caplog: LogCaptureFixture) -> None:
     with caplog.at_level(logging.WARNING):
         data = qchem.parse_qchem_sp_output(MINIMAL_HEADER)
     assert data.termination_status == "ERROR"
-    assert data.final_energy_eh is None
+    assert data.final_energy is None
     assert data.input_geometry is None
     assert data.standard_orientation_geometry is None
     assert "Standard orientation geometry block was not found or parsed." in caplog.text
@@ -350,7 +350,7 @@ def test_parse_qchem_sp_output_h2o_smd(parsed_sp_sto_smd_data: CalculationData) 
 
     # --- Top-Level Checks ---
     assert data.termination_status == "NORMAL"
-    assert data.final_energy_eh == approx(-75.31846024)  # This is G(tot) from SMD output
+    assert data.final_energy == approx(-75.31846024)  # This is G(tot) from SMD output
     assert data.nuclear_repulsion_eh == approx(8.93764808)
 
     # --- Metadata Checks ---
@@ -382,14 +382,14 @@ def test_parse_qchem_sp_output_h2o_smd(parsed_sp_sto_smd_data: CalculationData) 
     scf: ScfData = data.scf
     assert scf.converged is True
     # For SMD, the SCF energy reported in the block is E_SCF (including G_PCM)
-    assert scf.energy_eh == approx(-75.32080770)
+    assert scf.energy == approx(-75.32080770)
     assert scf.n_iterations == 7
     assert len(scf.iteration_history) == 7
     assert scf.iteration_history[0].iteration == 1
-    assert scf.iteration_history[0].energy_eh == approx(-75.0734525440)
+    assert scf.iteration_history[0].energy == approx(-75.0734525440)
     assert scf.iteration_history[0].diis_error == approx(3.82e-01)
     assert scf.iteration_history[-1].iteration == 7
-    assert scf.iteration_history[-1].energy_eh == approx(-75.3208077035)
+    assert scf.iteration_history[-1].energy == approx(-75.3208077035)
     assert scf.iteration_history[-1].diis_error == approx(2.17e-08)
 
     # --- Orbital Checks ---
@@ -496,7 +496,7 @@ def test_parse_qchem_sp_output_h2o_tzvppd_smd(parsed_sp_tzvppd_smd_data: Calcula
 
     # --- Top-Level Checks ---
     assert data.termination_status == "NORMAL"
-    assert data.final_energy_eh == approx(-76.45372896)  # G(tot) from SMD output
+    assert data.final_energy == approx(-76.45372896)  # G(tot) from SMD output
     assert data.nuclear_repulsion_eh == approx(8.93764808)
 
     # --- Metadata Checks ---
@@ -525,14 +525,14 @@ def test_parse_qchem_sp_output_h2o_tzvppd_smd(parsed_sp_tzvppd_smd_data: Calcula
     assert data.scf is not None
     scf: ScfData = data.scf
     assert scf.converged is True
-    assert scf.energy_eh == approx(-76.45607642)  # E_SCF (including G_PCM)
+    assert scf.energy == approx(-76.45607642)  # E_SCF (including G_PCM)
     assert scf.n_iterations == 7
     assert len(scf.iteration_history) == 7
     assert scf.iteration_history[0].iteration == 1
-    assert scf.iteration_history[0].energy_eh == approx(-76.3019247487)
+    assert scf.iteration_history[0].energy == approx(-76.3019247487)
     assert scf.iteration_history[0].diis_error == approx(4.14e-02)
     assert scf.iteration_history[-1].iteration == 7
-    assert scf.iteration_history[-1].energy_eh == approx(-76.4560764224)
+    assert scf.iteration_history[-1].energy == approx(-76.4560764224)
     assert scf.iteration_history[-1].diis_error == approx(5.94e-06)
 
     # --- Orbital Checks ---

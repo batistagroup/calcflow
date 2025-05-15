@@ -27,21 +27,21 @@ def test_orbital_energies(parsed_sp_data: orca.CalculationData) -> None:
     orb0 = orbitals[0]
     assert orb0.index == 0
     assert math.isclose(orb0.occupation, 2.0)
-    assert math.isclose(orb0.energy_eh, -18.937331, rel_tol=1e-6)
+    assert math.isclose(orb0.energy, -18.937331, rel_tol=1e-6)
     assert math.isclose(orb0.energy_ev, -515.3110, rel_tol=1e-4)
 
     # Check last occupied orbital (HOMO)
     homo = orbitals[4]
     assert homo.index == 4
     assert math.isclose(homo.occupation, 2.0)
-    assert math.isclose(homo.energy_eh, -0.243811, rel_tol=1e-6)
+    assert math.isclose(homo.energy, -0.243811, rel_tol=1e-6)
     assert math.isclose(homo.energy_ev, -6.6344, rel_tol=1e-4)
 
     # Check first unoccupied orbital (LUMO)
     lumo = orbitals[5]
     assert lumo.index == 5
     assert math.isclose(lumo.occupation, 0.0)
-    assert math.isclose(lumo.energy_eh, 0.434377, rel_tol=1e-6)
+    assert math.isclose(lumo.energy, 0.434377, rel_tol=1e-6)
     assert math.isclose(lumo.energy_ev, 11.8200, rel_tol=1e-4)
 
     # Check HOMO/LUMO indices

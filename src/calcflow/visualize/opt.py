@@ -54,7 +54,7 @@ def plot_optimization_progress(opt_data: OptimizationData, show_distances: bool 
 
     # Extract data from optimization cycles
     cycles = list(range(1, len(opt_data.cycles) + 1))
-    energies = [cycle.energy_eh for cycle in opt_data.cycles]
+    energies = [cycle.energy for cycle in opt_data.cycles]
     rms_grads = [cycle.relaxation_step.rms_gradient for cycle in opt_data.cycles if cycle.relaxation_step]
     max_grads = [cycle.relaxation_step.max_gradient for cycle in opt_data.cycles if cycle.relaxation_step]
     rms_steps = [cycle.relaxation_step.rms_step for cycle in opt_data.cycles if cycle.relaxation_step]

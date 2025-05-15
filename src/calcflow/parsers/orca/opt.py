@@ -40,7 +40,7 @@ class OptimizationData:
     input_geometry: Sequence[Atom] | None
     cycles: Sequence[OptimizationCycleData]
     final_geometry: Sequence[Atom] | None
-    final_energy_eh: float | None
+    final_energy: float | None
     final_scf: ScfData | None
     final_orbitals: OrbitalsSet | None
     final_charges: list[AtomicCharges]
@@ -56,7 +56,7 @@ class OptimizationData:
             input_geometry=mutable_data.input_geometry,
             cycles=list(mutable_data.cycles),
             final_geometry=mutable_data.final_geometry,
-            final_energy_eh=mutable_data.final_energy_eh,
+            final_energy=mutable_data.final_energy,
             final_scf=mutable_data.final_scf,
             final_orbitals=mutable_data.final_orbitals,
             final_charges=list(mutable_data.final_charges),
@@ -66,7 +66,7 @@ class OptimizationData:
         )
 
     def __repr__(self) -> str:
-        final_energy_str = f"{self.final_energy_eh:.8f} Eh" if self.final_energy_eh is not None else "None"
+        final_energy_str = f"{self.final_energy:.8f} Eh" if self.final_energy is not None else "None"
         return (
             f"{type(self).__name__}("
             f"status='{self.termination_status}', "
@@ -169,7 +169,7 @@ def parse_orca_opt_output(output: str) -> OptimizationData:
                                     isinstance(parser, ScfParser) and temp_sp_data.scf and not results.parsed_final_scf
                                 ):
                                     results.final_scf = temp_sp_data.scf
-                                    results.final_energy_eh = temp_sp_data.scf.energy_eh
+                                    results.final_energy = temp_sp_data.scf.energy
                                     results.parsed_final_scf = True
                                 elif (
                                     isinstance(parser, OrbitalsParser)
@@ -208,10 +208,10 @@ def parse_orca_opt_output(output: str) -> OptimizationData:
                                         results.parsed_input_geometry = True
                                 elif isinstance(parser, ScfParser) and temp_sp_data.scf:
                                     current_cycle_data.scf_data = temp_sp_data.scf
-                                    current_cycle_data.energy_eh = (
-                                        temp_sp_data.final_energy_eh
-                                        if temp_sp_data.final_energy_eh is not None
-                                        else temp_sp_data.scf.energy_eh
+                                    current_cycle_data.energy = (
+                                        temp_sp_data.final_energy
+                                        if temp_sp_data.final_energy is not None
+                                        else temp_sp_data.scf.energy
                                     )
                                 elif isinstance(parser, DispersionParser) and temp_sp_data.dispersion_correction:
                                     current_cycle_data.dispersion = temp_sp_data.dispersion_correction

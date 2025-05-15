@@ -42,7 +42,7 @@ class OrbitalsParser(SectionParser):
                         occ = float(occ_str)
                         eh = float(eh_str)
                         ev = float(ev_str)
-                        orbitals.append(Orbital(index=idx, occupation=occ, energy_eh=eh, energy_ev=ev))
+                        orbitals.append(Orbital(index=idx, occupation=occ, energy=eh, energy_ev=ev))
                         if occ > OCC_THRESHOLD:
                             last_occupied_index = idx
                     except ValueError as e:

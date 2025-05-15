@@ -37,7 +37,7 @@ class CalculationData:
     raw_output: str = field(repr=False)
     termination_status: Literal["NORMAL", "ERROR", "UNKNOWN"]
     input_geometry: Sequence[Atom] | None = None
-    final_energy_eh: float | None = None
+    final_energy: float | None = None
     scf: ScfData | None = None
     orbitals: OrbitalsSet | None = None
     atomic_charges: list[AtomicCharges] = field(default_factory=list)
@@ -51,7 +51,7 @@ class CalculationData:
             raw_output=mutable_data.raw_output,
             termination_status=mutable_data.termination_status,
             input_geometry=mutable_data.input_geometry,
-            final_energy_eh=mutable_data.final_energy_eh,
+            final_energy=mutable_data.final_energy,
             scf=mutable_data.scf,
             orbitals=mutable_data.orbitals,
             atomic_charges=list(mutable_data.atomic_charges),  # Ensure list copy
@@ -63,9 +63,7 @@ class CalculationData:
         lines = [f"{type(self).__name__}("]
         lines.append(f"  termination_status='{self.termination_status}',")
         lines.append(
-            f"  final_energy_eh={self.final_energy_eh:.8f},"
-            if self.final_energy_eh is not None
-            else "  final_energy_eh=None,"
+            f"  final_energy={self.final_energy:.8f}," if self.final_energy is not None else "  final_energy=None,"
         )
         n_atoms = len(self.input_geometry) if self.input_geometry else 0
         lines.append(f"  input_geometry=({n_atoms} Atoms),")
@@ -162,8 +160,8 @@ def parse_orca_sp_output(output: str) -> CalculationData:
             if match_final_energy:
                 try:
                     # Overwrite if found multiple times, last one is usually relevant
-                    results.final_energy_eh = float(match_final_energy.group(1))
-                    logger.debug(f"Found Final Single Point Energy: {results.final_energy_eh}")
+                    results.final_energy = float(match_final_energy.group(1))
+                    logger.debug(f"Found Final Single Point Energy: {results.final_energy}")
                 except (ValueError, IndexError) as e:
                     logger.error(f"Could not parse final energy value from line: {line.strip()}", exc_info=True)
                     # Decide if this is critical - likely yes?
@@ -208,5 +206,5 @@ def parse_orca_sp_output(output: str) -> CalculationData:
     elif not results.parsed_scf:  # Check if the block wasn't even found
         logger.warning("SCF data block was not found.")
 
-    logger.info(f"ORCA parsing finished. Status: {results.termination_status}, Final Energy: {results.final_energy_eh}")
+    logger.info(f"ORCA parsing finished. Status: {results.termination_status}, Final Energy: {results.final_energy}")
     return CalculationData.from_mutable(results)  # Convert back to immutable dataclass

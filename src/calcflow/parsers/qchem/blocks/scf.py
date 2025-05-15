@@ -85,7 +85,7 @@ class ScfParser(SectionParser):
                 if iterations:
                     results.scf = ScfData(
                         converged=False,  # Assume not converged if file ends abruptly
-                        energy_eh=iterations[-1].energy_eh,
+                        energy=iterations[-1].energy,
                         n_iterations=len(iterations),
                         iteration_history=iterations,
                     )
@@ -104,7 +104,7 @@ class ScfParser(SectionParser):
                     iteration = int(match_iter.group(1))
                     energy = float(match_iter.group(2))
                     diis_error = float(match_iter.group(3))
-                    iterations.append(ScfIteration(iteration=iteration, energy_eh=energy, diis_error=diis_error))
+                    iterations.append(ScfIteration(iteration=iteration, energy=energy, diis_error=diis_error))
 
                     # Check for convergence on the same line
                     if SCF_CONVERGENCE_PAT.search(line):
@@ -224,7 +224,7 @@ class ScfParser(SectionParser):
             return
 
         # Use the parsed final SCF energy if found, otherwise use the last iteration energy
-        energy_to_store = final_scf_energy if final_scf_energy is not None else iterations[-1].energy_eh
+        energy_to_store = final_scf_energy if final_scf_energy is not None else iterations[-1].energy
         if final_scf_energy is None and converged:  # Only warn if converged but couldn't find explicit SCF energy
             logger.warning(
                 "Using energy from last SCF iteration as final SCF energy because 'SCF energy =' line was not found."
@@ -234,7 +234,7 @@ class ScfParser(SectionParser):
 
         results.scf = ScfData(
             converged=converged,
-            energy_eh=energy_to_store,
+            energy=energy_to_store,
             n_iterations=len(iterations),
             iteration_history=iterations,
         )
