@@ -13,6 +13,17 @@ from calcflow.parsers.qchem.blocks import (
     ScfParser,
 )
 from calcflow.parsers.qchem.blocks.orbitals import OrbitalParser
+from calcflow.parsers.qchem.blocks.smx import SmxBlockParser
+
+# Import TDDFT block parsers
+from calcflow.parsers.qchem.blocks.tddft import (
+    GroundStateReferenceParser,
+    NTODecompositionParser,
+    TDAExcitationEnergiesParser,
+    TDDFTExcitationEnergiesParser,
+    TransitionDensityMatrixParser,
+    UnrelaxedExcitedStatePropertiesParser,
+)
 from calcflow.parsers.qchem.typing import (
     CalculationData,
     LineIterator,
@@ -30,31 +41,59 @@ FINAL_ENERGY_PAT = re.compile(r"^ Total energy =\s+(-?\d+\.\d+)")
 # Termination Patterns
 # Make the pattern search for the message anywhere on the line, ignoring surrounding characters
 NORMAL_TERM_PAT = re.compile(r"^ {8}\* {2}Thank you very much for using Q-Chem\. {2}Have a nice day\. {2}\*$")
-# TODO: Identify robust patterns for various Q-Chem error terminations
+
 ERROR_TERM_PAT = re.compile(r"(ERROR:|error:|aborting|failed)", re.IGNORECASE)
 
 # --- Parser Registry --- #
 # Order matters: Parse $rem before geometry/scf which might appear later.
 # Metadata can appear anywhere.
-PARSER_REGISTRY: Sequence[SectionParser] = [
+PARSER_REGISTRY_SP: Sequence[SectionParser] = [
     MetadataParser(),
     RemBlockParser(),
+    SmxBlockParser(),
     GeometryParser(),
     ScfParser(),
     OrbitalParser(),
     MullikenChargesParser(),
     MultipoleParser(),
-    # Add other specific block parsers here later
+    # Add other specific block parsers here later for SP if any
 ]
 
 
-# --- Main Parsing Function --- #
-def parse_qchem_sp_output(output: str) -> CalculationData:
+# TransitionDensityMatrixParser()
+# NTOParser()
+
+
+PARSER_REGISTRY_TDDFT: Sequence[SectionParser] = [
+    MetadataParser(),
+    RemBlockParser(),
+    SmxBlockParser(),  # Often used with TDDFT for solvation
+    GeometryParser(),
+    ScfParser(),  # SCF is a prerequisite for TDDFT
+    # TDDFT specific parsers
+    TDAExcitationEnergiesParser(),
+    TDDFTExcitationEnergiesParser(),
+    GroundStateReferenceParser(),  # Parses specific GS ref data within ESA block
+    UnrelaxedExcitedStatePropertiesParser(),
+    TransitionDensityMatrixParser(),
+    NTODecompositionParser(),
+    OrbitalParser(),  # Orbitals are relevant
+    # Ground state properties usually appear before TDDFT specific blocks
+    MultipoleParser(),  # Main ground state multipoles
+    MullikenChargesParser(),  # Main ground state charges
+    # TransitionDensityMatrixParser(), # Add when ready
+    # NTOParser(), # Add when ready
+]
+
+
+# --- Main Parsing Function (Internal Generic) --- #
+def _parse_qchem_generic_output(output: str, parser_registry: Sequence[SectionParser]) -> CalculationData:
     """
-    Parses the text output of a Q-Chem single-point calculation.
+    Parses the text output of a Q-Chem calculation using a given parser registry.
 
     Args:
         output: The string content of the Q-Chem output file.
+        parser_registry: A sequence of SectionParser instances to use.
 
     Returns:
         A CalculationData object containing the parsed results.
@@ -70,45 +109,70 @@ def parse_qchem_sp_output(output: str) -> CalculationData:
     try:
         while True:
             try:
-                line = next(line_iterator)
-                current_line_num += 1
+                if results.buffered_line is not None:
+                    line = results.buffered_line
+                    results.buffered_line = None  # Consume the buffered line
+                else:
+                    line = next(line_iterator)
+                    current_line_num += 1
             except StopIteration:
-                logger.debug("Reached end of input.")
-                break
+                if results.buffered_line is not None:  # Should not happen if logic is correct
+                    logger.error("StopIteration reached with a buffered line pending. This is a bug.")
+                    line = results.buffered_line
+                    results.buffered_line = None
+                    # Continue to process this last buffered line
+                else:
+                    logger.debug("Core main loop: Reached end of input.")
+                    break
 
             # --- Handle Block Parsing --- #
             parser_found = False
-            for parser in PARSER_REGISTRY:
+            # Keep track of which parser matched for logging after the loop
+            # and for error messages if parse() fails.
+            successful_parser_name_for_block = "None"
+            match_line_num = -1  # Line number where a parser matched
+
+            for parser in parser_registry:  # Use the passed parser_registry
+                current_parser_being_tried = type(parser).__name__
                 try:
                     if parser.matches(line, results):
-                        block_start_line = current_line_num
-                        logger.debug(f"Line {block_start_line}: Matched {type(parser).__name__}")
-                        # Parsers consume lines within their parse method.
+                        match_line_num = current_line_num  # Capture line number of the match
+                        successful_parser_name_for_block = current_parser_being_tried
+
+                        logger.info(
+                            f"Core dispatch: Line {match_line_num} ('{line.strip()}')"
+                            f" MATCHED by {successful_parser_name_for_block}. Calling .parse()."
+                        )
+
                         parser.parse(line_iterator, line, results)
+
+                        logger.info(f"Core dispatch: {successful_parser_name_for_block} .parse() completed.")
                         parser_found = True
                         break  # Only one parser should handle the start of a block
                 except ParsingError as e:
+                    err_line_ref = match_line_num if match_line_num != -1 else current_line_num
                     logger.error(
-                        f"Parser {type(parser).__name__} failed critically near line {block_start_line}: {e}",
+                        f"Parser {current_parser_being_tried} failed critically near line {err_line_ref}: {e}",
                         exc_info=True,
                     )
                     raise
                 except StopIteration as e:
-                    # This indicates a parser consumed the rest of the file unexpectedly
+                    err_line_ref = match_line_num if match_line_num != -1 else current_line_num
                     logger.error(
-                        f"Parser {type(parser).__name__} unexpectedly consumed end of iterator near line {block_start_line}.",
+                        f"Parser {current_parser_being_tried} unexpectedly consumed end of iterator near line {err_line_ref}.",
                         exc_info=True,
                     )
-                    # Raise a specific error, as this usually means parsing is incomplete
-                    raise ParsingError(f"File ended unexpectedly during {type(parser).__name__} parsing.") from e
+                    raise ParsingError(f"File ended unexpectedly during {current_parser_being_tried} parsing.") from e
                 except Exception as e:
+                    err_line_ref = match_line_num if match_line_num != -1 else current_line_num
                     logger.error(
-                        f"Unexpected error in {type(parser).__name__} near line {block_start_line}: {e}", exc_info=True
+                        f"Unexpected error in {current_parser_being_tried} near line {err_line_ref}: {e}", exc_info=True
                     )
-                    results.parsing_errors.append(f"Error in {type(parser).__name__} near line {block_start_line}: {e}")
-                    # Depending on severity, might raise or just log
+                    results.parsing_errors.append(
+                        f"Error in {current_parser_being_tried} near line {err_line_ref}: {e}"
+                    )
                     raise ParsingError(
-                        f"Unexpected error in {type(parser).__name__} near line {block_start_line}: {e}"
+                        f"Unexpected error in {current_parser_being_tried} near line {err_line_ref}: {e}"
                     ) from e
 
             # If a block parser handled the line, move to the next line
@@ -189,3 +253,33 @@ def parse_qchem_sp_output(output: str) -> CalculationData:
 
     # Convert mutable data to the final immutable structure
     return CalculationData.from_mutable(results)
+
+
+# --- Public Entry Point for SP Calculations --- #
+def parse_qchem_sp_output(output: str) -> CalculationData:
+    """
+    Parses the text output of a Q-Chem single-point calculation.
+
+    Args:
+        output: The string content of the Q-Chem output file.
+
+    Returns:
+        A CalculationData object containing the parsed results.
+    """
+    logger.info("Starting Q-Chem Single Point (SP) output parsing.")
+    return _parse_qchem_generic_output(output, PARSER_REGISTRY_SP)
+
+
+# --- Public Entry Point for TDDFT Calculations --- #
+def parse_qchem_tddft_output(output: str) -> CalculationData:
+    """
+    Parses the text output of a Q-Chem TDDFT calculation.
+
+    Args:
+        output: The string content of the Q-Chem output file.
+
+    Returns:
+        A CalculationData object containing the parsed results.
+    """
+    logger.info("Starting Q-Chem TDDFT output parsing.")
+    return _parse_qchem_generic_output(output, PARSER_REGISTRY_TDDFT)

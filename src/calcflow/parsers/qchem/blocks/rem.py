@@ -11,6 +11,7 @@ REM_END_PAT = re.compile(r"^\s*\$end", re.IGNORECASE)
 # Patterns for specific variables within $rem
 METHOD_PAT = re.compile(r"^\s*METHOD\s+(\S+)", re.IGNORECASE)
 BASIS_PAT = re.compile(r"^\s*BASIS\s+(\S+)", re.IGNORECASE)
+SOLVENT_METHOD_PAT = re.compile(r"^\s*SOLVENT_METHOD\s+(\S+)", re.IGNORECASE)
 # Add patterns for other rem variables if needed later
 
 
@@ -22,8 +23,12 @@ class RemBlockParser(SectionParser):
         # Match only if method or basis hasn't been parsed yet, to avoid re-entry if format is odd
         # Although, typically $rem appears only once near the beginning.
         if REM_START_PAT.search(line):
-            # Check if we still need to parse method or basis
-            return not current_data.parsed_meta_method or not current_data.parsed_meta_basis
+            # Check if we still need to parse method, basis or solvent_method
+            return (
+                not current_data.parsed_meta_method
+                or not current_data.parsed_meta_basis
+                or getattr(current_data, "solvent_method", None) is None
+            )
         return False
 
     def parse(self, iterator: LineIterator, current_line: str, results: _MutableCalculationData) -> None:
@@ -64,8 +69,22 @@ class RemBlockParser(SectionParser):
                     logger.debug(f"Parsed basis_set: {results.basis_set}")
                     # Continue to potentially find other rem variables on the same line
 
-            # Optimization: If both method and basis are found, we could potentially break early,
+            # Check for SOLVENT_METHOD if not already found
+            if getattr(results, "solvent_method", None) is None:
+                match_solvent_method = SOLVENT_METHOD_PAT.search(line)
+                if match_solvent_method:
+                    results.solvent_method = match_solvent_method.group(1).lower()
+                    logger.debug(f"Parsed solvent_method: {results.solvent_method}")
+
+            # Optimization: If all expected parameters are found, we could potentially break early,
             # but it's safer to parse until $end to handle complex $rem blocks or future needs.
+            if (
+                results.parsed_meta_method
+                and results.parsed_meta_basis
+                and getattr(results, "solvent_method", None) is not None
+            ):
+                # pass # Optionally break if all are found early, for now parse till $end
+                pass  # Example if we want to break early later
 
         # Check if essential parameters were found (optional, based on requirements)
         if not results.parsed_meta_method:
@@ -74,5 +93,10 @@ class RemBlockParser(SectionParser):
         if not results.parsed_meta_basis:
             logger.warning("BASIS not found within the parsed $rem block.")
             results.parsing_warnings.append("BASIS not found in $rem block.")
+        if (
+            getattr(results, "solvent_method", None) is None and "smd" in current_line.lower()
+        ):  # Heuristic if solvent method was expected from SMD output
+            logger.info("SOLVENT_METHOD not explicitly found in $rem block, but SMD context was hinted.")
+            # Not necessarily a warning unless we confirm SMD output always has it explicitly.
 
         return

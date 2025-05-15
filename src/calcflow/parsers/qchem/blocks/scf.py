@@ -25,6 +25,15 @@ SCF_CONVERGENCE_PAT = re.compile(r"Convergence criterion met")
 # Final SCF energy line (distinct from the "Total energy" line)
 SCF_FINAL_ENERGY_PAT = re.compile(r"^\s*SCF\s+energy\s*=\s*(-?\d+\.\d+)")
 
+# SMD Summary Patterns (appear before SCF final energy in output)
+SMD_SUMMARY_START_PAT = re.compile(r"^\s*Summary of SMD free energies:")
+G_PCM_PAT = re.compile(r"^\s*G_PCM\s*=\s*(-?\d+\.\d+)\s*kcal/mol")
+G_CDS_PAT = re.compile(r"^\s*G_CDS\s*=\s*(-?\d+\.\d+)\s*kcal/mol")
+# G_ENP is E_SCF including G_PCM, should match the SCF_FINAL_ENERGY_PAT value
+G_ENP_PAT = re.compile(r"^\s*G_ENP\s*=\s*(-?\d+\.\d+)\s*a\.u\.")
+# G_TOT is the final total energy with SMD, should match FINAL_ENERGY_PAT from sp.py
+G_TOT_PAT = re.compile(r"^\s*G\(tot\)\s*=\s*(-?\d+\.\d+)\s*a\.u\.")
+
 # End marker (heuristic based on common following sections or dashes)
 SCF_ITER_TABLE_END_PAT = re.compile(r"^\s*-{20,}")  # Dashed line after table
 SCF_BLOCK_END_HEURISTIC_PAT = re.compile(r"Orbital Energies|Mulliken Net Atomic Charges|Multipole Moments|^\s*-{60}")
@@ -40,11 +49,17 @@ class ScfParser(SectionParser):
         return (SCF_START_PAT.search(line) is not None) and not current_data.parsed_scf
 
     def parse(self, iterator: LineIterator, current_line: str, results: _MutableCalculationData) -> None:
-        """Parse the SCF iterations and final results."""
+        """Parse the SCF iterations and final results, including SMD summary if present."""
         logger.debug("Starting parsing of SCF block.")
         iterations: list[ScfIteration] = []
         converged = False
         final_scf_energy: float | None = None
+
+        # Initialize SMD fields (assuming they exist on results object)
+        results.smd_g_pcm_kcal_mol = None
+        results.smd_g_cds_kcal_mol = None
+        results.smd_g_enp_au = None
+        results.smd_g_tot_au = None
 
         # current_line already matched SCF_START_PAT
         # Find the start of the iteration table
@@ -108,32 +123,99 @@ class ScfParser(SectionParser):
                     )
                 break  # Assume table ended
 
-        # --- Look for final SCF energy line --- #
-        # The loop above broke, 'line' holds the line that ended the loop (dashed line or unexpected content)
-        # Continue searching from the *next* line
-        try:
-            while final_scf_energy is None:
-                # Get the next line first inside the loop
-                line = next(iterator)
-                match_final = SCF_FINAL_ENERGY_PAT.search(line)
-                if match_final:
-                    final_scf_energy = float(match_final.group(1))
-                    logger.debug(f"Found final SCF energy: {final_scf_energy}")
-                    # Don't break here, let the loop condition handle it or StopIteration
+        # --- Look for SMD Summary and final SCF energy line --- #
+        # The loop above broke, 'line' holds the line that ended the SCF iteration table loop.
+        # We continue searching from the *next* line for SMD summary and then SCF energy.
 
-                # Check safety break conditions AFTER checking for the energy
-                # Use the NORMAL_TERM_PAT defined globally or passed in context
-                elif SCF_BLOCK_END_HEURISTIC_PAT.search(line) or NORMAL_TERM_PAT.search(line):
+        smd_summary_found = False
+        scf_energy_line_found = False
+
+        try:
+            # 'line' is the line that ended the previous loop (e.g. dashed line or unexpected)
+            # We need to start reading new lines
+            while True:  # Loop to find SMD summary and SCF energy
+                line = next(iterator)
+
+                # Check for SMD Summary Block Start
+                if not smd_summary_found and SMD_SUMMARY_START_PAT.search(line):
+                    logger.debug("Found 'Summary of SMD free energies:' block.")
+                    smd_summary_found = True
+                    # Now parse the contents of the SMD summary block
+                    while True:  # Inner loop for SMD block lines
+                        smd_line = next(iterator)  # Read next line for SMD content
+
+                        match_g_pcm = G_PCM_PAT.search(smd_line)
+                        if match_g_pcm:
+                            results.smd_g_pcm_kcal_mol = float(match_g_pcm.group(1))
+                            logger.debug(f"Parsed smd_g_pcm_kcal_mol: {results.smd_g_pcm_kcal_mol}")
+                            continue
+
+                        match_g_cds = G_CDS_PAT.search(smd_line)
+                        if match_g_cds:
+                            results.smd_g_cds_kcal_mol = float(match_g_cds.group(1))
+                            logger.debug(f"Parsed smd_g_cds_kcal_mol: {results.smd_g_cds_kcal_mol}")
+                            continue
+
+                        match_g_enp = G_ENP_PAT.search(smd_line)
+                        if match_g_enp:
+                            results.smd_g_enp_au = float(match_g_enp.group(1))
+                            logger.debug(f"Parsed smd_g_enp_au: {results.smd_g_enp_au}")
+                            continue
+
+                        match_g_tot = G_TOT_PAT.search(smd_line)
+                        if match_g_tot:
+                            results.smd_g_tot_au = float(match_g_tot.group(1))
+                            logger.debug(f"Parsed smd_g_tot_au: {results.smd_g_tot_au}")
+                            # This is the last expected line in the SMD summary block
+                            # before the "SCF energy =" line typically.
+                            break  # Exit SMD inner loop
+
+                        # If it's not an SMD line and not the start of SCF energy, it might be an issue
+                        # or the end of the SMD block content if format varies.
+                        # For now, we break on G_TOT_PAT or if SCF_FINAL_ENERGY_PAT is found next.
+                        if SCF_FINAL_ENERGY_PAT.search(smd_line):  # Check if next line is already SCF energy
+                            line = smd_line  # Pass this line to the outer loop
+                            break  # Exit SMD inner loop, outer loop will process it
+                        if not smd_line.strip():  # if blank line, could be end of SMD block content
+                            logger.debug("Blank line encountered in SMD summary, assuming end of its content.")
+                            break  # Exit SMD inner loop
+                    # After SMD block parsing, continue to look for SCF energy or end heuristics
+                    if SCF_FINAL_ENERGY_PAT.search(line):  # If current `line` became SCF energy line
+                        pass  # let it be processed below
+                    else:  # Read next line after SMD block finished or G_TOT was the last parsed
+                        line = next(iterator)
+
+                # Check for Final SCF Energy
+                match_final_scf = SCF_FINAL_ENERGY_PAT.search(line)
+                if match_final_scf:
+                    final_scf_energy = float(match_final_scf.group(1))
+                    scf_energy_line_found = True
+                    logger.debug(f"Found final SCF energy: {final_scf_energy}")
+                    break  # Found SCF energy, exit this search loop
+
+                # Check safety break conditions
+                if SCF_BLOCK_END_HEURISTIC_PAT.search(line) or NORMAL_TERM_PAT.search(line):
                     logger.warning(
-                        f"Could not find 'SCF energy =' line after iteration table. Stopped search at section starting with: {line.strip()}"
+                        f"Could not find 'SCF energy =' line after iteration table (or SMD summary). Stopped search at: {line.strip()}"
                     )
                     break  # Stop searching
 
         except StopIteration:
-            logger.warning("File ended before finding 'SCF energy =' line after iteration table.")
+            logger.warning("File ended before finding 'SCF energy =' line (or after SMD summary).")
         except (ValueError, IndexError):
-            logger.error(f"Could not parse final SCF energy value from line: {line.strip()}", exc_info=True)
+            logger.error(f"Could not parse SMD or final SCF energy value from line: {line.strip()}", exc_info=True)
             # Allow None, warning will be issued below
+
+        if smd_summary_found and results.smd_g_enp_au is not None and final_scf_energy is not None:
+            if abs(results.smd_g_enp_au - final_scf_energy) > 1e-6:  # Tolerance for float comparison
+                logger.warning(
+                    f"Mismatch between G_ENP from SMD summary ({results.smd_g_enp_au:.8f}) "
+                    f"and SCF energy ({final_scf_energy:.8f}). Using SCF energy for ScfData."
+                )
+        elif smd_summary_found and (results.smd_g_enp_au is None or results.smd_g_tot_au is None):
+            logger.warning(
+                "SMD summary block was identified, but some energy components (G_ENP, G_TOT) were not parsed."
+            )
 
         # --- Store results --- #
         if not iterations:
@@ -144,7 +226,11 @@ class ScfParser(SectionParser):
         # Use the parsed final SCF energy if found, otherwise use the last iteration energy
         energy_to_store = final_scf_energy if final_scf_energy is not None else iterations[-1].energy_eh
         if final_scf_energy is None and converged:  # Only warn if converged but couldn't find explicit SCF energy
-            logger.warning("Using energy from last SCF iteration as final SCF energy.")
+            logger.warning(
+                "Using energy from last SCF iteration as final SCF energy because 'SCF energy =' line was not found."
+            )
+        elif not scf_energy_line_found and converged:
+            logger.warning("'SCF energy =' line was not found after SCF iterations.")
 
         results.scf = ScfData(
             converged=converged,

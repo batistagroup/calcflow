@@ -1,9 +1,14 @@
+import logging
 from pathlib import Path
 
 from calcflow.geometry.static import Geometry
 from calcflow.inputs.qchem import QchemInput
 from calcflow.inputs.slurm import SlurmArgs
-from calcflow.parsers.qchem import parse_qchem_sp_output
+from calcflow.parsers.qchem import parse_qchem_sp_output, parse_qchem_tddft_output
+from calcflow.utils import logger
+
+# logger.setLevel(logging.WARNING)
+logger.setLevel(logging.DEBUG)
 
 data_path = Path(__file__).resolve().parents[1] / "data"
 calcs_path = data_path / "calculations"
@@ -38,6 +43,57 @@ if run["create"]:
         f.write(job.export_input_file(xyz_1h2o))
 
 if run["parse"]:
-    out = (clc_folder / f"{base_args.exec_fname}.out").read_text()
-    calc_data = parse_qchem_sp_output(out)
-    print(calc_data)
+    todo = {
+        "sp": False,
+        "tddft": True,
+    }
+    if todo["sp"]:
+        print("------- SP STO-3G ---------")
+        sp_sto = parse_qchem_sp_output((clc_folder / "sp-sto.out").read_text())
+        print(sp_sto.metadata)
+        print(sp_sto.final_energy_eh)
+        print("------- SP STO-3G-SMD ---------")
+        sp_sto_smd = parse_qchem_sp_output((clc_folder / "sp-sto-smd.out").read_text())
+        print(sp_sto_smd.metadata)
+        print(sp_sto_smd.final_energy_eh)
+        print(sp_sto_smd.smd_data)
+        print("------- SP TZVPPD-D3 ---------")
+        sp_tzvppd = parse_qchem_sp_output((clc_folder / "sp-tzvppd.out").read_text())
+        print(sp_tzvppd.metadata)
+        print(sp_tzvppd.final_energy_eh)
+        print("------- SP TZVPPD-SMD ---------")
+        sp_tzvppd_smd = parse_qchem_sp_output((clc_folder / "sp-tzvppd-smd.out").read_text())
+        print(sp_tzvppd_smd.metadata)
+        print(sp_tzvppd_smd.final_energy_eh)
+        print(sp_tzvppd_smd.smd_data)
+
+        print("------- SP TZVPPD-SMD ---------")
+        sp_tzvppd_smd = parse_qchem_sp_output((clc_folder / "sp-tzvppd-smd.out").read_text())
+        print(sp_tzvppd_smd.metadata)
+        print(sp_tzvppd_smd.final_energy_eh)
+        print(sp_tzvppd_smd.smd_data)
+
+    if todo["tddft"]:
+        print("------- TDDFT STO-3G ---------")
+        tddft_pc2 = parse_qchem_tddft_output((clc_folder / "tddft-rks-pc2.out").read_text())
+        print(tddft_pc2)
+        # print(tddft_pc2.tddft_data)
+        # # print(tddft_pc2.tddft_data.excited_state_analyses)
+        # print("Ground state reference analysis:")
+        # print(tddft_pc2.ground_state_reference_analysis)
+        # print("Multipole:")
+        # print(tddft_pc2.multipole)
+        # print("Orbitals:")
+        # print(tddft_pc2.orbitals)
+
+        # print("Unrelaxed excited state properties:")
+        # print(tddft_pc2.tddft_data.excited_state_analyses)
+
+        # print("\n\n Transition Density Matrix Analysis:")
+        # print(tddft_pc2.tddft_data.transition_density_matrix_analyses)
+
+        print("\n\n NTO Decomposition:")
+        assert tddft_pc2.tddft_data is not None
+        print(tddft_pc2.tddft_data.nto_state_analyses)
+
+        # breakpoint()
