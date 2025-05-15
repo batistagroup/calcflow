@@ -1,5 +1,3 @@
-# Placeholder for TDDFT Block Parsers
-
 import re
 
 from calcflow.exceptions import ParsingError
@@ -227,18 +225,7 @@ class TDDFTExcitationEnergiesParser(SectionParser):
     """Parses TDDFT Excitation Energies block (distinct from TDA/TDDFT)."""
 
     def matches(self, line: str, current_data: _MutableCalculationData) -> bool:
-        # Extensive logging for debugging
-        logger.debug(
-            f"{type(self).__name__}.matches trying line: '{line.strip()}' | "
-            f"parsed_tddft_excitations: {current_data.parsed_tddft_excitations}"
-        )
-        match_result = TDDFT_HEADER_PAT.search(line)
-        if match_result:
-            logger.debug(f"{type(self).__name__}.matches: TDDFT_HEADER_PAT matched!")
-        else:
-            logger.debug(f"{type(self).__name__}.matches: TDDFT_HEADER_PAT did NOT match.")
-
-        return match_result is not None and not current_data.parsed_tddft_excitations
+        return TDDFT_HEADER_PAT.search(line) is not None and not current_data.parsed_tddft_excitations
 
     def parse(self, iterator: LineIterator, first_line: str, results: _MutableCalculationData) -> None:
         block_type = "TDDFT"

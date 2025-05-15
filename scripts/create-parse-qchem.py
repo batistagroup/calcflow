@@ -8,7 +8,7 @@ from calcflow.parsers.qchem import parse_qchem_sp_output, parse_qchem_tddft_outp
 from calcflow.utils import logger
 
 # logger.setLevel(logging.WARNING)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 data_path = Path(__file__).resolve().parents[1] / "data"
 calcs_path = data_path / "calculations"
@@ -77,17 +77,17 @@ if run["parse"]:
         print("------- TDDFT STO-3G ---------")
         tddft_pc2 = parse_qchem_tddft_output((clc_folder / "tddft-rks-pc2.out").read_text())
         print(tddft_pc2)
-        print(tddft_pc2.tddft_data)
-        # print(tddft_pc2.tddft_data.excited_state_analyses)
-        print("Ground state reference analysis:")
-        print(tddft_pc2.ground_state_reference_analysis)
-        print("Multipole:")
-        print(tddft_pc2.multipole)
-        print("Orbitals:")
-        print(tddft_pc2.orbitals)
+        # print(tddft_pc2.tddft_data)
+        # # print(tddft_pc2.tddft_data.excited_state_analyses)
+        # print("Ground state reference analysis:")
+        # print(tddft_pc2.ground_state_reference_analysis)
+        # print("Multipole:")
+        # print(tddft_pc2.multipole)
+        # print("Orbitals:")
+        # print(tddft_pc2.orbitals)
 
-        print("Unrelaxed excited state properties:")
-        print(tddft_pc2.tddft_data.excited_state_analyses)
+        # print("Unrelaxed excited state properties:")
+        # print(tddft_pc2.tddft_data.excited_state_analyses)
 
         print("\n\n Transition Density Matrix Analysis:")
         print(tddft_pc2.tddft_data.transition_density_matrix_analyses)

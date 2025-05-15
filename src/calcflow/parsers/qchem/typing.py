@@ -472,8 +472,6 @@ class TransitionDensityMatrixDetailedAnalysis:
     mulliken_analysis: TransitionDMMulliken | None = None
     ct_numbers: TransitionDMCTNumbers | None = None
     exciton_analysis: ExcitonAnalysisTransitionDM | None = None
-    sum_abs_trans_charges_qta: float | None = None
-    sum_sq_trans_charges_qt2: float | None = None
 
 
 @dataclass(frozen=True)
