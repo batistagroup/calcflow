@@ -37,4 +37,4 @@ request.sh
 
 # Jupyter Hellbooks
 *.ipynb
-_*.py
+_devtest*.py
