@@ -30,7 +30,7 @@ class ExcitedStateProperties:
     state_number: int
     excitation_energy_ev: float
     total_energy_au: float
-    multiplicity: Literal["Singlet", "Triplet"]  # e.g., "Singlet", "Triplet"
+    multiplicity: Literal["Singlet", "Triplet"] | None = None  # e.g., "Singlet", "Triplet"
     trans_moment_x: float | None = None  # Transition dipole moment X (Debye or a.u. - check QChem)
     trans_moment_y: float | None = None
     trans_moment_z: float | None = None
@@ -42,8 +42,12 @@ class ExcitedStateProperties:
             f"state_number={self.state_number}",
             f"excitation_energy_ev={self.excitation_energy_ev:.4f} eV",
             f"total_energy_au={self.total_energy_au:.6f} au",
-            f"multiplicity='{self.multiplicity}'",
         ]
+        if self.multiplicity is not None:
+            parts.append(f"multiplicity='{self.multiplicity}'")
+        else:
+            parts.append("multiplicity=None")
+
         if self.oscillator_strength is not None:
             parts.append(f"oscillator_strength={self.oscillator_strength:.4f}")
 
