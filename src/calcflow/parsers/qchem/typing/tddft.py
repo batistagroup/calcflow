@@ -9,10 +9,10 @@ from calcflow.parsers.qchem.typing.properties import DipoleMoment
 class OrbitalTransition:
     """Represents a single orbital transition contributing to an excited state."""
 
-    from_orbital_type: Literal["D", "V", "Unknown"]  # Donor or Virtual
-    from_orbital_index: int  # 1-indexed from Q-Chem output
-    to_orbital_type: Literal["D", "V", "Unknown"]
-    to_orbital_index: int  # 1-indexed
+    from_label: Literal["D", "V", "Unknown"]  # Donor or Virtual
+    from_idx: int  # 1-indexed from Q-Chem output
+    to_label: Literal["D", "V", "Unknown"]
+    to_idx: int  # 1-indexed
     amplitude: float
     is_alpha_spin: bool | None = None  # True for alpha, False for beta, None if not specified
 
@@ -20,11 +20,7 @@ class OrbitalTransition:
         spin = ""
         if self.is_alpha_spin is not None:
             spin = " (alpha)" if self.is_alpha_spin else " (beta)"
-        return (
-            f"{self.from_orbital_type}({self.from_orbital_index}) -> "
-            f"{self.to_orbital_type}({self.to_orbital_index}) "
-            f"(amp={self.amplitude:.4f}){spin}"
-        )
+        return f"{self.from_label}({self.from_idx}) -> {self.to_label}({self.to_idx}) (amp={self.amplitude:.4f}){spin}"
 
 
 @dataclass(frozen=True)
@@ -34,7 +30,7 @@ class ExcitedStateProperties:
     state_number: int
     excitation_energy_ev: float
     total_energy_au: float
-    multiplicity: str  # e.g., "Singlet", "Triplet"
+    multiplicity: Literal["Singlet", "Triplet"]  # e.g., "Singlet", "Triplet"
     trans_moment_x: float | None = None  # Transition dipole moment X (Debye or a.u. - check QChem)
     trans_moment_y: float | None = None
     trans_moment_z: float | None = None
@@ -67,10 +63,10 @@ class ExcitedStateNOData:
     """Natural Orbital (NO) analysis for an excited state."""
 
     frontier_occupations: Sequence[float] | None = None  # e.g., [0.9992, 1.0006]
-    num_electrons: float | None = None
-    num_unpaired_electrons_nu: float | None = None  # n_u
-    num_unpaired_electrons_nunl: float | None = None  # n_u,nl
-    participation_ratio_pr_no: float | None = None
+    n_electrons: float | None = None
+    n_unpaired: float | None = None  # n_u
+    n_unpaired_nl: float | None = None  # n_u,nl
+    pr_no: float | None = None
 
 
 @dataclass(frozen=True)
@@ -97,7 +93,7 @@ class ExcitedStateMultipole:
     """Multipole moment analysis for an excited state's density matrix."""
 
     molecular_charge: float | None = None
-    num_electrons: float | None = None
+    n_electrons: float | None = None
     center_electronic_charge_ang: tuple[float, float, float] | None = None
     center_nuclear_charge_ang: tuple[float, float, float] | None = None
     dipole_moment_debye: DipoleMoment | None = None  # Reusing existing DipoleMoment
@@ -201,8 +197,8 @@ class ExcitedStateDetailedAnalysis:
     state_number: int
     multiplicity: str  # e.g., "Singlet"
     no_data: ExcitedStateNOData | None = None
-    mulliken_analysis: ExcitedStateMulliken | None = None
-    multipole_analysis: ExcitedStateMultipole | None = None
+    mulliken: ExcitedStateMulliken | None = None
+    multipole: ExcitedStateMultipole | None = None
     exciton_difference_dm_analysis: ExcitedStateExcitonDifferenceDM | None = None
 
 
@@ -211,8 +207,8 @@ class GroundStateReferenceAnalysis:
     """Analysis data for the ground state reference within TDDFT output."""
 
     no_data: ExcitedStateNOData | None = None
-    mulliken_analysis: ExcitedStateMulliken | None = None
-    multipole_analysis: ExcitedStateMultipole | None = None
+    mulliken: ExcitedStateMulliken | None = None
+    multipole: ExcitedStateMultipole | None = None
 
 
 @dataclass(frozen=True)
@@ -221,49 +217,49 @@ class TransitionDensityMatrixDetailedAnalysis:
 
     state_number: int
     multiplicity: str  # e.g., "Singlet"
-    mulliken_analysis: TransitionDMMulliken | None = None
+    mulliken: TransitionDMMulliken | None = None
     ct_numbers: TransitionDMCTNumbers | None = None
     exciton_analysis: ExcitonAnalysisTransitionDM | None = None
 
 
 @dataclass(frozen=True)
-class TddftData:
+class TddftResults:
     """Container for all TDDFT related parsed data."""
 
     # QChem output can have both TDA and full TDDFT results
-    tda_excited_states: Sequence[ExcitedStateProperties] | None = None
-    tddft_excited_states: Sequence[ExcitedStateProperties] | None = None
+    tda_states: Sequence[ExcitedStateProperties] | None = None
+    tddft_states: Sequence[ExcitedStateProperties] | None = None
 
-    # Detailed analysis sections, usually correspond to tddft_excited_states
+    # Detailed analysis sections, usually correspond to tddft_states
     excited_state_analyses: Sequence[ExcitedStateDetailedAnalysis] | None = None
-    transition_density_matrix_analyses: Sequence[TransitionDensityMatrixDetailedAnalysis] | None = None
-    nto_state_analyses: Sequence[NTOStateAnalysis] | None = None  # Renamed from nto_decompositions: Sequence[NTOData]
+    transition_dm_analyses: Sequence[TransitionDensityMatrixDetailedAnalysis] | None = None
+    nto_analyses: Sequence[NTOStateAnalysis] | None = None  # Renamed from nto_decompositions: Sequence[NTOData]
 
     def __repr__(self) -> str:
         parts = []
-        if self.tda_excited_states:
-            parts.append(f"tda_excited_states={len(self.tda_excited_states)} states")
+        if self.tda_states:
+            parts.append(f"tda_states={len(self.tda_states)} states")
         else:
-            parts.append("tda_excited_states=None")
+            parts.append("tda_states=None")
 
-        if self.tddft_excited_states:
-            parts.append(f"tddft_excited_states={len(self.tddft_excited_states)} states")
+        if self.tddft_states:
+            parts.append(f"tddft_states={len(self.tddft_states)} states")
         else:
-            parts.append("tddft_excited_states=None")
+            parts.append("tddft_states=None")
 
         if self.excited_state_analyses:
             parts.append(f"excited_state_analyses={len(self.excited_state_analyses)} analyses")
         else:
             parts.append("excited_state_analyses=None")
 
-        if self.transition_density_matrix_analyses:
-            parts.append(f"transition_density_matrix_analyses={len(self.transition_density_matrix_analyses)} analyses")
+        if self.transition_dm_analyses:
+            parts.append(f"transition_dm_analyses={len(self.transition_dm_analyses)} analyses")
         else:
-            parts.append("transition_density_matrix_analyses=None")
+            parts.append("transition_dm_analyses=None")
 
-        if self.nto_state_analyses:
-            parts.append(f"nto_state_analyses={len(self.nto_state_analyses)} analyses")
+        if self.nto_analyses:
+            parts.append(f"nto_analyses={len(self.nto_analyses)} analyses")
         else:
-            parts.append("nto_state_analyses=None")
+            parts.append("nto_analyses=None")
 
         return f"{type(self).__name__}({', '.join(parts)})"

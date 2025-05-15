@@ -30,7 +30,7 @@ from calcflow.parsers.qchem.typing.tddft import (
     NTOContribution,
     NTOStateAnalysis,
     OrbitalTransition,
-    TddftData,
+    TddftResults,
     TransitionDensityMatrixDetailedAnalysis,
     TransitionDMAtomPopulation,
     TransitionDMCTNumbers,
@@ -63,7 +63,7 @@ __all__ = [
     "ScfResults",
     "SmdResults",
     # from tddft
-    "TddftData",
+    "TddftResults",
     "ExcitedStateDetailedAnalysis",
     "ExcitedStateProperties",
     "GroundStateReferenceAnalysis",

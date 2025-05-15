@@ -10,9 +10,9 @@ def get_state_analysis(
     data: CalculationData, state_number: int, multiplicity: str
 ) -> ExcitedStateDetailedAnalysis | None:
     """Helper to find a specific excited state analysis."""
-    if not data.tddft_data or not data.tddft_data.excited_state_analyses:
+    if not data.tddft or not data.tddft.excited_state_analyses:
         return None
-    for analysis in data.tddft_data.excited_state_analyses:
+    for analysis in data.tddft.excited_state_analyses:
         if analysis.state_number == state_number and analysis.multiplicity == multiplicity:
             return analysis
     return None
@@ -27,14 +27,14 @@ def test_unrelaxed_dm_singlet_4(parsed_tddft_pc2_data: CalculationData) -> None:
     assert analysis.no_data is not None
     no_data = analysis.no_data
     assert no_data.frontier_occupations == pytest.approx([0.9982, 1.0016])
-    assert no_data.num_electrons == pytest.approx(10.000000)
-    assert no_data.num_unpaired_electrons_nu == pytest.approx(2.00267)
-    assert no_data.num_unpaired_electrons_nunl == pytest.approx(2.00003)
-    assert no_data.participation_ratio_pr_no == pytest.approx(2.012158)
+    assert no_data.n_electrons == pytest.approx(10.000000)
+    assert no_data.n_unpaired == pytest.approx(2.00267)
+    assert no_data.n_unpaired_nl == pytest.approx(2.00003)
+    assert no_data.pr_no == pytest.approx(2.012158)
 
     # Mulliken Population Analysis
-    assert analysis.mulliken_analysis is not None
-    mulliken = analysis.mulliken_analysis
+    assert analysis.mulliken is not None
+    mulliken = analysis.mulliken
     assert len(mulliken.populations) == 3
     pop0 = mulliken.populations[0]
     assert pop0.atom_index == 0
@@ -61,10 +61,10 @@ def test_unrelaxed_dm_singlet_4(parsed_tddft_pc2_data: CalculationData) -> None:
     assert pop2.delta_charge == pytest.approx(-0.485209)
 
     # Multipole moment analysis
-    assert analysis.multipole_analysis is not None
-    multipole = analysis.multipole_analysis
+    assert analysis.multipole is not None
+    multipole = analysis.multipole
     assert multipole.molecular_charge == pytest.approx(-0.000000)
-    assert multipole.num_electrons == pytest.approx(10.000000)
+    assert multipole.n_electrons == pytest.approx(10.000000)
     assert multipole.center_electronic_charge_ang == pytest.approx([2.249186, 1.546547, -0.181386])
     assert multipole.center_nuclear_charge_ang == pytest.approx([2.269759, 1.550894, -0.144757])
     assert multipole.dipole_moment_debye is not None
@@ -96,14 +96,14 @@ def test_unrelaxed_dm_singlet_8(parsed_tddft_pc2_data: CalculationData) -> None:
     assert analysis.no_data is not None
     no_data = analysis.no_data
     assert no_data.frontier_occupations == pytest.approx([0.8403, 1.1596])
-    assert no_data.num_electrons == pytest.approx(10.000000)
-    assert no_data.num_unpaired_electrons_nu == pytest.approx(2.00221)
-    assert no_data.num_unpaired_electrons_nunl == pytest.approx(2.04660)
-    assert no_data.participation_ratio_pr_no == pytest.approx(2.754909)
+    assert no_data.n_electrons == pytest.approx(10.000000)
+    assert no_data.n_unpaired == pytest.approx(2.00221)
+    assert no_data.n_unpaired_nl == pytest.approx(2.04660)
+    assert no_data.pr_no == pytest.approx(2.754909)
 
     # Mulliken Population Analysis
-    assert analysis.mulliken_analysis is not None
-    mulliken = analysis.mulliken_analysis
+    assert analysis.mulliken is not None
+    mulliken = analysis.mulliken
     assert len(mulliken.populations) == 3
     pop0 = mulliken.populations[0]
     assert pop0.atom_index == 0
@@ -130,10 +130,10 @@ def test_unrelaxed_dm_singlet_8(parsed_tddft_pc2_data: CalculationData) -> None:
     assert pop2.delta_charge == pytest.approx(-0.318431)
 
     # Multipole moment analysis
-    assert analysis.multipole_analysis is not None
-    multipole = analysis.multipole_analysis
+    assert analysis.multipole is not None
+    multipole = analysis.multipole
     assert multipole.molecular_charge == pytest.approx(-0.000000)
-    assert multipole.num_electrons == pytest.approx(10.000000)
+    assert multipole.n_electrons == pytest.approx(10.000000)
     assert multipole.center_electronic_charge_ang == pytest.approx([2.266041, 1.550010, -0.151939])
     assert multipole.center_nuclear_charge_ang == pytest.approx([2.269759, 1.550894, -0.144757])
     assert multipole.dipole_moment_debye is not None

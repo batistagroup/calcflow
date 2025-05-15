@@ -14,7 +14,7 @@ from calcflow.parsers.qchem.typing.tddft import (
     ExcitedStateProperties,
     GroundStateReferenceAnalysis,
     NTOStateAnalysis,
-    TddftData,
+    TddftResults,
     TransitionDensityMatrixDetailedAnalysis,
 )
 
@@ -108,7 +108,7 @@ class _MutableCalculationData:
     # We might manage this state within the respective parsers or add more granular flags if needed.
 
     # Ground state reference data from within Excited State Analysis block
-    ground_state_reference_analysis: GroundStateReferenceAnalysis | None = None
+    gs_reference_analysis: GroundStateReferenceAnalysis | None = None
 
     # Buffer for a line that was read ahead by a parser and needs to be re-processed by the main loop
     buffered_line: str | None = None
@@ -144,8 +144,8 @@ class CalculationData:
     multipole: MultipoleResults | None = None
     dispersion_correction: DispersionCorrectionData | None = None
     smd: SmdResults | None = None  # Add SmdResults field
-    tddft_data: TddftData | None = None  # Added TDDFT data container
-    ground_state_reference_analysis: GroundStateReferenceAnalysis | None = None  # GS Ref from ESA block
+    tddft: TddftResults | None = None  # Added TDDFT data container
+    gs_reference_analysis: GroundStateReferenceAnalysis | None = None  # GS Ref from ESA block
 
     def __repr__(self) -> str:
         # Basic representation, can be expanded
@@ -181,7 +181,7 @@ class CalculationData:
                 g_tot_au=mutable_data.smd_g_tot_au,
             )
 
-        tddft_data_instance: TddftData | None = None
+        tddft_data_instance: TddftResults | None = None
         if (
             mutable_data.tda_excited_states_list
             or mutable_data.tddft_excited_states_list
@@ -189,25 +189,23 @@ class CalculationData:
             or mutable_data.transition_density_matrix_detailed_analyses_list
             or mutable_data.nto_state_analyses_list  # Renamed from nto_decompositions_list
         ):
-            tddft_data_instance = TddftData(
-                tda_excited_states=list(mutable_data.tda_excited_states_list)
-                if mutable_data.tda_excited_states_list
-                else None,
-                tddft_excited_states=list(mutable_data.tddft_excited_states_list)
+            tddft_data_instance = TddftResults(
+                tda_states=list(mutable_data.tda_excited_states_list) if mutable_data.tda_excited_states_list else None,
+                tddft_states=list(mutable_data.tddft_excited_states_list)
                 if mutable_data.tddft_excited_states_list
                 else None,
                 excited_state_analyses=list(mutable_data.excited_state_detailed_analyses_list)
                 if mutable_data.excited_state_detailed_analyses_list
                 else None,
-                transition_density_matrix_analyses=list(mutable_data.transition_density_matrix_detailed_analyses_list)
+                transition_dm_analyses=list(mutable_data.transition_density_matrix_detailed_analyses_list)
                 if mutable_data.transition_density_matrix_detailed_analyses_list
                 else None,
-                nto_state_analyses=list(mutable_data.nto_state_analyses_list)  # Renamed from nto_decompositions_list
+                nto_analyses=list(mutable_data.nto_state_analyses_list)  # Renamed from nto_decompositions_list
                 if mutable_data.nto_state_analyses_list  # Renamed from nto_decompositions_list
                 else None,
             )
 
-        gs_ref_analysis_instance: GroundStateReferenceAnalysis | None = mutable_data.ground_state_reference_analysis
+        gs_ref_analysis_instance: GroundStateReferenceAnalysis | None = mutable_data.gs_reference_analysis
 
         return cls(
             raw_output=mutable_data.raw_output,
@@ -223,8 +221,8 @@ class CalculationData:
             multipole=mutable_data.multipole,
             dispersion_correction=mutable_data.dispersion_correction,
             smd=smd_instance,  # Assign the new SmdResults instance
-            tddft_data=tddft_data_instance,  # Assign the new TddftData instance
-            ground_state_reference_analysis=gs_ref_analysis_instance,  # Assign GS Ref
+            tddft=tddft_data_instance,  # Assign the new TddftResults instance
+            gs_reference_analysis=gs_ref_analysis_instance,  # Assign GS Ref
         )
 
     # Add __repr__ or __str__ if desired for concise representation

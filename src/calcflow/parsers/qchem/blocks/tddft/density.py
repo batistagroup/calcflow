@@ -173,7 +173,7 @@ class TransitionDensityMatrixParser(SectionParser):
                     analysis = TransitionDensityMatrixDetailedAnalysis(
                         state_number=state_number,
                         multiplicity=multiplicity,
-                        mulliken_analysis=mulliken_data,
+                        mulliken=mulliken_data,
                         ct_numbers=ct_numbers_data,
                         exciton_analysis=exciton_analysis_data,
                     )

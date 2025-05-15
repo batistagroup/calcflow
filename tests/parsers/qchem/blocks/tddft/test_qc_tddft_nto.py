@@ -22,11 +22,11 @@ def find_nto_state_analysis(
 
 def test_sa_nto_decomposition_singlet_2(parsed_tddft_pc2_data: CalculationData):
     """Test parsing of SA-NTO decomposition for Singlet state 2."""
-    assert parsed_tddft_pc2_data.tddft_data is not None, "TddftData should be present"
-    assert parsed_tddft_pc2_data.tddft_data.nto_state_analyses is not None, "NTO state analyses should be parsed"
+    assert parsed_tddft_pc2_data.tddft is not None, "TddftResults should be present"
+    assert parsed_tddft_pc2_data.tddft.nto_analyses is not None, "NTO state analyses should be parsed"
 
     s2_analysis = find_nto_state_analysis(
-        parsed_tddft_pc2_data.tddft_data.nto_state_analyses,
+        parsed_tddft_pc2_data.tddft.nto_analyses,
         state_number=2,
         multiplicity="Singlet",
     )
@@ -48,11 +48,11 @@ def test_sa_nto_decomposition_singlet_2(parsed_tddft_pc2_data: CalculationData):
 
 def test_sa_nto_decomposition_singlet_8(parsed_tddft_pc2_data: CalculationData):
     """Test parsing of SA-NTO decomposition for Singlet state 8."""
-    assert parsed_tddft_pc2_data.tddft_data is not None
-    assert parsed_tddft_pc2_data.tddft_data.nto_state_analyses is not None
+    assert parsed_tddft_pc2_data.tddft is not None
+    assert parsed_tddft_pc2_data.tddft.nto_analyses is not None
 
     s8_analysis = find_nto_state_analysis(
-        parsed_tddft_pc2_data.tddft_data.nto_state_analyses,
+        parsed_tddft_pc2_data.tddft.nto_analyses,
         state_number=8,
         multiplicity="Singlet",
     )
@@ -84,11 +84,11 @@ def test_sa_nto_decomposition_singlet_8(parsed_tddft_pc2_data: CalculationData):
 
 def test_sa_nto_decomposition_singlet_10(parsed_tddft_pc2_data: CalculationData):
     """Test parsing of SA-NTO decomposition for Singlet state 10."""
-    assert parsed_tddft_pc2_data.tddft_data is not None
-    assert parsed_tddft_pc2_data.tddft_data.nto_state_analyses is not None
+    assert parsed_tddft_pc2_data.tddft is not None
+    assert parsed_tddft_pc2_data.tddft.nto_analyses is not None
 
     s10_analysis = find_nto_state_analysis(
-        parsed_tddft_pc2_data.tddft_data.nto_state_analyses,
+        parsed_tddft_pc2_data.tddft.nto_analyses,
         state_number=10,
         multiplicity="Singlet",
     )

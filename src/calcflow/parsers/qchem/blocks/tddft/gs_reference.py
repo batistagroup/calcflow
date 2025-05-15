@@ -44,7 +44,7 @@ MULTIPOLE_DM_HEADER_PAT = re.compile(r"^\s*Multipole moment analysis of the dens
 MOLECULAR_CHARGE_PAT = re.compile(r"^\s+Molecular charge:\s+(-?\d+\.\d+)")
 NUM_ELECTRONS_MULTIPOLE_PAT = re.compile(
     r"^\s+Number of electrons:\s+(-?\d+\.\d+)"
-)  # Can be distinct from NOs num_electrons
+)  # Can be distinct from NOs n_electrons
 CENTER_ELECTRONIC_CHARGE_PAT = re.compile(
     r"^\s+Center of electronic charge \[Ang\]:\s*\[\s*(-?\d+\.\d+),\s*(-?\d+\.\d+),\s*(-?\d+\.\d+)\]"
 )
@@ -152,10 +152,10 @@ class GroundStateReferenceParser(SectionParser):
 
         # Store results if any component was parsed
         if gs_no_data or gs_mulliken_data or gs_multipole_data:
-            results.ground_state_reference_analysis = GroundStateReferenceAnalysis(
+            results.gs_reference_analysis = GroundStateReferenceAnalysis(
                 no_data=gs_no_data,
-                mulliken_analysis=gs_mulliken_data,
-                multipole_analysis=gs_multipole_data,
+                mulliken=gs_mulliken_data,
+                multipole=gs_multipole_data,
             )
             logger.info("Stored Ground State Reference analysis data.")
         else:

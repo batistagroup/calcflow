@@ -19,18 +19,18 @@ def find_state_analysis(
 
 def test_tddft_transition_dm_analysis_singlet_3(parsed_tddft_pc2_data: CalculationData) -> None:
     """Tests parsing of specific values for Singlet 3 in TDM analysis."""
-    assert parsed_tddft_pc2_data.tddft_data is not None
-    assert parsed_tddft_pc2_data.tddft_data.transition_density_matrix_analyses is not None
+    assert parsed_tddft_pc2_data.tddft is not None
+    assert parsed_tddft_pc2_data.tddft.transition_dm_analyses is not None
 
     s3_analysis = find_state_analysis(
-        parsed_tddft_pc2_data.tddft_data.transition_density_matrix_analyses,
+        parsed_tddft_pc2_data.tddft.transition_dm_analyses,
         state_number=3,
         multiplicity="Singlet",
     )
     assert s3_analysis is not None, "Singlet 3 analysis not found"
 
     # Test Mulliken Analysis
-    mulliken = s3_analysis.mulliken_analysis
+    mulliken = s3_analysis.mulliken
     assert mulliken is not None
     assert mulliken.populations is not None
     assert len(mulliken.populations) == 3
@@ -78,18 +78,18 @@ def test_tddft_transition_dm_analysis_singlet_3(parsed_tddft_pc2_data: Calculati
 
 def test_tddft_transition_dm_analysis_singlet_7(parsed_tddft_pc2_data: CalculationData) -> None:
     """Tests parsing of specific values for Singlet 7 in TDM analysis."""
-    assert parsed_tddft_pc2_data.tddft_data is not None
-    assert parsed_tddft_pc2_data.tddft_data.transition_density_matrix_analyses is not None
+    assert parsed_tddft_pc2_data.tddft is not None
+    assert parsed_tddft_pc2_data.tddft.transition_dm_analyses is not None
 
     s7_analysis = find_state_analysis(
-        parsed_tddft_pc2_data.tddft_data.transition_density_matrix_analyses,
+        parsed_tddft_pc2_data.tddft.transition_dm_analyses,
         state_number=7,
         multiplicity="Singlet",
     )
     assert s7_analysis is not None, "Singlet 7 analysis not found"
 
     # Test Mulliken Analysis
-    mulliken = s7_analysis.mulliken_analysis
+    mulliken = s7_analysis.mulliken
     assert mulliken is not None
     assert mulliken.populations is not None
     assert len(mulliken.populations) == 3
