@@ -16,23 +16,23 @@ class ScfIteration:
 class ScfEnergyComponents:
     """Holds the components of the raw SCF energy (adapt as needed for Q-Chem)."""
 
-    nuclear_repulsion_eh: float | None = None
+    nuclear_repulsion: float | None = None
 
 
 @dataclass(frozen=True)
-class ScfData:
+class ScfResults:
     """Holds results specific to the Q-Chem SCF calculation step."""
 
     converged: bool
     energy: float  # Converged SCF energy (or last energy if not converged)
     # components: ScfEnergyComponents | None = None # Optional for now
     n_iterations: int
-    iteration_history: Sequence[ScfIteration]
+    iterations: Sequence[ScfIteration]
 
     def __repr__(self) -> str:
-        # Create a copy of the dict and convert iteration_history to strings
+        # Create a copy of the dict and convert iterations to strings
         dict_copy = self.__dict__.copy()
-        dict_copy["iteration_history"] = [str(it) for it in self.iteration_history]
+        dict_copy["iterations"] = [str(it) for it in self.iterations]
         return f"{self.__class__.__name__}(\n{pformat(dict_copy, indent=2)[1:-1]}\n)"
 
     def __str__(self) -> str:
@@ -43,7 +43,7 @@ class ScfData:
 
 
 @dataclass(frozen=True)
-class SmdData:
+class SmdResults:
     """Holds results specific to the SMD solvation model."""
 
     g_pcm_kcal_mol: float | None = None  # Polarization energy component

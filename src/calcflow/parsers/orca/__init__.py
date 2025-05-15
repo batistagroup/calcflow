@@ -6,7 +6,7 @@ from calcflow.parsers.orca.typing import (
     DipoleMoment,
     DispersionCorrectionData,
     OrbitalsSet,
-    ScfData,
+    ScfResults,
 )
 
 __all__ = [
@@ -19,7 +19,7 @@ __all__ = [
     "DipoleMoment",
     "DispersionCorrectionData",
     "OrbitalsSet",
-    "ScfData",
+    "ScfResults",
     "ScfIteration",
     "ScfEnergyComponents",
 ]

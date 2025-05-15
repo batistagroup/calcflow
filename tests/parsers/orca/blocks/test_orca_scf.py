@@ -33,9 +33,9 @@ def _make_iterator(lines: list[str]) -> LineIterator:
 
 
 def test_scf_data_presence(parsed_sp_data: orca.CalculationData) -> None:
-    """Verify that the ScfData object is present."""
+    """Verify that the ScfResults object is present."""
     assert parsed_sp_data.scf is not None
-    assert isinstance(parsed_sp_data.scf, orca.ScfData)
+    assert isinstance(parsed_sp_data.scf, orca.ScfResults)
 
 
 def test_scf_convergence(parsed_sp_data: orca.CalculationData) -> None:
@@ -57,7 +57,7 @@ def test_scf_energy_components(parsed_sp_data: orca.CalculationData) -> None:
     """Test the parsed SCF energy components."""
     components = parsed_sp_data.scf.components if parsed_sp_data.scf else None
     assert components is not None
-    assert math.isclose(components.nuclear_repulsion_eh, 8.93764967318280, rel_tol=1e-9)
+    assert math.isclose(components.nuclear_repulsion, 8.93764967318280, rel_tol=1e-9)
     assert math.isclose(components.electronic_eh, -84.25117753824344, rel_tol=1e-9)
     assert math.isclose(components.one_electron_eh, -121.92433818585613, rel_tol=1e-9)
     assert math.isclose(components.two_electron_eh, 37.67316064761268, rel_tol=1e-9)
@@ -66,9 +66,9 @@ def test_scf_energy_components(parsed_sp_data: orca.CalculationData) -> None:
     assert math.isclose(components.xc_eh, -6.561524953854, rel_tol=1e-9)
 
 
-def test_scf_iteration_history(parsed_sp_data: orca.CalculationData) -> None:
+def test_scf_iterations(parsed_sp_data: orca.CalculationData) -> None:
     """Test the SCF iteration history details."""
-    history = parsed_sp_data.scf.iteration_history if parsed_sp_data.scf else None
+    history = parsed_sp_data.scf.iterations if parsed_sp_data.scf else None
     assert history is not None
     assert len(history) == 8
 
@@ -161,7 +161,7 @@ def test_scf_parse_invalid_iteration_lines(
 
     # No error should be raised, lines are skipped
     iterator_no_match, _ = scf_parser._parse_iteration_tables(iterator_no_match, current_line_no_match)
-    assert not scf_parser.iteration_history
+    assert not scf_parser.iterations
 
 
 def test_scf_iteration_table_termination_blank(
@@ -179,7 +179,7 @@ def test_scf_iteration_table_termination_blank(
     current_line = next(iterator)
     iterator, last_line = scf_parser._parse_iteration_tables(iterator, current_line)
     assert last_line == ""
-    assert len(scf_parser.iteration_history) == 1
+    assert len(scf_parser.iterations) == 1
 
 
 def test_scf_iteration_table_termination_eof(
@@ -195,7 +195,7 @@ def test_scf_iteration_table_termination_eof(
     current_line = next(iterator)
     iterator, last_line = scf_parser._parse_iteration_tables(iterator, current_line)
     assert last_line == lines[-1]
-    assert len(scf_parser.iteration_history) == 1
+    assert len(scf_parser.iterations) == 1
     assert next(iterator, None) is None  # Iterator should be exhausted
 
 
@@ -223,7 +223,7 @@ def test_scf_parse_no_xc_energy(scf_parser: ScfParser, initial_mutable_data: _Mu
     assert math.isclose(initial_mutable_data.scf.energy, -75.000000)  # type: ignore
     assert initial_mutable_data.scf.components is not None
     assert initial_mutable_data.scf.components.xc_eh is None
-    assert math.isclose(initial_mutable_data.scf.components.nuclear_repulsion_eh, 8.9)
+    assert math.isclose(initial_mutable_data.scf.components.nuclear_repulsion, 8.9)
     assert math.isclose(initial_mutable_data.scf.components.electronic_eh, -83.9)
 
 
@@ -359,7 +359,7 @@ def test_scf_components_missing_no_scf_run_warning(
     # Call finalize directly
     scf_parser._finalize_scf_data(initial_mutable_data)
 
-    assert initial_mutable_data.scf is None  # No ScfData object created
+    assert initial_mutable_data.scf is None  # No ScfResults object created
     assert initial_mutable_data.parsed_scf is True  # Marked as attempted
     assert "SCF did not run or failed early; energy components not found" in initial_mutable_data.parsing_warnings[0]
     assert not initial_mutable_data.parsing_errors
@@ -404,7 +404,7 @@ def test_scf_final_energy_ambiguous_error(scf_parser: ScfParser, initial_mutable
     scf_parser.two_electron_eh = 37.652350327
     scf_parser.xc_eh = -6.5
     scf_parser.converged = False  # Explicitly not converged
-    scf_parser.iteration_history = []
+    scf_parser.iterations = []
     scf_parser.last_scf_energy = None
 
     with pytest.raises(ParsingError, match="Failed to determine final SCF energy"):
@@ -503,7 +503,7 @@ def test_scf_realistic_non_converged(scf_parser: ScfParser, initial_mutable_data
     assert initial_mutable_data.scf.converged is False
     assert initial_mutable_data.scf.n_iterations == 50  # From last iteration number
     assert math.isclose(initial_mutable_data.scf.energy, -75.313500)  # type: ignore
-    assert len(initial_mutable_data.scf.iteration_history) == 2  # Only the 2 parsed lines
+    assert len(initial_mutable_data.scf.iterations) == 2  # Only the 2 parsed lines
     assert initial_mutable_data.scf.components is not None
     assert math.isclose(initial_mutable_data.scf.components.electronic_eh, -84.251149673)
     assert "SCF convergence line 'SCF CONVERGED AFTER ...' not found" in initial_mutable_data.parsing_warnings[0]
@@ -535,7 +535,7 @@ def test_scf_late_convergence_line(scf_parser: ScfParser, initial_mutable_data: 
     assert initial_mutable_data.scf.converged is True
     assert initial_mutable_data.scf.n_iterations == 1
     assert math.isclose(initial_mutable_data.scf.energy, -75.257066)  # type: ignore
-    assert len(initial_mutable_data.scf.iteration_history) == 1
+    assert len(initial_mutable_data.scf.iterations) == 1
     assert len(initial_mutable_data.parsing_warnings) == 1
     assert (
         initial_mutable_data.parsing_warnings[0]

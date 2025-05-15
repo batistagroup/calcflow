@@ -39,7 +39,7 @@ class ScfIteration:
 class ScfEnergyComponents:
     """Holds the components of the raw SCF energy."""
 
-    nuclear_repulsion_eh: float
+    nuclear_repulsion: float
     electronic_eh: float
     one_electron_eh: float
     two_electron_eh: float
@@ -47,19 +47,19 @@ class ScfEnergyComponents:
 
 
 @dataclass(frozen=True)
-class ScfData:
+class ScfResults:
     """Holds results specific to the SCF calculation step."""
 
     converged: bool
     energy: float  # Converged SCF energy (or last energy if not converged)
     components: ScfEnergyComponents
     n_iterations: int
-    iteration_history: Sequence[ScfIteration]  # Added field
+    iterations: Sequence[ScfIteration]  # Added field
 
     def __repr__(self) -> str:
-        # Create a copy of the dict and convert iteration_history to strings
+        # Create a copy of the dict and convert iterations to strings
         dict_copy = self.__dict__.copy()
-        dict_copy["iteration_history"] = [str(it) for it in self.iteration_history]
+        dict_copy["iterations"] = [str(it) for it in self.iterations]
         return f"{self.__class__.__name__}(\n{pformat(dict_copy, indent=2)[1:-1]}\n)"
 
     def __str__(self) -> str:
@@ -144,7 +144,7 @@ class _MutableCalculationData:
     termination_status: Literal["NORMAL", "ERROR", "UNKNOWN"] = "UNKNOWN"
     input_geometry: Sequence[Atom] | None = None
     final_energy: float | None = None
-    scf: ScfData | None = None
+    scf: ScfResults | None = None
     orbitals: OrbitalsSet | None = None
     atomic_charges: list[AtomicCharges] = field(default_factory=list)
     dipole_moment: DipoleMoment | None = None
@@ -190,7 +190,7 @@ class OptimizationCycleData:
     cycle_number: int
     geometry: Sequence[Atom] | None = None  # Geometry *at the start* of this cycle's calculation
     energy: float | None = None  # Usually the SCF energy for this cycle
-    scf_data: ScfData | None = None
+    scf_data: ScfResults | None = None
     dispersion: DispersionCorrectionData | None = None
     gradient: GradientData | None = None
     relaxation_step: RelaxationStepData | None = None
@@ -207,7 +207,7 @@ class _MutableOptData:
     cycles: list[OptimizationCycleData] = field(default_factory=list)
     final_geometry: Sequence[Atom] | None = None  # Converged geometry
     final_energy: float | None = None
-    final_scf: ScfData | None = None
+    final_scf: ScfResults | None = None
     final_orbitals: OrbitalsSet | None = None
     final_charges: list[AtomicCharges] = field(default_factory=list)
     final_dipole: DipoleMoment | None = None

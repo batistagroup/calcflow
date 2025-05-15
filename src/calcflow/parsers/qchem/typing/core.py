@@ -8,7 +8,7 @@ from calcflow.parsers.qchem.typing.properties import (
     DispersionCorrectionData,
     MultipoleResults,
 )
-from calcflow.parsers.qchem.typing.scf import ScfData, SmdData
+from calcflow.parsers.qchem.typing.scf import ScfResults, SmdResults
 from calcflow.parsers.qchem.typing.tddft import (
     ExcitedStateDetailedAnalysis,
     ExcitedStateProperties,
@@ -60,13 +60,13 @@ class _MutableCalculationData:
     input_geometry: Sequence[Atom] | None = None  # From $molecule block
     standard_orientation_geometry: Sequence[Atom] | None = None  # From 'Standard Nuclear Orientation'
     final_energy: float | None = None  # Typically the 'Total energy' after SCF
-    nuclear_repulsion_eh: float | None = None
-    scf: ScfData | None = None
+    nuclear_repulsion: float | None = None
+    scf: ScfResults | None = None
     orbitals: OrbitalsSet | None = None
     atomic_charges: list[AtomicCharges] = field(default_factory=list)
     multipole: MultipoleResults | None = None
     dispersion_correction: DispersionCorrectionData | None = None
-    smd_data: SmdData | None = None  # Add SmdData field
+    smd_data: SmdResults | None = None  # Add SmdResults field
     # Track errors/warnings during parsing
     parsing_errors: list[str] = field(default_factory=list)
     parsing_warnings: list[str] = field(default_factory=list)
@@ -136,13 +136,13 @@ class CalculationData:
     input_geometry: Sequence[Atom] | None = None
     standard_orientation_geometry: Sequence[Atom] | None = None
     final_energy: float | None = None
-    nuclear_repulsion_eh: float | None = None
-    scf: ScfData | None = None
+    nuclear_repulsion: float | None = None
+    scf: ScfResults | None = None
     orbitals: OrbitalsSet | None = None
     atomic_charges: list[AtomicCharges] = field(default_factory=list)
     multipole: MultipoleResults | None = None
     dispersion_correction: DispersionCorrectionData | None = None
-    smd_data: SmdData | None = None  # Add SmdData field
+    smd_data: SmdResults | None = None  # Add SmdResults field
     tddft_data: TddftData | None = None  # Added TDDFT data container
     ground_state_reference_analysis: GroundStateReferenceAnalysis | None = None  # GS Ref from ESA block
 
@@ -166,14 +166,14 @@ class CalculationData:
             solvent_name=mutable_data.solvent_name,
         )
 
-        smd_data_instance: SmdData | None = None
+        smd_data_instance: SmdResults | None = None
         if (
             mutable_data.smd_g_pcm_kcal_mol is not None
             or mutable_data.smd_g_cds_kcal_mol is not None
             or mutable_data.smd_g_enp_au is not None
             or mutable_data.smd_g_tot_au is not None
         ):
-            smd_data_instance = SmdData(
+            smd_data_instance = SmdResults(
                 g_pcm_kcal_mol=mutable_data.smd_g_pcm_kcal_mol,
                 g_cds_kcal_mol=mutable_data.smd_g_cds_kcal_mol,
                 g_enp_au=mutable_data.smd_g_enp_au,
@@ -215,13 +215,13 @@ class CalculationData:
             input_geometry=mutable_data.input_geometry,
             standard_orientation_geometry=mutable_data.standard_orientation_geometry,
             final_energy=mutable_data.final_energy,
-            nuclear_repulsion_eh=mutable_data.nuclear_repulsion_eh,
+            nuclear_repulsion=mutable_data.nuclear_repulsion,
             scf=mutable_data.scf,
             orbitals=mutable_data.orbitals,
             atomic_charges=list(mutable_data.atomic_charges),  # Ensure list copy
             multipole=mutable_data.multipole,
             dispersion_correction=mutable_data.dispersion_correction,
-            smd_data=smd_data_instance,  # Assign the new SmdData instance
+            smd_data=smd_data_instance,  # Assign the new SmdResults instance
             tddft_data=tddft_data_instance,  # Assign the new TddftData instance
             ground_state_reference_analysis=gs_ref_analysis_instance,  # Assign GS Ref
         )

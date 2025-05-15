@@ -16,7 +16,7 @@ from calcflow.parsers.orca.typing import (
     DipoleMoment,
     DispersionCorrectionData,
     OrbitalsSet,
-    ScfData,
+    ScfResults,
     SectionParser,
     _MutableCalculationData,
 )
@@ -38,7 +38,7 @@ class CalculationData:
     termination_status: Literal["NORMAL", "ERROR", "UNKNOWN"]
     input_geometry: Sequence[Atom] | None = None
     final_energy: float | None = None
-    scf: ScfData | None = None
+    scf: ScfResults | None = None
     orbitals: OrbitalsSet | None = None
     atomic_charges: list[AtomicCharges] = field(default_factory=list)
     dipole_moment: DipoleMoment | None = None

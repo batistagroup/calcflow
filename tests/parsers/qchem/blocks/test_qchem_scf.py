@@ -2,7 +2,7 @@ import pytest
 
 from calcflow.exceptions import ParsingError
 from calcflow.parsers.qchem.blocks.scf import ScfParser
-from calcflow.parsers.qchem.typing import ScfData, ScfIteration, _MutableCalculationData
+from calcflow.parsers.qchem.typing import ScfIteration, ScfResults, _MutableCalculationData
 
 
 @pytest.fixture
@@ -201,8 +201,8 @@ def test_does_not_match_if_already_parsed(parser: ScfParser, initial_data: _Muta
     """Verify that the parser does not match if scf data is already present."""
     line = "  General SCF calculation program by"
     initial_data.parsed_scf = True  # Simulate already parsed
-    initial_data.scf = ScfData(
-        converged=True, energy=-1.0, n_iterations=1, iteration_history=[]
+    initial_data.scf = ScfResults(
+        converged=True, energy=-1.0, n_iterations=1, iterations=[]
     )  # Fixed: Added empty history
     assert parser.matches(line, initial_data) is False
 
@@ -222,8 +222,8 @@ def test_parse_converged_scf(
     assert results.scf.converged is True
     assert results.scf.n_iterations == 7
     assert results.scf.energy == pytest.approx(-75.31188446)
-    assert len(results.scf.iteration_history) == 7
-    assert results.scf.iteration_history[-1] == ScfIteration(iteration=7, energy=-75.3118844639, diis_error=5.35e-08)
+    assert len(results.scf.iterations) == 7
+    assert results.scf.iterations[-1] == ScfIteration(iteration=7, energy=-75.3118844639, diis_error=5.35e-08)
 
 
 def test_parse_non_converged_scf(parser: ScfParser, initial_data: _MutableCalculationData) -> None:
@@ -255,7 +255,7 @@ def test_parse_non_converged_scf(parser: ScfParser, initial_data: _MutableCalcul
     assert results.scf.n_iterations == 2
     # Should use the energy from the last iteration when final is missing
     assert results.scf.energy == pytest.approx(-75.2783922518)
-    assert len(results.scf.iteration_history) == 2
+    assert len(results.scf.iterations) == 2
 
 
 def test_parse_converged_missing_final_energy(parser: ScfParser, initial_data: _MutableCalculationData) -> None:
@@ -286,7 +286,7 @@ def test_parse_converged_missing_final_energy(parser: ScfParser, initial_data: _
     assert results.scf.n_iterations == 2
     # Should use the energy from the last iteration
     assert results.scf.energy == pytest.approx(-75.2783922518)
-    assert len(results.scf.iteration_history) == 2
+    assert len(results.scf.iterations) == 2
 
 
 def test_parse_unexpected_end_during_iterations(parser: ScfParser, initial_data: _MutableCalculationData) -> None:
@@ -410,12 +410,12 @@ def test_parse_smd_summary_mismatched_genp(
 
     assert results.parsed_scf is True
     assert results.scf is not None
-    # ScfData.energy should take the value from the "SCF   energy =" line
+    # ScfResults.energy should take the value from the "SCF   energy =" line
     assert results.scf.energy == pytest.approx(-75.32082770)
     # SMD parsed values should still be from the summary block
     assert results.smd_g_enp_au == pytest.approx(-75.32080770)
     assert "Mismatch between G_ENP from SMD summary" in caplog.text
-    assert "Using SCF energy for ScfData" in caplog.text
+    assert "Using SCF energy for ScfResults" in caplog.text
 
 
 def test_parse_smd_partial_summary(
@@ -454,7 +454,7 @@ def test_parse_smd_malformed_summary(
     assert results.smd_g_cds_kcal_mol is None
     assert results.smd_g_enp_au is None
     assert results.smd_g_tot_au is None
-    # The explicit SCF energy line should still be parsed for ScfData
+    # The explicit SCF energy line should still be parsed for ScfResults
     assert results.scf.energy == pytest.approx(-75.32080770)
     # Expect a warning about missing G_ENP, G_TOT from the summary if the summary block was started
     assert "SMD summary block was identified, but some energy components (G_ENP, G_TOT) were not parsed." in caplog.text

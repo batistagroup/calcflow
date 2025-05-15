@@ -3,8 +3,8 @@ import re
 from calcflow.exceptions import ParsingError
 from calcflow.parsers.qchem.typing import (
     LineIterator,
-    ScfData,
     ScfIteration,
+    ScfResults,
     SectionParser,
     _MutableCalculationData,
 )
@@ -83,11 +83,11 @@ class ScfParser(SectionParser):
                 logger.error("File ended unexpectedly while parsing SCF iterations.")
                 # If iterations were found, store partial results before raising
                 if iterations:
-                    results.scf = ScfData(
+                    results.scf = ScfResults(
                         converged=False,  # Assume not converged if file ends abruptly
                         energy=iterations[-1].energy,
                         n_iterations=len(iterations),
-                        iteration_history=iterations,
+                        iterations=iterations,
                     )
                     results.parsed_scf = True  # Mark as attempted
                 raise ParsingError("Unexpected end of file in SCF iteration block.") from e
@@ -210,7 +210,7 @@ class ScfParser(SectionParser):
             if abs(results.smd_g_enp_au - final_scf_energy) > 1e-6:  # Tolerance for float comparison
                 logger.warning(
                     f"Mismatch between G_ENP from SMD summary ({results.smd_g_enp_au:.8f}) "
-                    f"and SCF energy ({final_scf_energy:.8f}). Using SCF energy for ScfData."
+                    f"and SCF energy ({final_scf_energy:.8f}). Using SCF energy for ScfResults."
                 )
         elif smd_summary_found and (results.smd_g_enp_au is None or results.smd_g_tot_au is None):
             logger.warning(
@@ -232,11 +232,11 @@ class ScfParser(SectionParser):
         elif not scf_energy_line_found and converged:
             logger.warning("'SCF energy =' line was not found after SCF iterations.")
 
-        results.scf = ScfData(
+        results.scf = ScfResults(
             converged=converged,
             energy=energy_to_store,
             n_iterations=len(iterations),
-            iteration_history=iterations,
+            iterations=iterations,
         )
         results.parsed_scf = True
         logger.info(

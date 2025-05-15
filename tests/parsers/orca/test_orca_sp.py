@@ -46,7 +46,7 @@ def test_calculation_data_repr_with_optional_fields(parsed_sp_data: orca.Calcula
     assert f"input_geometry=({len(parsed_sp_data.input_geometry)} Atoms)" in repr_str  # type: ignore
 
     # Check for the presence of summaries, not their exact content
-    assert "scf=ScfData" in repr_str
+    assert "scf=ScfResults" in repr_str
     assert "orbitals=OrbitalsSet" in repr_str
     assert "atomic_charges=[" in repr_str
     assert "dipole_moment=DipoleMoment" in repr_str

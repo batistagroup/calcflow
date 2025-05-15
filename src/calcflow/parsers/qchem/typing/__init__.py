@@ -16,7 +16,7 @@ from calcflow.parsers.qchem.typing.properties import (
     OctopoleMoment,
     QuadrupoleMoment,
 )
-from calcflow.parsers.qchem.typing.scf import ScfData, ScfEnergyComponents, ScfIteration, SmdData
+from calcflow.parsers.qchem.typing.scf import ScfEnergyComponents, ScfIteration, ScfResults, SmdResults
 from calcflow.parsers.qchem.typing.tddft import (
     ExcitedStateAtomPopulation,
     ExcitedStateDetailedAnalysis,
@@ -60,8 +60,8 @@ __all__ = [
     # from scf
     "ScfIteration",
     "ScfEnergyComponents",
-    "ScfData",
-    "SmdData",
+    "ScfResults",
+    "SmdResults",
     # from tddft
     "TddftData",
     "ExcitedStateDetailedAnalysis",

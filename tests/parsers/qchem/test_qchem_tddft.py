@@ -8,7 +8,7 @@ from calcflow.parsers.qchem.typing import (
     OctopoleMoment,
     OrbitalTransition,
     QuadrupoleMoment,
-    ScfData,
+    ScfResults,
     TddftData,
 )
 
@@ -26,7 +26,7 @@ def test_parse_qchem_tddft_output_h2o(parsed_tddft_pc2_data: CalculationData) ->
     assert data.termination_status == "NORMAL"
     # The final_energy should be the ground state SCF energy
     assert data.final_energy == approx(-76.44125314)
-    assert data.nuclear_repulsion_eh == approx(8.93764808)
+    assert data.nuclear_repulsion == approx(8.93764808)
 
     # --- Metadata Checks ---
     assert data.metadata.qchem_version == "6.2"
@@ -61,19 +61,19 @@ def test_parse_qchem_tddft_output_h2o(parsed_tddft_pc2_data: CalculationData) ->
 
     # --- SCF Checks ---
     assert data.scf is not None
-    scf: ScfData = data.scf  # type: ignore
+    scf: ScfResults = data.scf  # type: ignore
     assert scf.converged is True
     assert scf.energy == approx(-76.44125314)  # This is the ground state SCF energy
     assert scf.n_iterations == 10
-    assert len(scf.iteration_history) == 10
+    assert len(scf.iterations) == 10
 
-    assert scf.iteration_history[0].iteration == 1
-    assert scf.iteration_history[0].energy == approx(-76.3054390399)
-    assert scf.iteration_history[0].diis_error == approx(5.31e-02)
+    assert scf.iterations[0].iteration == 1
+    assert scf.iterations[0].energy == approx(-76.3054390399)
+    assert scf.iterations[0].diis_error == approx(5.31e-02)
 
-    assert scf.iteration_history[-1].iteration == 10
-    assert scf.iteration_history[-1].energy == approx(-76.4412531352)
-    assert scf.iteration_history[-1].diis_error == approx(6.73e-09)
+    assert scf.iterations[-1].iteration == 10
+    assert scf.iterations[-1].energy == approx(-76.4412531352)
+    assert scf.iterations[-1].diis_error == approx(6.73e-09)
 
     # --- Orbital Checks ---
     assert data.orbitals is not None

@@ -10,7 +10,7 @@ from calcflow.parsers.qchem.typing import (
     HexadecapoleMoment,
     OctopoleMoment,
     QuadrupoleMoment,
-    ScfData,
+    ScfResults,
 )
 
 # --- Success Case Test ---
@@ -28,7 +28,7 @@ def test_parse_qchem_sp_output_h2o(parsed_sp_sto_data: CalculationData) -> None:
     # --- Top-Level Checks ---
     assert data.termination_status == "NORMAL"
     assert data.final_energy == approx(-75.31188446)
-    assert data.nuclear_repulsion_eh == approx(8.93764808)
+    assert data.nuclear_repulsion == approx(8.93764808)
 
     # --- Metadata Checks ---
     assert data.metadata.qchem_version == "6.2"
@@ -54,19 +54,19 @@ def test_parse_qchem_sp_output_h2o(parsed_sp_sto_data: CalculationData) -> None:
 
     # --- SCF Checks ---
     assert data.scf is not None
-    scf: ScfData = data.scf
+    scf: ScfResults = data.scf
     assert scf.converged is True
     assert scf.energy == approx(-75.31188446)
     assert scf.n_iterations == 7
-    assert len(scf.iteration_history) == 7
-    # assert scf.iteration_history[0] == ScfIteration(iteration=1, energy=-75.0734525425, diis_error=approx(3.82e-01))
-    assert scf.iteration_history[0].iteration == 1
-    assert scf.iteration_history[0].energy == approx(-75.0734525425)
-    assert scf.iteration_history[0].diis_error == approx(3.82e-01)
-    # assert scf.iteration_history[-1] == ScfIteration(iteration=7, energy=-75.3118844639, diis_error=approx(5.35e-08))
-    assert scf.iteration_history[-1].iteration == 7
-    assert scf.iteration_history[-1].energy == approx(-75.3118844639)
-    assert scf.iteration_history[-1].diis_error == approx(5.35e-08)
+    assert len(scf.iterations) == 7
+    # assert scf.iterations[0] == ScfIteration(iteration=1, energy=-75.0734525425, diis_error=approx(3.82e-01))
+    assert scf.iterations[0].iteration == 1
+    assert scf.iterations[0].energy == approx(-75.0734525425)
+    assert scf.iterations[0].diis_error == approx(3.82e-01)
+    # assert scf.iterations[-1] == ScfIteration(iteration=7, energy=-75.3118844639, diis_error=approx(5.35e-08))
+    assert scf.iterations[-1].iteration == 7
+    assert scf.iterations[-1].energy == approx(-75.3118844639)
+    assert scf.iterations[-1].diis_error == approx(5.35e-08)
 
     # --- Orbital Checks ---
     assert data.orbitals is not None
@@ -199,7 +199,7 @@ def test_malformed_nuclear_repulsion(caplog: LogCaptureFixture) -> None:
 
     # The specific warning isn't logged because the regex doesn't match the line
     assert "Could not parse Nuclear Repulsion from line" not in caplog.text
-    assert data.nuclear_repulsion_eh is None  # Value is never assigned
+    assert data.nuclear_repulsion is None  # Value is never assigned
     assert data.termination_status == "ERROR"  # ERROR due to missing normal termination
     # Check for other expected warnings due to minimal input
     assert "Input geometry block ($molecule) was not found or parsed." in caplog.text
@@ -351,7 +351,7 @@ def test_parse_qchem_sp_output_h2o_smd(parsed_sp_sto_smd_data: CalculationData) 
     # --- Top-Level Checks ---
     assert data.termination_status == "NORMAL"
     assert data.final_energy == approx(-75.31846024)  # This is G(tot) from SMD output
-    assert data.nuclear_repulsion_eh == approx(8.93764808)
+    assert data.nuclear_repulsion == approx(8.93764808)
 
     # --- Metadata Checks ---
     assert data.metadata.qchem_version == "6.2"
@@ -379,18 +379,18 @@ def test_parse_qchem_sp_output_h2o_smd(parsed_sp_sto_smd_data: CalculationData) 
 
     # --- SCF Checks ---
     assert data.scf is not None
-    scf: ScfData = data.scf
+    scf: ScfResults = data.scf
     assert scf.converged is True
     # For SMD, the SCF energy reported in the block is E_SCF (including G_PCM)
     assert scf.energy == approx(-75.32080770)
     assert scf.n_iterations == 7
-    assert len(scf.iteration_history) == 7
-    assert scf.iteration_history[0].iteration == 1
-    assert scf.iteration_history[0].energy == approx(-75.0734525440)
-    assert scf.iteration_history[0].diis_error == approx(3.82e-01)
-    assert scf.iteration_history[-1].iteration == 7
-    assert scf.iteration_history[-1].energy == approx(-75.3208077035)
-    assert scf.iteration_history[-1].diis_error == approx(2.17e-08)
+    assert len(scf.iterations) == 7
+    assert scf.iterations[0].iteration == 1
+    assert scf.iterations[0].energy == approx(-75.0734525440)
+    assert scf.iterations[0].diis_error == approx(3.82e-01)
+    assert scf.iterations[-1].iteration == 7
+    assert scf.iterations[-1].energy == approx(-75.3208077035)
+    assert scf.iterations[-1].diis_error == approx(2.17e-08)
 
     # --- Orbital Checks ---
     assert data.orbitals is not None
@@ -497,7 +497,7 @@ def test_parse_qchem_sp_output_h2o_tzvppd_smd(parsed_sp_tzvppd_smd_data: Calcula
     # --- Top-Level Checks ---
     assert data.termination_status == "NORMAL"
     assert data.final_energy == approx(-76.45372896)  # G(tot) from SMD output
-    assert data.nuclear_repulsion_eh == approx(8.93764808)
+    assert data.nuclear_repulsion == approx(8.93764808)
 
     # --- Metadata Checks ---
     assert data.metadata.qchem_version == "6.2"
@@ -523,17 +523,17 @@ def test_parse_qchem_sp_output_h2o_tzvppd_smd(parsed_sp_tzvppd_smd_data: Calcula
 
     # --- SCF Checks ---
     assert data.scf is not None
-    scf: ScfData = data.scf
+    scf: ScfResults = data.scf
     assert scf.converged is True
     assert scf.energy == approx(-76.45607642)  # E_SCF (including G_PCM)
     assert scf.n_iterations == 7
-    assert len(scf.iteration_history) == 7
-    assert scf.iteration_history[0].iteration == 1
-    assert scf.iteration_history[0].energy == approx(-76.3019247487)
-    assert scf.iteration_history[0].diis_error == approx(4.14e-02)
-    assert scf.iteration_history[-1].iteration == 7
-    assert scf.iteration_history[-1].energy == approx(-76.4560764224)
-    assert scf.iteration_history[-1].diis_error == approx(5.94e-06)
+    assert len(scf.iterations) == 7
+    assert scf.iterations[0].iteration == 1
+    assert scf.iterations[0].energy == approx(-76.3019247487)
+    assert scf.iterations[0].diis_error == approx(4.14e-02)
+    assert scf.iterations[-1].iteration == 7
+    assert scf.iterations[-1].energy == approx(-76.4560764224)
+    assert scf.iterations[-1].diis_error == approx(5.94e-06)
 
     # --- Orbital Checks ---
     assert data.orbitals is not None
