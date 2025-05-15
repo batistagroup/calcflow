@@ -117,7 +117,7 @@ def test_integration_dispersion_correction(parsed_sp_data: orca.CalculationData)
 
     # Example file uses DFTD3 with very small energy
     assert "DFTD3" in disp.method
-    assert math.isclose(disp.energy_eh, -0.000001638, abs_tol=1e-9)
+    assert math.isclose(disp.energy, -0.000001638, abs_tol=1e-9)
 
 
 # --- Unit Tests for DispersionParser ---
@@ -168,7 +168,7 @@ def test_parse_success(
     assert initial_data.parsed_dispersion is True
     assert initial_data.dispersion_correction is not None
     assert initial_data.dispersion_correction.method == expected_method_part
-    assert math.isclose(initial_data.dispersion_correction.energy_eh, expected_energy, abs_tol=1e-9)
+    assert math.isclose(initial_data.dispersion_correction.energy, expected_energy, abs_tol=1e-9)
 
 
 # Test `parse` method - Failure cases

@@ -7,7 +7,7 @@ import pytest
 from calcflow.exceptions import ParsingError
 from calcflow.parsers import orca
 from calcflow.parsers.orca.blocks.dipole import DipoleParser
-from calcflow.parsers.orca.typing import DipoleMomentData, _MutableCalculationData
+from calcflow.parsers.orca.typing import DipoleMoment, _MutableCalculationData
 
 
 @pytest.fixture
@@ -20,13 +20,13 @@ def test_dipole_moment(parsed_sp_data: orca.CalculationData) -> None:
     """Test the parsed dipole moment data."""
     dipole = parsed_sp_data.dipole_moment
     assert dipole is not None
-    assert isinstance(dipole, orca.DipoleMomentData)
+    assert isinstance(dipole, orca.DipoleMoment)
 
     assert math.isclose(dipole.x_au, -0.319770911, rel_tol=1e-7)
     assert math.isclose(dipole.y_au, -0.065576153, rel_tol=1e-7)
     assert math.isclose(dipole.z_au, -0.559981644, rel_tol=1e-7)
     assert math.isclose(dipole.total_au, 0.648176757, rel_tol=1e-7)
-    assert math.isclose(dipole.total_debye, 1.647534386, rel_tol=1e-7)
+    assert math.isclose(dipole.magnitude, 1.647534386, rel_tol=1e-7)
 
 
 # --- Tests for DipoleParser.matches ---
@@ -88,12 +88,12 @@ def test_dipole_parser_successful_parse(dipole_parser: DipoleParser, mutable_dat
     assert mutable_data.parsed_dipole is True
     dipole = mutable_data.dipole_moment
     assert dipole is not None
-    assert isinstance(dipole, DipoleMomentData)
+    assert isinstance(dipole, DipoleMoment)
     assert math.isclose(dipole.x_au, -0.3197709, rel_tol=1e-6)
     assert math.isclose(dipole.y_au, -0.0655762, rel_tol=1e-6)
     assert math.isclose(dipole.z_au, -0.5599816, rel_tol=1e-6)
     assert math.isclose(dipole.total_au, 0.6481768, rel_tol=1e-6)
-    assert math.isclose(dipole.total_debye, 1.6475344, rel_tol=1e-6)
+    assert math.isclose(dipole.magnitude, 1.6475344, rel_tol=1e-6)
 
 
 INVALID_COMPONENTS_BLOCK = """

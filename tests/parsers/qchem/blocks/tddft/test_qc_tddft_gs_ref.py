@@ -1,36 +1,36 @@
 from pytest import approx
 
-from calcflow.parsers.qchem.typing import DipoleMomentData, ExcitedStateMultipole, GroundStateReferenceAnalysis
+from calcflow.parsers.qchem.typing import DipoleMoment, ExcitedStateMultipole, GroundStateReferenceAnalysis
 
 
 def test_ground_state_reference_analysis_exists(parsed_tddft_pc2_data):
     """Test that GroundStateReferenceAnalysis is parsed."""
-    gs_ref = parsed_tddft_pc2_data.ground_state_reference_analysis
+    gs_ref = parsed_tddft_pc2_data.gs_reference_analysis
     assert gs_ref is not None
     assert isinstance(gs_ref, GroundStateReferenceAnalysis)
 
 
 def test_gs_ref_no_data(parsed_tddft_pc2_data):
     """Test NOs data in GroundStateReferenceAnalysis."""
-    gs_ref = parsed_tddft_pc2_data.ground_state_reference_analysis
+    gs_ref = parsed_tddft_pc2_data.gs_reference_analysis
     assert gs_ref is not None
     no_data = gs_ref.no_data
     assert no_data is not None
     # Based on tddft-rks-pc2.out snippet
     # Occupation of frontier NOs: 0.0000   2.0000 -> Not stored in ExcitedStateNOData based on current fields
-    # num_electrons=10.0, num_unpaired_electrons_nu=-0.0, num_unpaired_electrons_nunl=0.0
-    assert no_data.num_electrons == approx(10.0)
-    assert no_data.num_unpaired_electrons_nu == approx(-0.0)
-    assert no_data.num_unpaired_electrons_nunl == approx(0.0)
+    # n_electrons=10.0, n_unpaired=-0.0, n_unpaired_nl=0.0
+    assert no_data.n_electrons == approx(10.0)
+    assert no_data.n_unpaired == approx(-0.0)
+    assert no_data.n_unpaired_nl == approx(0.0)
     assert no_data.frontier_occupations is None  # Current typing does not parse/store this from GS NOs
-    assert no_data.participation_ratio_pr_no is None
+    assert no_data.pr_no is None
 
 
 def test_gs_ref_mulliken_analysis(parsed_tddft_pc2_data):
     """Test Mulliken analysis data in GroundStateReferenceAnalysis."""
-    gs_ref = parsed_tddft_pc2_data.ground_state_reference_analysis
+    gs_ref = parsed_tddft_pc2_data.gs_reference_analysis
     assert gs_ref is not None
-    mulliken = gs_ref.mulliken_analysis
+    mulliken = gs_ref.mulliken
     assert mulliken is not None
     assert len(mulliken.populations) == 3
     # Atom      Charge (e)
@@ -58,14 +58,14 @@ def test_gs_ref_mulliken_analysis(parsed_tddft_pc2_data):
 
 def test_gs_ref_multipole_analysis(parsed_tddft_pc2_data):
     """Test Multipole analysis data in GroundStateReferenceAnalysis."""
-    gs_ref = parsed_tddft_pc2_data.ground_state_reference_analysis
+    gs_ref = parsed_tddft_pc2_data.gs_reference_analysis
     assert gs_ref is not None
-    multipole = gs_ref.multipole_analysis
+    multipole = gs_ref.multipole
     assert multipole is not None
     assert isinstance(multipole, ExcitedStateMultipole)
 
     assert multipole.molecular_charge == approx(-0.0)
-    assert multipole.num_electrons == approx(10.0)
+    assert multipole.n_electrons == approx(10.0)
 
     assert multipole.center_electronic_charge_ang is not None
     assert multipole.center_electronic_charge_ang[0] == approx(2.290492)
@@ -79,11 +79,11 @@ def test_gs_ref_multipole_analysis(parsed_tddft_pc2_data):
 
     assert multipole.dipole_moment_debye is not None
     dipole = multipole.dipole_moment_debye
-    assert isinstance(dipole, DipoleMomentData)
-    assert dipole.total_debye == approx(2.015379)
-    assert dipole.x_debye == approx(-0.995831)
-    assert dipole.y_debye == approx(-0.203503)
-    assert dipole.z_debye == approx(-1.740304)
+    assert isinstance(dipole, DipoleMoment)
+    assert dipole.magnitude == approx(2.015379)
+    assert dipole.x == approx(-0.995831)
+    assert dipole.y == approx(-0.203503)
+    assert dipole.z == approx(-1.740304)
 
     assert multipole.rms_density_size_ang is not None
     assert multipole.rms_density_size_ang[0] == approx(0.451777)

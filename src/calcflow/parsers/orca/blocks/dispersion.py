@@ -22,7 +22,7 @@ class DispersionParser(SectionParser):
         # Consume header lines (----)
         next(iterator, None)
         method: str | None = None
-        energy_eh: float | None = None
+        energy: float | None = None
 
         try:
             for line in iterator:
@@ -35,7 +35,7 @@ class DispersionParser(SectionParser):
                 energy_match = DISPERSION_ENERGY_PAT.search(line)
                 if energy_match:
                     try:
-                        energy_eh = float(energy_match.group(1))
+                        energy = float(energy_match.group(1))
                     except (ValueError, IndexError) as e:
                         raise ParsingError(f"Could not parse dispersion energy: {line.strip()}") from e
                     break  # Found energy, assume done
@@ -43,15 +43,15 @@ class DispersionParser(SectionParser):
                 # Define terminators
                 if "FINAL SINGLE POINT ENERGY" in line or "TIMINGS" in line or line.strip() == "-" * 60:
                     # If we haven't found energy yet, log warning before breaking
-                    if energy_eh is None:
+                    if energy is None:
                         logger.warning(f"Exiting dispersion block prematurely due to terminator: '{line.strip()}'")
                     break
 
-            if method is None or energy_eh is None:
-                missing = [n for n, v in [("Method", method), ("Energy", energy_eh)] if v is None]
+            if method is None or energy is None:
+                missing = [n for n, v in [("Method", method), ("Energy", energy)] if v is None]
                 raise ParsingError(f"Dispersion Correction block found but could not parse: {', '.join(missing)}")
 
-            dispersion_data = DispersionCorrectionData(method=method, energy_eh=energy_eh)
+            dispersion_data = DispersionCorrectionData(method=method, energy=energy)
             results.dispersion_correction = dispersion_data
             logger.debug(f"Successfully parsed dispersion correction: {repr(dispersion_data)}")
 

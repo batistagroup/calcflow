@@ -2,7 +2,7 @@ import re
 from dataclasses import replace
 
 from calcflow.parsers.qchem.typing import (
-    DipoleMomentData,
+    DipoleMoment,
     ExcitedStateAtomPopulation,
     ExcitedStateDetailedAnalysis,
     ExcitedStateExcitonDifferenceDM,
@@ -34,7 +34,7 @@ class UnrelaxedExcitedStatePropertiesParser:
     def _parse_nos_data(self, iterator: LineIterator, results: _MutableCalculationData) -> ExcitedStateNOData | None:
         """Parses the NOs subsection for an excited state."""
         frontier_occs: list[float] = []
-        num_electrons: float | None = None
+        n_electrons: float | None = None
         n_u: float | None = None
         n_unl: float | None = None
         pr_no: float | None = None
@@ -76,7 +76,7 @@ class UnrelaxedExcitedStatePropertiesParser:
                     logger.warning(f"Could not parse frontier NO occupations from: {data_line}")
             elif stripped_line.startswith("Number of electrons:"):
                 try:
-                    num_electrons = float(stripped_line.split()[-1])
+                    n_electrons = float(stripped_line.split()[-1])
                     found_data = True
                 except (IndexError, ValueError):
                     logger.warning(f"Could not parse number of electrons from: {stripped_line}")
@@ -104,10 +104,10 @@ class UnrelaxedExcitedStatePropertiesParser:
             return None
         return ExcitedStateNOData(
             frontier_occupations=frontier_occs if frontier_occs else None,
-            num_electrons=num_electrons,
-            num_unpaired_electrons_nu=n_u,
-            num_unpaired_electrons_nunl=n_unl,
-            participation_ratio_pr_no=pr_no,
+            n_electrons=n_electrons,
+            n_unpaired=n_u,
+            n_unpaired_nl=n_unl,
+            pr_no=pr_no,
         )
 
     def _parse_mulliken_populations(
@@ -195,10 +195,10 @@ class UnrelaxedExcitedStatePropertiesParser:
     ) -> ExcitedStateMultipole | None:
         """Parses multipole moment analysis for an excited state."""
         mol_charge: float | None = None
-        num_electrons: float | None = None
+        n_electrons: float | None = None
         center_elec_chg: tuple[float, float, float] | None = None
         center_nucl_chg: tuple[float, float, float] | None = None
-        dipole: DipoleMomentData | None = None
+        dipole: DipoleMoment | None = None
         rms_density_size: tuple[float, float, float] | None = None
         found_data = False
 
@@ -227,10 +227,10 @@ class UnrelaxedExcitedStatePropertiesParser:
                     logger.warning(f"Failed to parse mol_charge: {stripped_line}")
             elif stripped_line.startswith("Number of electrons:"):
                 try:
-                    num_electrons = float(stripped_line.split()[-1])
+                    n_electrons = float(stripped_line.split()[-1])
                     found_data = True
                 except (ValueError, IndexError):
-                    logger.warning(f"Failed to parse num_electrons: {stripped_line}")
+                    logger.warning(f"Failed to parse n_electrons: {stripped_line}")
             elif "Center of electronic charge [Ang]:" in stripped_line:
                 match = re.search(r"\[\s*(-?[\d.]+),\s*(-?[\d.]+),\s*(-?[\d.]+)\]", stripped_line)
                 if match:
@@ -266,11 +266,11 @@ class UnrelaxedExcitedStatePropertiesParser:
                         r"Cartesian components \[D\]:\s*\[\s*(-?[\d.]+),\s*(-?[\d.]+),\s*(-?[\d.]+)\]", next_line_cart
                     )
                     if cart_match:
-                        dipole = DipoleMomentData(
-                            x_debye=float(cart_match.group(1)),
-                            y_debye=float(cart_match.group(2)),
-                            z_debye=float(cart_match.group(3)),
-                            total_debye=total_d,
+                        dipole = DipoleMoment(
+                            x=float(cart_match.group(1)),
+                            y=float(cart_match.group(2)),
+                            z=float(cart_match.group(3)),
+                            magnitude=total_d,
                         )
                         found_data = True
                     else:
@@ -311,7 +311,7 @@ class UnrelaxedExcitedStatePropertiesParser:
             return None
         return ExcitedStateMultipole(
             molecular_charge=mol_charge,
-            num_electrons=num_electrons,
+            n_electrons=n_electrons,
             center_electronic_charge_ang=center_elec_chg,
             center_nuclear_charge_ang=center_nucl_chg,
             dipole_moment_debye=dipole,
@@ -486,8 +486,8 @@ class UnrelaxedExcitedStatePropertiesParser:
                     state_number=state_number,
                     multiplicity=multiplicity,
                     no_data=None,
-                    mulliken_analysis=None,
-                    multipole_analysis=None,
+                    mulliken=None,
+                    multipole=None,
                     exciton_difference_dm_analysis=None,
                 )
                 logger.debug(f"Parsing new state: {multiplicity} {state_number}")
@@ -504,12 +504,12 @@ class UnrelaxedExcitedStatePropertiesParser:
                 elif stripped_line == "Mulliken Population Analysis (State/Difference DM)":
                     logger.debug(f"Parsing Mulliken for state {active_state_props.state_number}")
                     mulliken_data = self._parse_mulliken_populations(iterator, results)
-                    active_state_props = replace(active_state_props, mulliken_analysis=mulliken_data)
+                    active_state_props = replace(active_state_props, mulliken=mulliken_data)
                     continue
                 elif stripped_line == "Multipole moment analysis of the density matrix":
                     logger.debug(f"Parsing Multipole for state {active_state_props.state_number}")
                     multipole_data = self._parse_multipole_analysis(iterator, results)
-                    active_state_props = replace(active_state_props, multipole_analysis=multipole_data)
+                    active_state_props = replace(active_state_props, multipole=multipole_data)
                     continue
                 elif stripped_line == "Exciton analysis of the difference density matrix":
                     logger.debug(f"Parsing Exciton for state {active_state_props.state_number}")

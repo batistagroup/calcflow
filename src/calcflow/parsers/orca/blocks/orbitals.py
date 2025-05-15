@@ -1,7 +1,7 @@
 import re
 
 from calcflow.exceptions import ParsingError
-from calcflow.parsers.orca.typing import LineIterator, Orbital, OrbitalData, SectionParser, _MutableCalculationData
+from calcflow.parsers.orca.typing import LineIterator, Orbital, OrbitalsSet, SectionParser, _MutableCalculationData
 from calcflow.utils import logger
 
 # --- Orbitals Parser --- #
@@ -42,7 +42,7 @@ class OrbitalsParser(SectionParser):
                         occ = float(occ_str)
                         eh = float(eh_str)
                         ev = float(ev_str)
-                        orbitals.append(Orbital(index=idx, occupation=occ, energy_eh=eh, energy_ev=ev))
+                        orbitals.append(Orbital(index=idx, occupation=occ, energy=eh, energy_ev=ev))
                         if occ > OCC_THRESHOLD:
                             last_occupied_index = idx
                     except ValueError as e:
@@ -83,12 +83,12 @@ class OrbitalsParser(SectionParser):
                         )
                 # If lumo_candidate_index >= len(orbitals), means HOMO was the last orbital, lumo_index remains None
 
-            orbital_data = OrbitalData(orbitals=tuple(orbitals), homo_index=homo_index, lumo_index=lumo_index)
+            orbital_data = OrbitalsSet(orbitals=tuple(orbitals), homo_index=homo_index, lumo_index=lumo_index)
             results.orbitals = orbital_data
             results.parsed_orbitals = True
             logger.debug(f"Successfully parsed orbital data: {repr(orbital_data)}")
 
         except Exception as e:
-            # Catch unexpected errors during HOMO/LUMO logic or OrbitalData creation
+            # Catch unexpected errors during HOMO/LUMO logic or OrbitalsSet creation
             logger.error(f"Error processing found orbitals or determining HOMO/LUMO: {e}", exc_info=True)
             results.parsed_orbitals = True  # Mark as attempted, even if post-processing failed

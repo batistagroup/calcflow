@@ -195,10 +195,10 @@ def _parse_qchem_generic_output(output: str, parser_registry: Sequence[SectionPa
 
             # Energy Components (checked only if not part of a block)
             match_nuc_rep = NUCLEAR_REPULSION_PAT.search(line)
-            if match_nuc_rep and results.nuclear_repulsion_eh is None:
+            if match_nuc_rep and results.nuclear_repulsion is None:
                 try:
-                    results.nuclear_repulsion_eh = float(match_nuc_rep.group(1))
-                    logger.debug(f"Found Nuclear Repulsion Energy: {results.nuclear_repulsion_eh}")
+                    results.nuclear_repulsion = float(match_nuc_rep.group(1))
+                    logger.debug(f"Found Nuclear Repulsion Energy: {results.nuclear_repulsion}")
                 except (ValueError, IndexError):
                     logger.warning(f"Could not parse Nuclear Repulsion from line: {line.strip()}")
                 continue
@@ -207,8 +207,8 @@ def _parse_qchem_generic_output(output: str, parser_registry: Sequence[SectionPa
             if match_final_energy:
                 try:
                     # Overwrite if found multiple times, the last one after SCF is desired
-                    results.final_energy_eh = float(match_final_energy.group(1))
-                    logger.debug(f"Found Potential Final Energy: {results.final_energy_eh}")
+                    results.final_energy = float(match_final_energy.group(1))
+                    logger.debug(f"Found Potential Final Energy: {results.final_energy}")
                 except (ValueError, IndexError) as e:
                     logger.error(f"Could not parse final energy value from line: {line.strip()}", exc_info=True)
                     raise ParsingError("Failed to parse final energy value.") from e
@@ -232,7 +232,7 @@ def _parse_qchem_generic_output(output: str, parser_registry: Sequence[SectionPa
     # --- Final Checks and Refinements --- #
 
     # Example Check: Ensure standard orientation geometry was parsed
-    if results.standard_orientation_geometry is None:
+    if results.final_geometry is None:
         logger.warning("Standard orientation geometry block was not found or parsed.")
         results.parsing_warnings.append("Standard orientation geometry not parsed.")
     if results.input_geometry is None:
@@ -248,7 +248,7 @@ def _parse_qchem_generic_output(output: str, parser_registry: Sequence[SectionPa
         results.termination_status = "ERROR"
 
     logger.info(
-        f"Q-Chem SP parsing finished. Status: {results.termination_status}, Final Energy: {results.final_energy_eh}"
+        f"Q-Chem SP parsing finished. Status: {results.termination_status}, Final Energy: {results.final_energy}"
     )
 
     # Convert mutable data to the final immutable structure

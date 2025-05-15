@@ -31,14 +31,14 @@ def plot_scf_convergence(
     colors = [blue_20.sample_n_hex(n), red_20.sample_n_hex(n), purple_20.sample_n_hex(n), coral_20.sample_n_hex(n), green_20.sample_n_hex(n), orange_20.sample_n_hex(n)]
     for i, history in enumerate(scf_iterations):
         iterations = [h.iteration for h in history]
-        energy_eh = [(h.energy_eh)  for h in history]
+        energy = [(h.energy)  for h in history]
         delta_e_eh = [h.delta_e_eh  for h in history]
         rmsdp = [h.rmsdp for h in history]
         maxdp = [h.maxdp for h in history]
         time_sec = [h.time_sec for h in history]
 
         trace_name_suffix = f" (Cycle {i + 1})" if len(scf_iterations) > 1 else ""
-        fig.add_trace(go.Scatter(x=iterations, y=energy_eh, mode="lines+markers", line=dict(color=colors[0][i]), name="Energy" + trace_name_suffix), row=1, col=1)
+        fig.add_trace(go.Scatter(x=iterations, y=energy, mode="lines+markers", line=dict(color=colors[0][i]), name="Energy" + trace_name_suffix), row=1, col=1)
         fig.add_trace(go.Scatter(x=iterations, y=delta_e_eh, mode="lines+markers", line=dict(color=colors[1][i]), name="Delta E" + trace_name_suffix), row=2, col=1)
         fig.add_trace(go.Scatter(x=iterations, y=rmsdp, mode="lines+markers", line=dict(color=colors[2][i]), name="RMSDP" + trace_name_suffix), row=3, col=1)
         fig.add_trace(go.Scatter(x=iterations, y=maxdp, mode="lines+markers", line=dict(color=colors[3][i]), name="MAXDP" + trace_name_suffix), row=4, col=1)

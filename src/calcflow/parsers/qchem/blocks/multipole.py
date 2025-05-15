@@ -1,12 +1,12 @@
 import re
 
 from calcflow.parsers.qchem.typing import (
-    DipoleMomentData,
-    HexadecapoleMoments,
+    DipoleMoment,
+    HexadecapoleMoment,
     LineIterator,
-    MultipoleData,
-    OctopoleMoments,
-    QuadrupoleMoments,
+    MultipoleResults,
+    OctopoleMoment,
+    QuadrupoleMoment,
     SectionParser,
     _MutableCalculationData,
 )
@@ -50,10 +50,10 @@ class MultipoleParser(SectionParser):
         logger.debug("Entering Multipole Moments section.")
 
         charge: float | None = None
-        dipole: DipoleMomentData | None = None
-        quadrupole: QuadrupoleMoments | None = None
-        octopole: OctopoleMoments | None = None
-        hexadecapole: HexadecapoleMoments | None = None
+        dipole: DipoleMoment | None = None
+        quadrupole: QuadrupoleMoment | None = None
+        octopole: OctopoleMoment | None = None
+        hexadecapole: HexadecapoleMoment | None = None
         current_line = next(iterator)  # to skip the header line
 
         try:
@@ -82,11 +82,11 @@ class MultipoleParser(SectionParser):
                     line_tot = next(iterator)
                     match_tot = TOTAL_DIPOLE_PAT.search(line_tot)
                     if match_xyz and match_tot:
-                        dipole = DipoleMomentData(
-                            x_debye=float(match_xyz.group(1)),
-                            y_debye=float(match_xyz.group(2)),
-                            z_debye=float(match_xyz.group(3)),
-                            total_debye=float(match_tot.group(1)),
+                        dipole = DipoleMoment(
+                            x=float(match_xyz.group(1)),
+                            y=float(match_xyz.group(2)),
+                            z=float(match_xyz.group(3)),
+                            magnitude=float(match_tot.group(1)),
                         )
                     else:
                         logger.warning("Could not parse dipole moment values.")
@@ -99,7 +99,7 @@ class MultipoleParser(SectionParser):
                     line2 = next(iterator)
                     match2 = QUAD_XZ_YZ_ZZ_PAT.search(line2)
                     if match1 and match2:
-                        quadrupole = QuadrupoleMoments(
+                        quadrupole = QuadrupoleMoment(
                             xx=float(match1.group(1)),
                             xy=float(match1.group(2)),
                             yy=float(match1.group(3)),
@@ -122,7 +122,7 @@ class MultipoleParser(SectionParser):
                     line4 = next(iterator)
                     match4 = OCTO_ZZZ_PAT.search(line4)
                     if match1 and match2 and match3 and match4:
-                        octopole = OctopoleMoments(
+                        octopole = OctopoleMoment(
                             xxx=float(match1.group(1)),
                             xxy=float(match1.group(2)),
                             xyy=float(match1.group(3)),
@@ -151,7 +151,7 @@ class MultipoleParser(SectionParser):
                     line5 = next(iterator)
                     match5 = HEXA_XZZZ_YZZZ_ZZZZ_PAT.search(line5)
                     if match1 and match2 and match3 and match4 and match5:
-                        hexadecapole = HexadecapoleMoments(
+                        hexadecapole = HexadecapoleMoment(
                             xxxx=float(match1.group(1)),
                             xxxy=float(match1.group(2)),
                             xxyy=float(match1.group(3)),
@@ -189,7 +189,7 @@ class MultipoleParser(SectionParser):
 
         # --- Store Results --- #
         if dipole or quadrupole or octopole or hexadecapole:
-            results.multipole = MultipoleData(
+            results.multipole = MultipoleResults(
                 charge_esu=charge,
                 dipole=dipole,
                 quadrupole=quadrupole,
@@ -199,7 +199,7 @@ class MultipoleParser(SectionParser):
             results.parsed_multipole = True
             logger.debug(f"Parsed Multipole Data: {results.multipole}")
         elif charge is not None:  # Handle case where only charge is printed (unlikely but possible)
-            results.multipole = MultipoleData(charge_esu=charge)
+            results.multipole = MultipoleResults(charge_esu=charge)
             results.parsed_multipole = True
             logger.debug(f"Parsed Multipole Data (charge only): {results.multipole}")
         else:

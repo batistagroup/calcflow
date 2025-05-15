@@ -5,7 +5,7 @@ from calcflow.exceptions import ParsingError
 from calcflow.parsers.qchem.typing import (
     LineIterator,
     Orbital,
-    OrbitalData,
+    OrbitalsSet,
     SectionParser,
     _MutableCalculationData,
 )
@@ -23,7 +23,7 @@ SECTION_SEPARATOR: Final[str] = "---"
 
 
 class OrbitalParser(SectionParser):
-    """Parses the molecular orbital energy section into OrbitalData."""
+    """Parses the molecular orbital energy section into OrbitalsSet."""
 
     def matches(self, line: str, data: _MutableCalculationData | None = None) -> bool:
         """Check if the line matches the orbital energy section header."""
@@ -41,7 +41,7 @@ class OrbitalParser(SectionParser):
 
         logger.debug("Parsing Orbital Energies section.")
 
-        # Initialize OrbitalData structure
+        # Initialize OrbitalsSet structure
         is_unrestricted = str(data.rem.get("unrestricted", "false")).lower() == "true"
         alpha_orbitals_list: list[Orbital] = []
         beta_orbitals_list: list[Orbital] | None = [] if is_unrestricted else None
@@ -155,7 +155,7 @@ class OrbitalParser(SectionParser):
                             continue
 
                         for energy in parsed_energies_on_line:
-                            orbital = Orbital(index=idx_counter, energy_eh=energy)
+                            orbital = Orbital(index=idx_counter, energy=energy)
                             target_list.append(orbital)
                             idx_counter += 1
 
@@ -181,7 +181,7 @@ class OrbitalParser(SectionParser):
             logger.warning("No orbital energies were parsed from the Orbital Energies section.")
         else:
             # Assign the parsed lists to the main data structure
-            data.orbitals = OrbitalData(
+            data.orbitals = OrbitalsSet(
                 alpha_orbitals=alpha_orbitals_list,
                 beta_orbitals=beta_orbitals_list,
                 # HOMO/LUMO indices can be calculated later if needed

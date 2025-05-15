@@ -1,4 +1,5 @@
 import re
+from typing import Literal, cast
 
 from calcflow.exceptions import ParsingError
 from calcflow.parsers.qchem.typing import (
@@ -135,10 +136,10 @@ def _parse_excited_states_data(
                     amp_val = float(match_amp.group(4))
                     transitions.append(
                         OrbitalTransition(
-                            from_orbital_type="D",
-                            from_orbital_index=from_idx,
-                            to_orbital_type="V",
-                            to_orbital_index=to_idx,
+                            from_label="D",
+                            from_idx=from_idx,
+                            to_label="V",
+                            to_idx=to_idx,
                             amplitude=amp_val,
                         )
                     )
@@ -161,7 +162,7 @@ def _parse_excited_states_data(
                     state_number=state_number,
                     excitation_energy_ev=exc_energy_ev,
                     total_energy_au=total_energy_au,
-                    multiplicity=multiplicity,
+                    multiplicity=cast(Literal["Singlet", "Triplet"], multiplicity),
                     trans_moment_x=trans_mom_x,
                     trans_moment_y=trans_mom_y,
                     trans_moment_z=trans_mom_z,

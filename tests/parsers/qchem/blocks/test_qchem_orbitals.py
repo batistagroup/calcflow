@@ -135,7 +135,7 @@ def test_parse_valid_restricted_orbitals(parser: OrbitalParser, initial_data: _M
     expected_energies = [-18.9359, -1.0353, -0.5339, -0.3304, -0.2436, 0.4341, 0.5498]
     for i, orb in enumerate(results.orbitals.alpha_orbitals):
         assert orb.index == i
-        assert orb.energy_eh == pytest.approx(expected_energies[i])
+        assert orb.energy == pytest.approx(expected_energies[i])
     assert not results.parsing_errors
     assert not results.parsing_warnings
     # Ensure iterator stopped correctly after the closing dashes.
@@ -163,13 +163,13 @@ def test_parse_valid_unrestricted_orbitals(
     expected_alpha_energies = [-10.0, -1.0, 1.0, 2.0]
     for i, orb in enumerate(results.orbitals.alpha_orbitals):
         assert orb.index == i
-        assert orb.energy_eh == pytest.approx(expected_alpha_energies[i])
+        assert orb.energy == pytest.approx(expected_alpha_energies[i])
 
     assert len(results.orbitals.beta_orbitals) == 4
     expected_beta_energies = [-11.0, -2.0, 0.5, 1.5]
     for i, orb in enumerate(results.orbitals.beta_orbitals):
         assert orb.index == i
-        assert orb.energy_eh == pytest.approx(expected_beta_energies[i])
+        assert orb.energy == pytest.approx(expected_beta_energies[i])
 
     assert not results.parsing_errors
     assert not results.parsing_warnings
@@ -191,7 +191,7 @@ def test_parse_unterminated_orbitals(parser: OrbitalParser, initial_data: _Mutab
     assert results.orbitals is not None
     assert results.orbitals.alpha_orbitals is not None
     assert len(results.orbitals.alpha_orbitals) == 1  # Only one energy parsed
-    assert results.orbitals.alpha_orbitals[0].energy_eh == pytest.approx(-10.0)
+    assert results.orbitals.alpha_orbitals[0].energy == pytest.approx(-10.0)
     assert results.orbitals.beta_orbitals is None
     assert not results.parsing_errors
     assert len(results.parsing_warnings) == 1

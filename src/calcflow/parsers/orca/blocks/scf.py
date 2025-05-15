@@ -4,9 +4,9 @@ from collections.abc import Iterator
 from calcflow.exceptions import ParsingError
 from calcflow.parsers.orca.typing import (
     LineIterator,
-    ScfData,
     ScfEnergyComponents,
     ScfIteration,
+    ScfResults,
     SectionParser,
     _MutableCalculationData,
 )
@@ -39,14 +39,14 @@ class ScfParser(SectionParser):
     def __init__(self) -> None:
         self.converged: bool = False
         self.n_iterations: int = 0
-        self.last_scf_energy_eh: float | None = None
+        self.last_scf_energy: float | None = None
         self.nuclear_rep_eh: float | None = None
         self.electronic_eh: float | None = None
         self.one_electron_eh: float | None = None
         self.two_electron_eh: float | None = None
         self.xc_eh: float | None = None
-        self.final_refined_energy_eh: float | None = None
-        self.iteration_history: list[ScfIteration] = []
+        self.final_refined_energy: float | None = None
+        self.iterations: list[ScfIteration] = []
         self.latest_iter_num: int = 0
         self._current_table_type: str | None = None
 
@@ -58,14 +58,14 @@ class ScfParser(SectionParser):
         """Resets parser state for a new parsing run."""
         self.converged = False
         self.n_iterations = 0
-        self.last_scf_energy_eh = None
+        self.last_scf_energy = None
         self.nuclear_rep_eh = None
         self.electronic_eh = None
         self.one_electron_eh = None
         self.two_electron_eh = None
         self.xc_eh = None
-        self.final_refined_energy_eh = None
-        self.iteration_history = []
+        self.final_refined_energy = None
+        self.iterations = []
         self.latest_iter_num = 0
         self._current_table_type = None
 
@@ -81,7 +81,7 @@ class ScfParser(SectionParser):
                 try:
                     iter_data = ScfIteration(
                         iteration=int(vals[0]),
-                        energy_eh=float(vals[1]),
+                        energy=float(vals[1]),
                         delta_e_eh=float(vals[2]),
                         rmsdp=float(vals[3]),
                         maxdp=float(vals[4]),
@@ -99,7 +99,7 @@ class ScfParser(SectionParser):
                 try:
                     iter_data = ScfIteration(
                         iteration=int(vals[0]),
-                        energy_eh=float(vals[1]),
+                        energy=float(vals[1]),
                         delta_e_eh=float(vals[2]),
                         rmsdp=float(vals[3]),
                         maxdp=float(vals[4]),
@@ -111,9 +111,9 @@ class ScfParser(SectionParser):
                     raise ParsingError(f"Could not parse SOSCF iteration: {line_stripped}") from e
 
         if iter_data:
-            self.iteration_history.append(iter_data)
+            self.iterations.append(iter_data)
             self.latest_iter_num = max(self.latest_iter_num, iter_data.iteration)
-            self.last_scf_energy_eh = iter_data.energy_eh
+            self.last_scf_energy = iter_data.energy
 
         return parsed_iter_line
 
@@ -256,7 +256,7 @@ class ScfParser(SectionParser):
         return iterator, last_line  # Return None as last line
 
     def _finalize_scf_data(self, results: _MutableCalculationData) -> None:
-        """Validates parsed data and creates the ScfData object."""
+        """Validates parsed data and creates the ScfResults object."""
         logger.debug("Finalizing SCF data...")
 
         # --- Final Checks ---
@@ -275,12 +275,12 @@ class ScfParser(SectionParser):
             )
             logger.warning(f"{warning_iteration_mismatch} Using history count.")
             self.n_iterations = self.latest_iter_num
-        elif self.n_iterations == 0 and not self.iteration_history:
+        elif self.n_iterations == 0 and not self.iterations:
             # This is logged implicitly if convergence is false and components missing later
             pass
 
         warning_history_missing = None
-        if self.converged and not self.iteration_history and self.n_iterations > 0:
+        if self.converged and not self.iterations and self.n_iterations > 0:
             warning_history_missing = (
                 f"SCF convergence line reported {self.n_iterations} cycles, but no iteration history parsed."
             )
@@ -295,7 +295,7 @@ class ScfParser(SectionParser):
         ]
 
         # Only raise error if SCF seemed to run but components are missing
-        if (self.converged or self.n_iterations > 0 or self.iteration_history) and not found_all_mandatory_components:
+        if (self.converged or self.n_iterations > 0 or self.iterations) and not found_all_mandatory_components:
             missing_comps = [
                 comp
                 for comp, val in zip(
@@ -314,7 +314,7 @@ class ScfParser(SectionParser):
             results.parsing_warnings.append(warning_components_missing_no_run)
             results.parsed_scf = True  # Mark as parsed/attempted
             logger.debug("SCF block parsing finished without finding components (likely SCF did not run).")
-            return  # Cannot create ScfData without components if SCF didn't run
+            return  # Cannot create ScfResults without components if SCF didn't run
 
         # Assertions are valid now because we expect components if we reached here
         assert self.nuclear_rep_eh is not None
@@ -323,7 +323,7 @@ class ScfParser(SectionParser):
         assert self.two_electron_eh is not None
 
         components = ScfEnergyComponents(
-            nuclear_repulsion_eh=self.nuclear_rep_eh,
+            nuclear_repulsion=self.nuclear_rep_eh,
             electronic_eh=self.electronic_eh,
             one_electron_eh=self.one_electron_eh,
             two_electron_eh=self.two_electron_eh,
@@ -335,11 +335,11 @@ class ScfParser(SectionParser):
         warning_fallback_energy: str | None = None
         warning_refined_missing: str | None = None
 
-        if self.final_refined_energy_eh is not None:
-            final_scf_energy = self.final_refined_energy_eh
+        if self.final_refined_energy is not None:
+            final_scf_energy = self.final_refined_energy
             logger.debug(f"Using final refined SCF energy: {final_scf_energy:.8f} Eh")
-        elif self.iteration_history:
-            final_scf_energy = self.iteration_history[-1].energy_eh
+        elif self.iterations:
+            final_scf_energy = self.iterations[-1].energy
             # Warn if converged but refined energy was expected and not found
             if self.converged:
                 warning_refined_missing = (
@@ -347,8 +347,8 @@ class ScfParser(SectionParser):
                     f"Using last iteration energy: {final_scf_energy:.8f} Eh"
                 )
                 logger.warning(warning_refined_missing)
-        elif self.last_scf_energy_eh is not None:
-            final_scf_energy = self.last_scf_energy_eh
+        elif self.last_scf_energy is not None:
+            final_scf_energy = self.last_scf_energy
             warning_fallback_energy = (
                 f"Using last parsed SCF energy {final_scf_energy:.8f} Eh "
                 f"as iteration history is missing/incomplete{' and refined energy line missing' if self.converged else ''}."
@@ -363,20 +363,20 @@ class ScfParser(SectionParser):
                     f"Using Electronic + Nuclear Repulsion: {final_scf_energy:.8f} Eh."
                 )
                 logger.warning(warning_fallback_energy)
-                # Update last_scf_energy_eh if it was None, might still be useful if fallback is needed elsewhere
-                if self.last_scf_energy_eh is None:
-                    self.last_scf_energy_eh = final_scf_energy
+                # Update last_scf_energy if it was None, might still be useful if fallback is needed elsewhere
+                if self.last_scf_energy is None:
+                    self.last_scf_energy = final_scf_energy
             else:
                 # Not converged, no history, no refinement, components found (implies failure after component printout?)
                 raise ParsingError("Failed to determine final SCF energy (calculation state unclear).")
 
         # --- Create Result Object ---
-        scf_result = ScfData(
+        scf_result = ScfResults(
             converged=self.converged,
-            energy_eh=final_scf_energy,
+            energy=final_scf_energy,
             components=components,
             n_iterations=self.n_iterations,
-            iteration_history=tuple(self.iteration_history),
+            iterations=tuple(self.iterations),
         )
         results.scf = scf_result
         results.parsed_scf = True
@@ -431,8 +431,8 @@ class ScfParser(SectionParser):
                 final_ref_match = SCF_FINAL_REFINED_ENERGY_PAT.search(current_processing_line)
                 if final_ref_match:
                     try:
-                        self.final_refined_energy_eh = float(final_ref_match.group(1))
-                        logger.debug(f"Found final refined energy: {self.final_refined_energy_eh:.8f} Eh")
+                        self.final_refined_energy = float(final_ref_match.group(1))
+                        logger.debug(f"Found final refined energy: {self.final_refined_energy:.8f} Eh")
                     except (ValueError, IndexError):
                         logger.warning(
                             f"Could not parse float from final refined energy line: {current_processing_line.strip()}"
@@ -463,7 +463,7 @@ class ScfParser(SectionParser):
                 logger.warning(warning_components_section_missing)
                 # Append this warning only if SCF seemed to run (converged or had iterations)
                 # Otherwise, the lack of components is expected.
-                if self.converged or self.iteration_history:
+                if self.converged or self.iterations:
                     results.parsing_warnings.append(warning_components_section_missing)
 
             # --- Stage 3: Finalize and Create Data Object ---

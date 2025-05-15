@@ -5,7 +5,7 @@ from collections.abc import Sequence
 
 from calcflow.parsers.qchem.typing import (
     Atom,
-    DipoleMomentData,
+    DipoleMoment,
     ExcitedStateAtomPopulation,
     ExcitedStateMulliken,
     ExcitedStateMultipole,
@@ -44,7 +44,7 @@ MULTIPOLE_DM_HEADER_PAT = re.compile(r"^\s*Multipole moment analysis of the dens
 MOLECULAR_CHARGE_PAT = re.compile(r"^\s+Molecular charge:\s+(-?\d+\.\d+)")
 NUM_ELECTRONS_MULTIPOLE_PAT = re.compile(
     r"^\s+Number of electrons:\s+(-?\d+\.\d+)"
-)  # Can be distinct from NOs num_electrons
+)  # Can be distinct from NOs n_electrons
 CENTER_ELECTRONIC_CHARGE_PAT = re.compile(
     r"^\s+Center of electronic charge \[Ang\]:\s*\[\s*(-?\d+\.\d+),\s*(-?\d+\.\d+),\s*(-?\d+\.\d+)\]"
 )
@@ -152,10 +152,10 @@ class GroundStateReferenceParser(SectionParser):
 
         # Store results if any component was parsed
         if gs_no_data or gs_mulliken_data or gs_multipole_data:
-            results.ground_state_reference_analysis = GroundStateReferenceAnalysis(
+            results.gs_reference_analysis = GroundStateReferenceAnalysis(
                 no_data=gs_no_data,
-                mulliken_analysis=gs_mulliken_data,
-                multipole_analysis=gs_multipole_data,
+                mulliken=gs_mulliken_data,
+                multipole=gs_multipole_data,
             )
             logger.info("Stored Ground State Reference analysis data.")
         else:
@@ -347,12 +347,12 @@ class GroundStateReferenceParser(SectionParser):
         except StopIteration:  # Outer loop's StopIteration
             pass
 
-        final_dipole: DipoleMomentData | None = None
+        final_dipole: DipoleMoment | None = None
         if dip_xyz and dip_tot is not None:
-            final_dipole = DipoleMomentData(dip_xyz[0], dip_xyz[1], dip_xyz[2], dip_tot)
+            final_dipole = DipoleMoment(dip_xyz[0], dip_xyz[1], dip_xyz[2], dip_tot)
         elif dip_xyz:  # Fallback if total dipole line was missing but components were found
             calculated_total = (dip_xyz[0] ** 2 + dip_xyz[1] ** 2 + dip_xyz[2] ** 2) ** 0.5
-            final_dipole = DipoleMomentData(dip_xyz[0], dip_xyz[1], dip_xyz[2], calculated_total)
+            final_dipole = DipoleMoment(dip_xyz[0], dip_xyz[1], dip_xyz[2], calculated_total)
             logger.debug(f"Calculated total dipole {calculated_total:.4f} from components for multipole section.")
 
         if not (
@@ -383,6 +383,6 @@ class GroundStateReferenceParser(SectionParser):
             return None
 
         logger.debug(
-            f"Successfully parsed multipole data: Dipole total = {final_dipole.total_debye if final_dipole else None}, RMS_XYZ = {rms_xyz}"
+            f"Successfully parsed multipole data: Dipole total = {final_dipole.magnitude if final_dipole else None}, RMS_XYZ = {rms_xyz}"
         )
         return ExcitedStateMultipole(mol_chg, num_e, cec_xyz, cnc_xyz, final_dipole, rms_xyz)
