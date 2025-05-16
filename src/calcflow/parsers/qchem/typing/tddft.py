@@ -251,11 +251,13 @@ class ExcitedStateDetailedAnalysis:
     """Comprehensive analysis for a single excited state."""
 
     state_number: int
-    multiplicity: str  # e.g., "Singlet"
+    multiplicity: str  # e.g., "Singlet", "Excited State"
     no_data: ExcitedStateNOData | None = None
     mulliken: ExcitedStateMulliken | None = None
     multipole: ExcitedStateMultipole | None = None
     exciton_difference_dm_analysis: ExcitedStateExcitonDifferenceDM | None = None
+    exciton_difference_dm_analysis_alpha: ExcitedStateExcitonDifferenceDM | None = None
+    exciton_difference_dm_analysis_beta: ExcitedStateExcitonDifferenceDM | None = None
 
 
 @dataclass(frozen=True)

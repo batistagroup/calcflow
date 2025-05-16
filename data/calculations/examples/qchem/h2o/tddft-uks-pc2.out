@@ -504,29 +504,29 @@ $end
     
     Exciton analysis of the difference density matrix
     Total:
-      <r_h> [Ang]:                  [  2.311708,   1.559437,  -0.071560]
-      <r_e> [Ang]:                  [  1.975434,   1.492090,  -0.652796]
-      |<r_e - r_h>| [Ang]:            0.674870
+      <r_h> [Ang]:                  [  2.311701,   1.559437,  -0.071560]
+      <r_e> [Ang]:                  [  1.975431,   1.492090,  -0.652796]
+      |<r_e - r_h>| [Ang]:            0.674871
       Hole size [Ang]:                0.827901
-        Cartesian components [Ang]: [  0.389995,   0.616872,   0.390887]
-      Electron size [Ang]:            1.861783
-        Cartesian components [Ang]: [  1.192652,   0.979373,   1.041463]
+        Cartesian components [Ang]: [  0.389995,   0.616871,   0.390887]
+      Electron size [Ang]:            1.861781
+        Cartesian components [Ang]: [  1.192652,   0.979371,   1.041463]
     
     Alpha spin:
-      <r_h> [Ang]:                  [  2.311708,   1.559437,  -0.071560]
-      <r_e> [Ang]:                  [  1.975434,   1.492090,  -0.652796]
-      |<r_e - r_h>| [Ang]:            0.674870
-      Hole size [Ang]:                0.827901
+      <r_h> [Ang]:                  [  2.311702,   1.559437,  -0.071560]
+      <r_e> [Ang]:                  [  1.975432,   1.492090,  -0.652796]
+      |<r_e - r_h>| [Ang]:            0.674872
+      Hole size [Ang]:                0.827902
         Cartesian components [Ang]: [  0.389995,   0.616872,   0.390887]
-      Electron size [Ang]:            1.861783
-        Cartesian components [Ang]: [  1.192652,   0.979373,   1.041463]
+      Electron size [Ang]:            1.861782
+        Cartesian components [Ang]: [  1.192652,   0.979372,   1.041463]
     
     Beta spin:
-      <r_h> [Ang]:                  [  2.311708,   1.559437,  -0.071560]
-      <r_e> [Ang]:                  [  1.975434,   1.492090,  -0.652796]
-      |<r_e - r_h>| [Ang]:            0.674870
-      Hole size [Ang]:                0.827901
-        Cartesian components [Ang]: [  0.389995,   0.616872,   0.390887]
+      <r_h> [Ang]:                  [  2.311703,   1.559437,  -0.071560]
+      <r_e> [Ang]:                  [  1.975433,   1.492090,  -0.652796]
+      |<r_e - r_h>| [Ang]:            0.674873
+      Hole size [Ang]:                0.827903
+        Cartesian components [Ang]: [  0.389995,   0.616873,   0.390887]
       Electron size [Ang]:            1.861783
         Cartesian components [Ang]: [  1.192652,   0.979373,   1.041463]
 

@@ -25,7 +25,7 @@ class UnrelaxedExcitedStatePropertiesParser:
 
     SECTION_START_TOKEN = "Analysis of Unrelaxed Density Matrices"
     SECTION_END_TOKEN = "Transition Density Matrix Analysis"
-    STATE_HEADER_PATTERN = re.compile(r"^\s*(Singlet|Triplet)\s+(\d+)\s*:")
+    STATE_HEADER_PATTERN = re.compile(r"^\s*(Singlet|Triplet|Excited State)\s+(\d+)\s*:")
 
     def matches(self, line: str, current_data: _MutableCalculationData) -> bool:
         """Checks if the line marks the beginning of the unrelaxed DM analysis section."""
@@ -115,12 +115,32 @@ class UnrelaxedExcitedStatePropertiesParser:
     ) -> ExcitedStateMulliken | None:
         """Parses Mulliken population analysis for an excited state."""
         populations: list[ExcitedStateAtomPopulation] = []
-        # Skip header lines "Atom Charge (e) h+ e- Del q" and "----"
+        is_uks_format = False
+
+        # Read and analyze the header line to determine format (RKS vs UKS)
         try:
-            _ = next(iterator)  # Header
-            _ = next(iterator)  # Separator
+            header_line = (results.buffered_line or next(iterator)).strip()
+            results.buffered_line = None
+            if "Spin (e)" in header_line and "h+ (alpha)" in header_line: # UKS specific columns
+                is_uks_format = True
+                logger.debug("Detected UKS Mulliken format.")
+            elif "Charge (e)" in header_line and "Del q" in header_line: # RKS specific column
+                is_uks_format = False
+                logger.debug("Detected RKS Mulliken format.")
+            else:
+                logger.warning(f"Unrecognized Mulliken header format: '{header_line}'. Assuming RKS and attempting to proceed.")
+                # Potentially buffer this line if it's not a header?
+                # For now, assume it was a header and we proceed to separator
+
+            separator_line = (results.buffered_line or next(iterator)).strip()
+            results.buffered_line = None
+            if not separator_line.startswith("---"):
+                logger.warning(f"Expected Mulliken separator line, got: '{separator_line}'")
+                results.buffered_line = separator_line # Put back if not separator
+                return None # Cannot proceed reliably
+
         except StopIteration:
-            logger.warning("EOF unexpected while skipping Mulliken headers.")
+            logger.warning("EOF unexpected while reading Mulliken headers.")
             return None
 
         found_data = False
@@ -162,22 +182,46 @@ class UnrelaxedExcitedStatePropertiesParser:
 
             parts = stripped_line.split()
             try:
-                if len(parts) < 6:
-                    logger.warning(f"Mulliken population line has too few parts to parse: '{stripped_line}'")
-                    results.buffered_line = line
-                    break  # Stop parsing this Mulliken table
-
                 atom_idx = int(parts[0]) - 1  # QChem is 1-indexed
                 atom_symbol = parts[1]
+                charge_e = float(parts[2])
+                spin_e: float | None = None
+                hole_charge: float | None = None
+                electron_charge: float | None = None
+                delta_charge: float | None = None
+
+                if is_uks_format:
+                    if len(parts) < 8:
+                        logger.warning(f"UKS Mulliken population line has too few parts: '{stripped_line}'")
+                        results.buffered_line = line # Buffer and stop for this table
+                        break
+                    spin_e = float(parts[3])
+                    h_alpha = float(parts[4])
+                    h_beta = float(parts[5])
+                    e_alpha = float(parts[6])
+                    e_beta = float(parts[7])
+                    hole_charge = h_alpha + h_beta
+                    electron_charge = e_alpha + e_beta
+                    # For UKS, delta_charge is typically not printed, so we calculate it
+                    delta_charge = electron_charge - hole_charge 
+                else: # RKS format
+                    if len(parts) < 6:
+                        logger.warning(f"RKS Mulliken population line has too few parts: '{stripped_line}'")
+                        results.buffered_line = line # Buffer and stop for this table
+                        break
+                    hole_charge = float(parts[3])
+                    electron_charge = float(parts[4])
+                    delta_charge = float(parts[5])
 
                 populations.append(
                     ExcitedStateAtomPopulation(
                         atom_index=atom_idx,
                         symbol=atom_symbol,
-                        charge_e=float(parts[2]),
-                        hole_charge=float(parts[3]),
-                        electron_charge=float(parts[4]),
-                        delta_charge=float(parts[5]),
+                        charge_e=charge_e,
+                        hole_charge=hole_charge,
+                        electron_charge=electron_charge,
+                        delta_charge=delta_charge,
+                        spin_e=spin_e # Will be None for RKS
                     )
                 )
                 found_data = True
@@ -337,13 +381,14 @@ class UnrelaxedExcitedStatePropertiesParser:
             stripped_line = line.strip()
 
             if not stripped_line:
-                if found_data:
-                    break
-                else:
-                    continue
+                logger.debug(f"Skipping blank line in exciton analysis current block: '{line.rstrip()}'")
+                continue
 
-            # End conditions: next state, or end of main section
-            if self.STATE_HEADER_PATTERN.match(stripped_line) or self.SECTION_END_TOKEN in stripped_line:
+            # End conditions: next state, or end of main section, or next spin component
+            if self.STATE_HEADER_PATTERN.match(stripped_line) or \
+               self.SECTION_END_TOKEN in stripped_line or \
+               stripped_line == "Alpha spin:" or \
+               stripped_line == "Beta spin:":
                 results.buffered_line = line
                 break
 
@@ -428,6 +473,41 @@ class UnrelaxedExcitedStatePropertiesParser:
             electron_size_ang_comps=elec_size_comps,  # Using components
         )
 
+    def _skip_current_sub_block(self, iterator: LineIterator, results: _MutableCalculationData) -> None:
+        """Skips lines until a known major delimiter or next state is found."""
+        logger.debug("Skipping current sub-block.")
+        while True:
+            try:
+                line = results.buffered_line or next(iterator)
+                results.buffered_line = None
+            except StopIteration:
+                logger.debug("EOF reached while skipping sub-block.")
+                break
+            
+            stripped_line = line.strip()
+
+            # Check for main section end or new state header first
+            if self.SECTION_END_TOKEN in stripped_line or self.STATE_HEADER_PATTERN.match(stripped_line):
+                results.buffered_line = line # Put back the delimiter
+                logger.debug(f"Skipped until main delimiter: '{stripped_line[:50]}...'")
+                break
+
+            # Check for known next sub-section headers that signal end of current unknown/skipped block
+            # These are the headers that the main parse() loop explicitly looks for.
+            known_next_headers = [
+                "NOs", "NOs (alpha)", "NOs (beta)", "NOs (spin-traced)",
+                "Mulliken Population Analysis (State/Difference DM)",
+                "Multipole moment analysis of the density matrix",
+                "Exciton analysis of the difference density matrix"
+            ]
+            if any(header == stripped_line for header in known_next_headers):
+                results.buffered_line = line # Put back the header
+                logger.debug(f"Skipped until next known sub-header: '{stripped_line}'")
+                break
+            
+            # If not a delimiter, continue consuming
+            logger.debug(f"Skipping line: '{stripped_line[:50]}...'")
+
     def parse(self, iterator: LineIterator, current_line: str, results: _MutableCalculationData) -> None:
         """
         Parses the entire "Analysis of Unrelaxed Density Matrices" section.
@@ -480,26 +560,36 @@ class UnrelaxedExcitedStatePropertiesParser:
                     results.excited_state_detailed_analyses_list.append(active_state_props)
                     logger.debug(f"Stored state {active_state_props.state_number}. New state found.")
 
-                multiplicity = state_match.group(1)
+                matched_multiplicity_or_type = state_match.group(1) # "Singlet", "Triplet", or "Excited State"
                 state_number = int(state_match.group(2))
                 active_state_props = ExcitedStateDetailedAnalysis(
                     state_number=state_number,
-                    multiplicity=multiplicity,
+                    multiplicity=matched_multiplicity_or_type, # Use the matched group directly
                     no_data=None,
                     mulliken=None,
                     multipole=None,
                     exciton_difference_dm_analysis=None,
                 )
-                logger.debug(f"Parsing new state: {multiplicity} {state_number}")
+                logger.debug(f"Parsing new state: {matched_multiplicity_or_type} {state_number}")
                 continue  # Continue to parse this state's content
 
             if active_state_props:
                 # We are inside a state's block, look for sub-section headers
                 # Sub-parsers will consume their lines and handle their own `results.buffered_line`
-                if stripped_line == "NOs":
-                    logger.debug(f"Parsing NOs for state {active_state_props.state_number}")
-                    no_data = self._parse_nos_data(iterator, results)
+                
+                # Determine if current state is likely UKS based on its header string
+                is_uks_like_state = "Excited State" in active_state_props.multiplicity
+
+                if stripped_line == "NOs (spin-traced)" or \
+                   (stripped_line == "NOs" and not is_uks_like_state):
+                    logger.debug(f"Parsing target NOs data for state {active_state_props.state_number}, header: '{stripped_line}'")
+                    no_data = self._parse_nos_data(iterator, results) # Assumes header line is consumed by main loop
                     active_state_props = replace(active_state_props, no_data=no_data)
+                    continue
+                elif stripped_line in ["NOs (alpha)", "NOs (beta)"] or \
+                     (stripped_line == "NOs" and is_uks_like_state): # Skip "NOs" if in UKS state and not (spin-traced)
+                    logger.debug(f"Skipping non-target NOs block: '{stripped_line}' for state {active_state_props.state_number}")
+                    self._skip_current_sub_block(iterator, results)
                     continue
                 elif stripped_line == "Mulliken Population Analysis (State/Difference DM)":
                     logger.debug(f"Parsing Mulliken for state {active_state_props.state_number}")
@@ -513,10 +603,55 @@ class UnrelaxedExcitedStatePropertiesParser:
                     continue
                 elif stripped_line == "Exciton analysis of the difference density matrix":
                     logger.debug(f"Parsing Exciton for state {active_state_props.state_number}")
-                    exciton_data = self._parse_exciton_analysis(iterator, results)
-                    active_state_props = replace(active_state_props, exciton_difference_dm_analysis=exciton_data)
-                    # Typically, after exciton data, the state block is complete.
-                    # The main loop will then look for a new state_header or section_end.
+                    # This header line is consumed. Peek for "Total:"
+                    total_exciton_data: ExcitedStateExcitonDifferenceDM | None = None
+                    alpha_exciton_data: ExcitedStateExcitonDifferenceDM | None = None
+                    beta_exciton_data: ExcitedStateExcitonDifferenceDM | None = None
+
+                    try:
+                        next_line_peek = results.buffered_line or next(iterator)
+                        results.buffered_line = next_line_peek # Put it back immediately
+                    except StopIteration:
+                        logger.warning("EOF after 'Exciton analysis' header.")
+                        # Store whatever we have for active_state_props and break or continue based on broader logic
+                        results.parsed_unrelaxed_excited_state_properties = True # Mark section as processed
+                        # The main loop will handle appending active_state_props if any, then break
+                        break 
+
+                    if next_line_peek.strip() == "Total:":
+                        results.buffered_line = None # Consume "Total:" line that was peeked
+                        logger.debug("UKS Exciton: Parsing 'Total:' block")
+                        total_exciton_data = self._parse_exciton_analysis(iterator, results)
+                        
+                        # Check for Alpha spin block
+                        if results.buffered_line and results.buffered_line.strip() == "Alpha spin:":
+                            results.buffered_line = None # Consume "Alpha spin:" header
+                            logger.debug("UKS Exciton: Parsing 'Alpha spin:' block")
+                            alpha_exciton_data = self._parse_exciton_analysis(iterator, results)
+                        elif results.buffered_line:
+                            logger.debug(f"UKS Exciton: After Total, found '{results.buffered_line.strip()}' instead of Alpha spin. No alpha data.")
+                        else: # EOF or unexpected
+                             logger.debug("UKS Exciton: After Total, no more lines or unexpected buffer. No alpha/beta data.")
+
+                        # Check for Beta spin block
+                        if results.buffered_line and results.buffered_line.strip() == "Beta spin:":
+                            results.buffered_line = None # Consume "Beta spin:" header
+                            logger.debug("UKS Exciton: Parsing 'Beta spin:' block")
+                            beta_exciton_data = self._parse_exciton_analysis(iterator, results)
+                        elif results.buffered_line:
+                            logger.debug(f"UKS Exciton: After Alpha/Total, found '{results.buffered_line.strip()}' instead of Beta spin. No beta data.")
+                        else: # EOF or unexpected
+                            logger.debug("UKS Exciton: After Alpha/Total, no more lines or unexpected buffer. No beta data.")
+                    else: # RKS format or unexpected content after main Exciton header
+                        logger.debug("RKS-like Exciton: Parsing single block")
+                        total_exciton_data = self._parse_exciton_analysis(iterator, results)
+                    
+                    active_state_props = replace(
+                        active_state_props, 
+                        exciton_difference_dm_analysis=total_exciton_data,
+                        exciton_difference_dm_analysis_alpha=alpha_exciton_data,
+                        exciton_difference_dm_analysis_beta=beta_exciton_data
+                    )
                     continue
 
             if not stripped_line or stripped_line.startswith("----"):

@@ -81,5 +81,6 @@ if run["parse"]:
         # print(tddft_pc2.gs_reference_analysis)
 
         print(tddft_pc2.tddft.excited_state_analyses)
+        breakpoint()
 
         # print(tddft_pc2.tddft.tddft_states)
