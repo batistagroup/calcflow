@@ -262,7 +262,13 @@ class TransitionDensityMatrixParser(SectionParser):
                 try:
                     atom_index = int(parts[0]) - 1
                     symbol = parts[1]
-                    transition_charge_e = safe_float(parts[2])
+                    transition_charge_e_val = safe_float(parts[2])
+                    if transition_charge_e_val is None:
+                        logger.warning(
+                            f"Skipping Mulliken TDM atom line due to unparsable transition_charge_e: '{current_parse_line.strip()}'"
+                        )
+                        # The main loop will advance current_parse_line via next(iterator)
+                        continue  # Skip this atom entry
 
                     if is_uks_format:
                         if len(parts) >= 7:
@@ -270,7 +276,7 @@ class TransitionDensityMatrixParser(SectionParser):
                                 TransitionDMAtomPopulation(
                                     atom_index=atom_index,
                                     symbol=symbol,
-                                    transition_charge_e=transition_charge_e,
+                                    transition_charge_e=transition_charge_e_val,  # Now a confirmed float
                                     hole_charge_alpha_uks=safe_float(parts[3]),
                                     hole_charge_beta_uks=safe_float(parts[4]),
                                     electron_charge_alpha_uks=safe_float(parts[5]),
@@ -285,7 +291,7 @@ class TransitionDensityMatrixParser(SectionParser):
                                 TransitionDMAtomPopulation(
                                     atom_index=atom_index,
                                     symbol=symbol,
-                                    transition_charge_e=transition_charge_e,
+                                    transition_charge_e=transition_charge_e_val,  # Now a confirmed float
                                     hole_charge_rks=safe_float(parts[3]),
                                     electron_charge_rks=safe_float(parts[4]),
                                     delta_charge_rks=safe_float(parts[5]) if len(parts) > 5 else None,
@@ -545,23 +551,26 @@ class TransitionDensityMatrixParser(SectionParser):
             return None, None
 
         if line_after_main_header is None:  # EOF after main header and blanks
+            logger.debug("Exciton section seems empty after header.")  # Added for clarity
             return None, None
 
         # This is the first significant line for exciton analysis.
         # It could be "Total:" (for UKS), or a data line like "Trans. dipole moment..." (for RKS).
-        current_line_for_block_parsing = line_after_main_header
+        # Explicitly type as str | None, even though line_after_main_header is narrowed to str here.
+        current_line_for_block_parsing: str | None = line_after_main_header
 
         # Try to parse "Total:" block (UKS) or the entire block (RKS)
-        if current_line_for_block_parsing.strip().startswith("Total:"):
+        if current_line_for_block_parsing is not None and current_line_for_block_parsing.strip().startswith("Total:"):
             logger.debug("Parsing 'Total:' exciton block (UKS assumption).")
             total_props, current_line_for_block_parsing = self._parse_single_exciton_block(
                 iterator, current_line_for_block_parsing, results
             )
-        elif not (
+        elif current_line_for_block_parsing is not None and not (
             current_line_for_block_parsing.strip().startswith("Alpha spin:")
             or current_line_for_block_parsing.strip().startswith("Beta spin:")
         ):
-            # If it's not starting with "Alpha" or "Beta" either, assume it's an RKS block (or UKS "Total" without the header, though less likely)
+            # If it's not starting with "Alpha" or "Beta" either, assume it's an RKS block
+            # (or UKS "Total" without the header, though less likely)
             logger.debug("Parsing as RKS exciton block or UKS 'Total' block (no explicit 'Total:' header).")
             total_props, current_line_for_block_parsing = self._parse_single_exciton_block(
                 iterator, current_line_for_block_parsing, results
@@ -654,34 +663,35 @@ class TransitionDensityMatrixParser(SectionParser):
                 if s_val is not None:
                     data[s_key] = s_val
 
-                next_line_for_vector: str | None = None
                 try:
-                    next_line_for_vector = next(iterator)
-                    if next_line_for_vector is None:
-                        return True, None
+                    # next() on Iterator[str] returns str or raises StopIteration.
+                    line_for_vector_components: str = next(iterator)
 
-                    nl_s = next_line_for_vector.strip()
-                    # Allow optional "Cartesian components [Unit]:" prefix for the vector line
+                    # line_for_vector_components is now guaranteed to be str here.
+                    nl_s: str = line_for_vector_components.strip()
                     prefix_match = re.match(r"^Cartesian components\s*\[[^\]]+\]:\s*", nl_s)
-                    vector_parse_target = nl_s[prefix_match.end() :].strip() if prefix_match else nl_s
+                    vector_parse_target: str = nl_s[prefix_match.end() :].strip() if prefix_match else nl_s
 
                     triplet = extract_float_triplet(vector_parse_target)
                     if triplet:
                         data[v_key] = triplet
                     else:
-                        logger.warning(f"Failed to parse vector '{v_key}' from line '{nl_s}'")
+                        logger.warning(
+                            f"Failed to parse vector '{v_key}' from line '{line_for_vector_components}' (target: '{vector_parse_target}')"
+                        )
 
+                    # Try to get the line *after* the vector line for the caller.
                     try:
+                        # This next(iterator) either returns str or raises StopIteration
                         return True, next(iterator)
                     except StopIteration:
-                        return True, None
-                except StopIteration:
-                    return True, None  # For next(iterator) to get next_line_for_vector
-                except Exception as e:
-                    logger.error(
-                        f"Error processing vector for {s_key} on line '{next_line_for_vector}': {e}", exc_info=True
-                    )
-                    return True, next_line_for_vector
+                        return True, None  # EOF after vector line, correctly typed for return
+
+                except (
+                    StopIteration
+                ):  # This catches StopIteration for `next(iterator)` fetching `line_for_vector_components`
+                    logger.warning(f"EOF after scalar '{s_key}', expected vector components for '{v_key}'.")
+                    return True, None  # Processed the scalar line, hit EOF before vector components.
 
         for pattern_str, key in scalar_patterns.items():
             match = re.search(pattern_str, l_s)
@@ -691,9 +701,10 @@ class TransitionDensityMatrixParser(SectionParser):
                 if val is not None:
                     data[key] = val
                 try:
+                    # next(iterator) returns str here, or StopIteration is caught
                     return True, next(iterator)
                 except StopIteration:
-                    return True, None
+                    return True, None  # Correctly typed for return
 
         for pattern_str, key in vector_same_line_patterns.items():
             match = re.search(pattern_str, l_s)
@@ -705,8 +716,9 @@ class TransitionDensityMatrixParser(SectionParser):
                 else:
                     logger.warning(f"Could not parse same-line vector '{key}' from '{val_part}'")
                 try:
+                    # next(iterator) returns str here, or StopIteration is caught
                     return True, next(iterator)
                 except StopIteration:
-                    return True, None
+                    return True, None  # Correctly typed for return
 
         return False, current_line
