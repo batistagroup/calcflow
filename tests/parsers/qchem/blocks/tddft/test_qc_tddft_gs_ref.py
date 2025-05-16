@@ -14,7 +14,7 @@ def test_gs_ref_no_data(parsed_tddft_pc2_data):
     """Test NOs data in GroundStateReferenceAnalysis."""
     gs_ref = parsed_tddft_pc2_data.gs_reference_analysis
     assert gs_ref is not None
-    no_data = gs_ref.no_data
+    no_data = gs_ref.no_data_rks_or_spin_traced
     assert no_data is not None
     # Based on tddft-rks-pc2.out snippet
     # Occupation of frontier NOs: 0.0000   2.0000 -> Not stored in ExcitedStateNOData based on current fields
@@ -22,7 +22,12 @@ def test_gs_ref_no_data(parsed_tddft_pc2_data):
     assert no_data.n_electrons == approx(10.0)
     assert no_data.n_unpaired == approx(-0.0)
     assert no_data.n_unpaired_nl == approx(0.0)
-    assert no_data.frontier_occupations is None  # Current typing does not parse/store this from GS NOs
+
+
+    assert no_data.frontier_occupations is not None
+    assert len(no_data.frontier_occupations) == 2
+    assert no_data.frontier_occupations[0] == approx(0.0)
+    assert no_data.frontier_occupations[1] == approx(2.0)
     assert no_data.pr_no is None
 
 

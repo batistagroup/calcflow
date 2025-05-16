@@ -83,6 +83,7 @@ class ExcitedStateAtomPopulation:
     hole_charge: float | None = None  # Contribution from hole (h+)
     electron_charge: float | None = None  # Contribution from electron (e-)
     delta_charge: float | None = None  # Change in charge (Del q)
+    spin_e: float | None = None  # Spin population on the atom
 
 
 @dataclass(frozen=True)
@@ -210,7 +211,9 @@ class ExcitedStateDetailedAnalysis:
 class GroundStateReferenceAnalysis:
     """Analysis data for the ground state reference within TDDFT output."""
 
-    no_data: ExcitedStateNOData | None = None
+    no_data_rks_or_spin_traced: ExcitedStateNOData | None = None
+    no_data_alpha: ExcitedStateNOData | None = None
+    no_data_beta: ExcitedStateNOData | None = None
     mulliken: ExcitedStateMulliken | None = None
     multipole: ExcitedStateMultipole | None = None
 
