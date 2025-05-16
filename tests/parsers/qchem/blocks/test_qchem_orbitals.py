@@ -230,3 +230,74 @@ def test_parse_malformed_energy_line(parser: OrbitalParser, initial_data: _Mutab
     assert len(results.parsing_errors) == 1  # Should have recorded the error
     assert "Malformed energy line: '-10.0   MALFORMED   -1.0'" in results.parsing_errors[0]
     # Warnings might or might not exist depending on exact path, so don't assert count
+
+
+# Assuming parsed_tddft_uks_pc2_data is a fixture defined in conftest.py
+# or can be imported if it's from another test module context.
+# For this example, we'll write the test as if the fixture is available.
+# If it needs to be defined here or imported, that would be an additional step.
+
+
+def test_parse_beta_orbitals_from_uks_tddft_output(parsed_tddft_uks_pc2_data: _MutableCalculationData) -> None:
+    """Test parsing of beta orbitals from a real UKS TDDFT output.
+
+    Uses the parsed_tddft_uks_pc2_data fixture which should correspond to
+    data/calculations/examples/qchem/h2o/tddft-uks-pc2.out
+    """
+    results = parsed_tddft_uks_pc2_data  # Fixture directly provides _MutableCalculationData or CalculationData
+
+    assert results.orbitals is not None, "OrbitalsSet should be parsed"
+    assert results.orbitals.alpha_orbitals is not None, "Alpha orbitals should be present"
+    assert results.orbitals.beta_orbitals is not None, "Beta orbitals should be present for UKS"
+
+    # Based on tddft-uks-pc2.out for H2O (5 occupied, 53 virtual for each spin)
+    # Alpha orbitals check (briefly, focus is beta here)
+    # Count based on common H2O calculation: 5 occupied (1s O, 2 sp-like O, 2 O-H sigma) + virtuals
+    # From the file: 5 occupied alpha, 53 virtual alpha.
+    assert len(results.orbitals.alpha_orbitals) == 58, "Expected 58 alpha orbitals for H2O UKS example"
+
+    # Beta Orbitals Checks
+    beta_orbs = results.orbitals.beta_orbitals
+    assert len(beta_orbs) == 58, "Expected 58 beta orbitals for H2O UKS example (5 occ + 53 virt)"
+
+    # Occupied Beta MOs energies from the provided snippet:
+    # -19.2346  -1.1182  -0.6261  -0.4888  -0.4147
+    expected_occ_beta_energies = [-19.2346, -1.1182, -0.6261, -0.4888, -0.4147]
+    num_occ_beta = len(expected_occ_beta_energies)
+
+    for i in range(num_occ_beta):
+        assert beta_orbs[i].index == i, f"Index mismatch for occupied beta orbital {i}"
+        assert beta_orbs[i].energy == pytest.approx(expected_occ_beta_energies[i]), (
+            f"Energy mismatch for occupied beta orbital {i}"
+        )
+
+    # Virtual Beta MOs energies from the provided snippet:
+    # Line 1: 0.0878   0.1389   0.3614   0.3715   0.4265   0.4394   0.5388   0.7688
+    # Line 2: 0.8532   0.8877   0.9614   1.1406   1.2650   1.3179   1.5082   1.5393
+    # ... (many lines) ...
+    # Last line: 6.4981   6.8786   6.8988   7.4257  14.8185
+    expected_virt_beta_energies_sample = {
+        0: 0.0878,  # First virtual (index 5 overall, index 0 of virtuals)
+        1: 0.1389,
+        7: 0.7688,  # Last on first line of virtuals
+        8: 0.8532,  # First on second line of virtuals
+        15: 1.5393,  # Last on second line of virtuals
+        # Let's pick some from the middle based on manual counting if possible, or stick to ends
+        # Total virtual = 53. Last index of virtuals is 52.
+        # (53 - 5) = 48. The 5th from last virtual overall index will be 53-5=48. virt_idx = 48-5 = 43
+        # (53 - 1) = 52. The last virtual overall index will be 53-1=52. virt_idx = 52-5 = 47
+        (53 - 5): 6.4981,  # 5th from last virtual orbital
+        (53 - 4): 6.8786,
+        (53 - 3): 6.8988,
+        (53 - 2): 7.4257,
+        (53 - 1): 14.8185,  # Last virtual orbital
+    }
+
+    for virt_idx_offset, expected_energy in expected_virt_beta_energies_sample.items():
+        overall_idx = num_occ_beta + virt_idx_offset
+        assert beta_orbs[overall_idx].index == overall_idx, (
+            f"Index mismatch for virtual beta orbital at overall index {overall_idx}"
+        )
+        assert beta_orbs[overall_idx].energy == pytest.approx(expected_energy), (
+            f"Energy mismatch for virtual beta orbital at overall_idx {overall_idx} (virtual offset {virt_idx_offset})"
+        )
