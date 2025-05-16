@@ -74,9 +74,9 @@ PARSER_REGISTRY_TDDFT: Sequence[SectionParser] = [
     TDAExcitationEnergiesParser(),
     TDDFTExcitationEnergiesParser(),
     GroundStateReferenceParser(),  # Parses specific GS ref data within ESA block
-    # UnrelaxedExcitedStatePropertiesParser(),
-    # TransitionDensityMatrixParser(),
-    # NTODecompositionParser(),
+    UnrelaxedExcitedStatePropertiesParser(),
+    TransitionDensityMatrixParser(),
+    NTODecompositionParser(),
     OrbitalParser(),  # Orbitals are relevant
     # Ground state properties usually appear before TDDFT specific blocks
     MultipoleParser(),  # Main ground state multipoles

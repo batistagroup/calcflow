@@ -50,6 +50,12 @@ MULLIKEN_GS_ATOM_RKS_PAT = re.compile(r"^\s*(\d+)\s+([A-Za-z]+)\s+(-?\d+\.\d+)\s
 # Atom line (UKS): index, symbol, charge, spin
 MULLIKEN_GS_ATOM_UKS_PAT = re.compile(r"^\s*(\d+)\s+([A-Za-z]+)\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)\s*$")
 
+# Separator line within Mulliken tables (e.g., before Sum)
+MULLIKEN_INTERNAL_SEPARATOR_PAT = re.compile(r"^\s*-{10,}\s*$")
+
+# Sum line: charge sum, optional spin sum
+MULLIKEN_SUM_LINE_PAT = re.compile(r"^\s*Sum:\s+(-?\d+\.\d+)(?:\s+(-?\d+\.\d+))?\s*$")
+
 # # Multipole Moment Analysis (Density Matrix)
 MULTIPOLE_DM_HEADER_PAT = re.compile(r"^\s*Multipole moment analysis of the density matrix\s*$")
 MOLECULAR_CHARGE_PAT = re.compile(r"^\s+Molecular charge:\s+(-?\d+\.\d+)")
@@ -105,7 +111,7 @@ class GroundStateReferenceParser(SectionParser):
         while lines_scanned < max_lines_to_scan:
             try:
                 line = results.buffered_line if results.buffered_line else next(iterator)
-                results.buffered_line = None # Consume buffer
+                results.buffered_line = None  # Consume buffer
                 lines_scanned += 1
             except StopIteration:
                 logger.debug("Reached end of iterator during Ground State Reference parsing.")
@@ -122,7 +128,7 @@ class GroundStateReferenceParser(SectionParser):
             # Order matters: check for more specific UKS NOs before generic RKS NOs.
             if gs_no_data_alpha is None and NOS_ALPHA_HEADER_PAT.search(line):
                 gs_no_data_alpha = self._parse_no_data(iterator, line, results, "alpha")
-                if results.buffered_line: # Sub-parser buffered a line, re-evaluate it
+                if results.buffered_line:  # Sub-parser buffered a line, re-evaluate it
                     continue
                 # If no buffered line, it means sub-parser consumed up to its end or iterator end
                 # So, we should try to get a new line in the next iteration.
@@ -144,7 +150,7 @@ class GroundStateReferenceParser(SectionParser):
                 if results.buffered_line:
                     continue
                 continue
-            
+
             # This must come AFTER specific (alpha, beta, spin-traced) checks
             if gs_no_data_rks_or_spin_traced is None and NOS_RKS_HEADER_PAT.search(line):
                 gs_no_data_rks_or_spin_traced = self._parse_no_data(iterator, line, results, "rks")
@@ -177,7 +183,13 @@ class GroundStateReferenceParser(SectionParser):
         if lines_scanned >= max_lines_to_scan and not results.buffered_line:
             logger.warning("GroundStateReferenceParser exceeded max lines scan.")
 
-        if gs_no_data_alpha or gs_no_data_beta or gs_no_data_rks_or_spin_traced or gs_mulliken_data or gs_multipole_data:
+        if (
+            gs_no_data_alpha
+            or gs_no_data_beta
+            or gs_no_data_rks_or_spin_traced
+            or gs_mulliken_data
+            or gs_multipole_data
+        ):
             results.gs_reference_analysis = GroundStateReferenceAnalysis(
                 no_data_rks_or_spin_traced=gs_no_data_rks_or_spin_traced,
                 no_data_alpha=gs_no_data_alpha,
@@ -195,7 +207,7 @@ class GroundStateReferenceParser(SectionParser):
     def _parse_no_data(
         self,
         iterator: LineIterator,
-        header_line: str, # This is the NOs header line, e.g. "NOs (alpha)"
+        header_line: str,  # This is the NOs header line, e.g. "NOs (alpha)"
         results: _MutableCalculationData,
         no_type: Literal["alpha", "beta", "spin-traced", "rks"],
     ) -> ExcitedStateNOData:
@@ -208,10 +220,10 @@ class GroundStateReferenceParser(SectionParser):
         nu: float | None = None
         nunl: float | None = None
         pr_no: float | None = None
-        
-        expecting_frontier_values = False # State to track if next line should be frontier values
 
-        max_data_lines_for_no_block = 7 # Header + Label + Values + N_electrons + N_unpaired + PR_NO + Separator
+        expecting_frontier_values = False  # State to track if next line should be frontier values
+
+        max_data_lines_for_no_block = 7  # Header + Label + Values + N_electrons + N_unpaired + PR_NO + Separator
         lines_read_in_block = 0
 
         while lines_read_in_block < max_data_lines_for_no_block:
@@ -220,21 +232,21 @@ class GroundStateReferenceParser(SectionParser):
                 lines_read_in_block += 1
             except StopIteration:
                 logger.debug(f"NOs ({no_type}): Iterator ended while parsing data lines.")
-                break 
+                break
 
             if expecting_frontier_values:
                 if m_vals := NOS_FRONTIER_VALUES_PAT.search(line):
                     frontier_occ = [float(m_vals.group(1)), float(m_vals.group(2))]
                     logger.debug(f"NOs ({no_type}): Found frontier_occ values: {frontier_occ}")
-                    expecting_frontier_values = False # Reset flag
+                    expecting_frontier_values = False  # Reset flag
                     continue  # Values processed, move to next data line or terminator
                 else:
                     logger.warning(
                         f"NOs ({no_type}): Expected frontier occupation values but found: '{line.strip()}'. "
                         "Stopping parse for this NO block and buffering line."
                     )
-                    results.buffered_line = line # Buffer this unexpected line
-                    break # End this NO block
+                    results.buffered_line = line  # Buffer this unexpected line
+                    break  # End this NO block
 
             # Check for terminators indicating end of THIS specific NO block
             # or start of a new major section.
@@ -242,46 +254,48 @@ class GroundStateReferenceParser(SectionParser):
             if SECTION_SEPARATOR_PAT.search(line) or BLANK_LINE_PAT.search(line):
                 is_terminator = True
                 logger.debug(f"NOs ({no_type}): Found separator/blank line: '{line.strip()}'. End of NO block.")
-            elif (MULLIKEN_GS_POP_HEADER_PAT.search(line) or
-                  MULTIPOLE_DM_HEADER_PAT.search(line) or
-                  STATE_HEADER_PAT.search(line) or 
-                  UNRELAXED_DM_HEADER_PAT.search(line) or
-                  NOS_RKS_HEADER_PAT.search(line) or 
-                  NOS_ALPHA_HEADER_PAT.search(line) or
-                  NOS_BETA_HEADER_PAT.search(line) or
-                  NOS_SPIN_TRACED_HEADER_PAT.search(line)):
+            elif (
+                MULLIKEN_GS_POP_HEADER_PAT.search(line)
+                or MULTIPOLE_DM_HEADER_PAT.search(line)
+                or STATE_HEADER_PAT.search(line)
+                or UNRELAXED_DM_HEADER_PAT.search(line)
+                or NOS_RKS_HEADER_PAT.search(line)
+                or NOS_ALPHA_HEADER_PAT.search(line)
+                or NOS_BETA_HEADER_PAT.search(line)
+                or NOS_SPIN_TRACED_HEADER_PAT.search(line)
+            ):
                 is_terminator = True
                 logger.debug(f"NOs ({no_type}): Found next section header: '{line.strip()}'. End of NO block.")
 
             if is_terminator:
-                results.buffered_line = line 
-                break 
+                results.buffered_line = line
+                break
 
             # Parse field labels / data for the current line
             if NOS_FRONTIER_LABEL_PAT.search(line):
                 logger.debug(f"NOs ({no_type}): Found frontier occupation label: '{line.strip()}'")
-                expecting_frontier_values = True # Set flag to parse next line for values
-                continue 
+                expecting_frontier_values = True  # Set flag to parse next line for values
+                continue
 
             if m := NOS_NUM_ELECTRONS_PAT.search(line):
                 num_e = float(m.group(1))
                 logger.debug(f"NOs ({no_type}): Found num_e: {num_e}")
                 continue
-            
-            if no_type in ["spin-traced", "rks"]: # These fields only appear for spin-traced or RKS
+
+            if no_type in ["spin-traced", "rks"]:  # These fields only appear for spin-traced or RKS
                 if m := NOS_UNPAIRED_PAT.search(line):
                     nu, nunl = float(m.group(1)), float(m.group(2))
                     logger.debug(f"NOs ({no_type}): Found unpaired e: nu={nu}, nunl={nunl}")
                     continue
-                if m := NOS_PR_NO_PAT.search(line): 
+                if m := NOS_PR_NO_PAT.search(line):
                     pr_no = float(m.group(1))
                     logger.debug(f"NOs ({no_type}): Found pr_no: {pr_no}")
                     continue
-            
+
             logger.warning(f"NOs ({no_type}): Unrecognized data line: '{line.strip()}'. Assuming end of NO block.")
             results.buffered_line = line
             break
-            
+
         return ExcitedStateNOData(
             frontier_occupations=frontier_occ,
             n_electrons=num_e,
@@ -293,7 +307,7 @@ class GroundStateReferenceParser(SectionParser):
     def _parse_mulliken_ground_state_dm(
         self,
         iterator: LineIterator,
-        first_mulliken_gs_line: str, # This is the MULLIKEN_GS_POP_HEADER_PAT line
+        first_mulliken_gs_line: str,  # This is the MULLIKEN_GS_POP_HEADER_PAT line
         input_geometry: Sequence[Atom] | None,
         results: _MutableCalculationData,
     ) -> ExcitedStateMulliken | None:
@@ -301,7 +315,7 @@ class GroundStateReferenceParser(SectionParser):
 
         populations: list[ExcitedStateAtomPopulation] = []
         has_spin_column = False
-        
+
         try:
             column_header_line = next(iterator)
             logger.debug(f"Mulliken GS: Consumed column header: '{column_header_line.strip()}'")
@@ -309,31 +323,31 @@ class GroundStateReferenceParser(SectionParser):
                 has_spin_column = True
             logger.debug(f"Mulliken GS: Detected spin column: {has_spin_column}")
 
-            separator_line = next(iterator) 
+            separator_line = next(iterator)
             logger.debug(f"Mulliken GS: Consumed separator line: '{separator_line.strip()}'")
 
-            max_atom_lines = 200 
+            max_atom_lines = 200
             for i in range(max_atom_lines):
                 try:
                     line = next(iterator)
-                    logger.debug(f"Mulliken GS: Processing atom line candidate ({i+1}): '{line.strip()}'")
+                    logger.debug(f"Mulliken GS: Processing atom line candidate ({i + 1}): '{line.strip()}'")
                 except StopIteration:
                     logger.debug("Mulliken GS: Iterator ended while expecting atom or sum line.")
-                    break # End of iterator, might be normal if sum line was last meaningful
+                    break  # End of iterator, might be normal if sum line was last meaningful
 
                 # Check for terminators first (next major section headers)
                 if (
                     MULTIPOLE_DM_HEADER_PAT.search(line)
                     or UNRELAXED_DM_HEADER_PAT.search(line)
                     or STATE_HEADER_PAT.search(line)
-                    or NOS_RKS_HEADER_PAT.search(line) 
+                    or NOS_RKS_HEADER_PAT.search(line)
                     or NOS_ALPHA_HEADER_PAT.search(line)
                     or NOS_BETA_HEADER_PAT.search(line)
                     or NOS_SPIN_TRACED_HEADER_PAT.search(line)
                 ):
                     results.buffered_line = line
                     logger.debug(f"Mulliken GS: Found next section header: '{line.strip()}'. Buffering.")
-                    break 
+                    break
 
                 m_atom_match = None
                 if has_spin_column:
@@ -348,24 +362,24 @@ class GroundStateReferenceParser(SectionParser):
                     spin_val: float | None = None
                     if has_spin_column:
                         spin_val = float(m_atom_match.group(4))
-                    
+
                     atom_symbol = sym_from_output
                     if input_geometry and 0 < idx <= len(input_geometry):
                         atom_symbol = input_geometry[idx - 1].symbol
-                    elif input_geometry :
+                    elif input_geometry:
                         logger.warning(
                             f"Mulliken atom index {idx} out of range for input geometry size {len(input_geometry)}."
                         )
-                    
+
                     populations.append(
                         ExcitedStateAtomPopulation(
-                            atom_index=idx - 1, 
+                            atom_index=idx - 1,
                             symbol=atom_symbol,
                             charge_e=chg,
-                            spin_e=spin_val, 
-                            hole_charge=None, 
-                            electron_charge=None, 
-                            delta_charge=None, 
+                            spin_e=spin_val,
+                            hole_charge=None,
+                            electron_charge=None,
+                            delta_charge=None,
                         )
                     )
                     logger.debug(f"Mulliken GS: Parsed atom {idx} {atom_symbol} Charge={chg} Spin={spin_val}")
@@ -373,23 +387,27 @@ class GroundStateReferenceParser(SectionParser):
 
                 if MULLIKEN_SUM_LINE_PAT.search(line):
                     logger.debug(f"Mulliken GS: Found sum line: '{line.strip()}'. End of atom data.")
-                    break 
-                
-                internal_separator_pat = re.compile(r"^\\s*-{10,}\\s*$")
-                if BLANK_LINE_PAT.search(line) or internal_separator_pat.search(line):
+                    break
+
+                # Check for blank lines or internal separators specifically for Mulliken block
+                if BLANK_LINE_PAT.search(line) or MULLIKEN_INTERNAL_SEPARATOR_PAT.search(line):
                     logger.debug(f"Mulliken GS: Encountered blank/separator line: '{line.strip()}'. Continuing.")
                     continue
 
-                logger.warning(f"Mulliken GS: Unexpected line in atom table: '{line.strip()}'. Buffering and exiting Mulliken parse.")
-                results.buffered_line = line 
+                logger.warning(
+                    f"Mulliken GS: Unexpected line in atom table: '{line.strip()}'. Buffering and exiting Mulliken parse."
+                )
+                results.buffered_line = line
                 break
 
         except StopIteration:
-            logger.debug("Iterator ended prematurely during Mulliken GS State DM parsing (e.g., after header/separator).")
+            logger.debug(
+                "Iterator ended prematurely during Mulliken GS State DM parsing (e.g., after header/separator)."
+            )
 
-        if not populations and first_mulliken_gs_line: # Only warn if we expected atoms but found none.
-             logger.debug("No Mulliken populations parsed in GS State DM block, though header was found.")
-        
+        if not populations and first_mulliken_gs_line:  # Only warn if we expected atoms but found none.
+            logger.debug("No Mulliken populations parsed in GS State DM block, though header was found.")
+
         return ExcitedStateMulliken(populations=populations)
 
     def _parse_multipole_state_dm(
