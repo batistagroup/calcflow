@@ -12,7 +12,7 @@ REM_END_PAT = re.compile(r"^\s*\$end", re.IGNORECASE)
 # It captures a key (e.g., METHOD, BASIS, UNRESTRICTED)
 # and its value. Handles cases with or without explicit equals sign.
 # Value can be a single word, a number, or quoted strings (not handled yet, assumes simple values).
-REM_KV_PAT = re.compile(r"^\s*([a-zA-Z0-9_]+)\s+[=\s]?\s*(\S+)")
+REM_KV_PAT = re.compile(r"^\s*([a-zA-Z0-9_]+)\s*(?:=\s*|\s+)(\S+)")
 
 
 class RemBlockParser(SectionParser):
