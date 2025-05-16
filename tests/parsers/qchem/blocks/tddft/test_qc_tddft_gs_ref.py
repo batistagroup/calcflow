@@ -1,6 +1,6 @@
 from pytest import approx
 
-from calcflow.parsers.qchem.typing import DipoleMoment, ExcitedStateMultipole, GroundStateReferenceAnalysis
+from calcflow.parsers.qchem.typing import DipoleMoment, GroundStateMultipole, GroundStateReferenceAnalysis
 
 
 def test_ground_state_reference_analysis_exists(parsed_tddft_pc2_data):
@@ -45,9 +45,6 @@ def test_gs_ref_mulliken_analysis(parsed_tddft_pc2_data):
     assert pop1.atom_index == 0
     assert pop1.symbol == "H"
     assert pop1.charge_e == approx(0.230554)
-    assert pop1.hole_charge is None
-    assert pop1.electron_charge is None
-    assert pop1.delta_charge is None
 
     pop2 = mulliken.populations[1]
     assert pop2.atom_index == 1
@@ -66,7 +63,7 @@ def test_gs_ref_multipole_analysis(parsed_tddft_pc2_data):
     assert gs_ref is not None
     multipole = gs_ref.multipole
     assert multipole is not None
-    assert isinstance(multipole, ExcitedStateMultipole)
+    assert isinstance(multipole, GroundStateMultipole)
 
     assert multipole.molecular_charge == approx(-0.0)
     assert multipole.n_electrons == approx(10.0)
@@ -176,7 +173,7 @@ def test_gs_ref_uks_multipole_analysis(parsed_tddft_uks_pc2_data):
     assert gs_ref is not None
     multipole = gs_ref.multipole
     assert multipole is not None
-    assert isinstance(multipole, ExcitedStateMultipole)
+    assert isinstance(multipole, GroundStateMultipole)
 
     # Values from tddft-uks-pc2.out
     assert multipole.molecular_charge == approx(-0.0)

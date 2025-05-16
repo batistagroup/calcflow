@@ -78,5 +78,8 @@ if run["parse"]:
         tddft_pc2 = parse_qchem_tddft_output((clc_folder / "tddft-uks-pc2.out").read_text())
         print(tddft_pc2)
         print(tddft_pc2.tddft)
-        print(tddft_pc2.gs_reference_analysis)
+        # print(tddft_pc2.gs_reference_analysis)
+
+        print(tddft_pc2.tddft.excited_state_analyses)
+
         # print(tddft_pc2.tddft.tddft_states)

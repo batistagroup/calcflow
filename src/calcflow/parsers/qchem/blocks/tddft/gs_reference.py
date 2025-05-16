@@ -7,10 +7,10 @@ from typing import Literal
 from calcflow.parsers.qchem.typing import (
     Atom,
     DipoleMoment,
-    ExcitedStateAtomPopulation,
-    ExcitedStateMulliken,
-    ExcitedStateMultipole,
-    ExcitedStateNOData,
+    GroundStateAtomPopulation,
+    GroundStateMulliken,
+    GroundStateMultipole,
+    GroundStateNOData,
     GroundStateReferenceAnalysis,
     LineIterator,
     SectionParser,
@@ -99,11 +99,11 @@ class GroundStateReferenceParser(SectionParser):
         # first_line is "Ground State (Reference) :" - this line is already consumed by the main parser in core.py
         # The iterator is positioned at the line AFTER "Ground State (Reference) :"
 
-        gs_no_data_rks_or_spin_traced: ExcitedStateNOData | None = None
-        gs_no_data_alpha: ExcitedStateNOData | None = None
-        gs_no_data_beta: ExcitedStateNOData | None = None
-        gs_mulliken_data: ExcitedStateMulliken | None = None
-        gs_multipole_data: ExcitedStateMultipole | None = None
+        gs_no_data_rks_or_spin_traced: GroundStateNOData | None = None
+        gs_no_data_alpha: GroundStateNOData | None = None
+        gs_no_data_beta: GroundStateNOData | None = None
+        gs_mulliken_data: GroundStateMulliken | None = None
+        gs_multipole_data: GroundStateMultipole | None = None
 
         max_lines_to_scan = 200  # Increased safeguard for potentially more NO blocks
         lines_scanned = 0
@@ -210,7 +210,7 @@ class GroundStateReferenceParser(SectionParser):
         header_line: str,  # This is the NOs header line, e.g. "NOs (alpha)"
         results: _MutableCalculationData,
         no_type: Literal["alpha", "beta", "spin-traced", "rks"],
-    ) -> ExcitedStateNOData:
+    ) -> GroundStateNOData:
         logger.debug(f"Parsing NO data for type: {no_type}, starting with header: '{header_line.strip()}'")
         # The header_line itself has been "consumed" by the check in the main parse method.
         # We now parse the lines immediately following it.
@@ -296,7 +296,7 @@ class GroundStateReferenceParser(SectionParser):
             results.buffered_line = line
             break
 
-        return ExcitedStateNOData(
+        return GroundStateNOData(
             frontier_occupations=frontier_occ,
             n_electrons=num_e,
             n_unpaired=nu,
@@ -310,10 +310,10 @@ class GroundStateReferenceParser(SectionParser):
         first_mulliken_gs_line: str,  # This is the MULLIKEN_GS_POP_HEADER_PAT line
         input_geometry: Sequence[Atom] | None,
         results: _MutableCalculationData,
-    ) -> ExcitedStateMulliken | None:
+    ) -> GroundStateMulliken | None:
         logger.debug(f"Parsing Mulliken GS State DM, starting with header: '{first_mulliken_gs_line.strip()}'")
 
-        populations: list[ExcitedStateAtomPopulation] = []
+        populations: list[GroundStateAtomPopulation] = []
         has_spin_column = False
 
         try:
@@ -372,14 +372,11 @@ class GroundStateReferenceParser(SectionParser):
                         )
 
                     populations.append(
-                        ExcitedStateAtomPopulation(
+                        GroundStateAtomPopulation(
                             atom_index=idx - 1,
                             symbol=atom_symbol,
                             charge_e=chg,
                             spin_e=spin_val,
-                            hole_charge=None,
-                            electron_charge=None,
-                            delta_charge=None,
                         )
                     )
                     logger.debug(f"Mulliken GS: Parsed atom {idx} {atom_symbol} Charge={chg} Spin={spin_val}")
@@ -408,11 +405,11 @@ class GroundStateReferenceParser(SectionParser):
         if not populations and first_mulliken_gs_line:  # Only warn if we expected atoms but found none.
             logger.debug("No Mulliken populations parsed in GS State DM block, though header was found.")
 
-        return ExcitedStateMulliken(populations=populations)
+        return GroundStateMulliken(populations=populations)
 
     def _parse_multipole_state_dm(
         self, iterator: LineIterator, first_multipole_line: str, results: _MutableCalculationData
-    ) -> ExcitedStateMultipole | None:
+    ) -> GroundStateMultipole | None:
         if not MULTIPOLE_DM_HEADER_PAT.search(first_multipole_line):
             if first_multipole_line.strip():
                 results.buffered_line = first_multipole_line
@@ -516,4 +513,4 @@ class GroundStateReferenceParser(SectionParser):
         logger.debug(
             f"Successfully parsed multipole data: Dipole total = {final_dipole.magnitude if final_dipole else None}, RMS_XYZ = {rms_xyz}"
         )
-        return ExcitedStateMultipole(mol_chg, num_e, cec_xyz, cnc_xyz, final_dipole, rms_xyz)
+        return GroundStateMultipole(mol_chg, num_e, cec_xyz, cnc_xyz, final_dipole, rms_xyz)

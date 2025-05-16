@@ -63,6 +63,57 @@ class ExcitedStateProperties:
 
 
 @dataclass(frozen=True)
+class GroundStateNOData:
+    """Natural Orbital (NO) analysis for the ground state."""
+
+    frontier_occupations: Sequence[float] | None = None  # e.g., [0.9992, 1.0006]
+    n_electrons: float | None = None
+    n_unpaired: float | None = None  # n_u
+    n_unpaired_nl: float | None = None  # n_u,nl
+    pr_no: float | None = None
+
+
+@dataclass(frozen=True)
+class GroundStateAtomPopulation:
+    """Mulliken or other population analysis for a single atom in an excited state."""
+
+    atom_index: int  # 0-indexed, maps to original geometry
+    symbol: str  # Atom symbol
+    charge_e: float  # Net charge on the atom in the excited state
+    spin_e: float | None = None  # Spin population on the atom
+
+
+@dataclass(frozen=True)
+class GroundStateMulliken:
+    """Mulliken population analysis for an excited state (State/Difference DM)."""
+
+    populations: Sequence[GroundStateAtomPopulation] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class GroundStateMultipole:
+    """Multipole moment analysis for an excited state's density matrix."""
+
+    molecular_charge: float | None = None
+    n_electrons: float | None = None
+    center_electronic_charge_ang: tuple[float, float, float] | None = None
+    center_nuclear_charge_ang: tuple[float, float, float] | None = None
+    dipole_moment_debye: DipoleMoment | None = None  # Reusing existing DipoleMoment
+    rms_density_size_ang: tuple[float, float, float] | None = None  # Cartesian components
+
+
+@dataclass(frozen=True)
+class GroundStateReferenceAnalysis:
+    """Analysis data for the ground state reference within TDDFT output."""
+
+    no_data_rks_or_spin_traced: GroundStateNOData | None = None
+    no_data_alpha: GroundStateNOData | None = None
+    no_data_beta: GroundStateNOData | None = None
+    mulliken: GroundStateMulliken | None = None
+    multipole: GroundStateMultipole | None = None
+
+
+@dataclass(frozen=True)
 class ExcitedStateNOData:
     """Natural Orbital (NO) analysis for an excited state."""
 
@@ -205,17 +256,6 @@ class ExcitedStateDetailedAnalysis:
     mulliken: ExcitedStateMulliken | None = None
     multipole: ExcitedStateMultipole | None = None
     exciton_difference_dm_analysis: ExcitedStateExcitonDifferenceDM | None = None
-
-
-@dataclass(frozen=True)
-class GroundStateReferenceAnalysis:
-    """Analysis data for the ground state reference within TDDFT output."""
-
-    no_data_rks_or_spin_traced: ExcitedStateNOData | None = None
-    no_data_alpha: ExcitedStateNOData | None = None
-    no_data_beta: ExcitedStateNOData | None = None
-    mulliken: ExcitedStateMulliken | None = None
-    multipole: ExcitedStateMultipole | None = None
 
 
 @dataclass(frozen=True)
