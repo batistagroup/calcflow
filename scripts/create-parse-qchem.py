@@ -79,7 +79,7 @@ if run["parse"]:
         print(tddft_pc2)
         print(tddft_pc2.tddft)
         # print(tddft_pc2.gs_reference_analysis)
-
+        assert tddft_pc2.tddft is not None
         print(tddft_pc2.tddft.excited_state_analyses)
         breakpoint()
 
