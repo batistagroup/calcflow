@@ -88,6 +88,7 @@ if run["parse"]:
         assert tddft_pc2.tddft.transition_dm_analyses[0].exciton_analysis is not None
         print(tddft_pc2.tddft.transition_dm_analyses[0].exciton_analysis.total_properties)
 
-        print(tddft_pc2.tddft.nto_analyses[-2])
+        # print(tddft_pc2.tddft.nto_analyses[-2])
+        print(tddft_pc2.orbitals)
         # breakpoint()
         # print(tddft_pc2.tddft.tddft_states)
