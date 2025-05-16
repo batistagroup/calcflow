@@ -175,10 +175,18 @@ class TransitionDMAtomPopulation:
 
     atom_index: int
     symbol: str
-    transition_charge_e: float  # Trans. (e)
-    hole_charge: float | None = None  # h+
-    electron_charge: float | None = None  # e-
-    delta_charge: float | None = None  # Del q
+    transition_charge_e: float  # Trans. (e) - Common to RKS and UKS
+
+    # RKS specific or general (if UKS doesn't provide detailed h+/e-)
+    hole_charge_rks: float | None = None  # For RKS: h+
+    electron_charge_rks: float | None = None  # For RKS: e-
+    delta_charge_rks: float | None = None  # For RKS: Del q
+
+    # UKS specific
+    hole_charge_alpha_uks: float | None = None  # For UKS: h+ (alpha)
+    hole_charge_beta_uks: float | None = None  # For UKS: h+ (beta)
+    electron_charge_alpha_uks: float | None = None  # For UKS: e- (alpha)
+    electron_charge_beta_uks: float | None = None  # For UKS: e- (beta)
 
 
 @dataclass(frozen=True)
@@ -194,16 +202,28 @@ class TransitionDMMulliken:
 class TransitionDMCTNumbers:
     """Charge Transfer (CT) numbers from Mulliken analysis of transition DM."""
 
-    omega: float | None = None
-    two_alpha_beta_overlap: float | None = None  # 2<alpha|beta>
-    loc: float | None = None
-    loc_a: float | None = None  # LOCa
-    phe_overlap: float | None = None  # <Phe>
+    omega: float | None = None  # Main/total value
+    omega_alpha: float | None = None
+    omega_beta: float | None = None
+
+    two_alpha_beta_overlap: float | None = None  # 2<alpha|beta> - always a single value
+
+    loc: float | None = None  # Main/total value
+    loc_alpha: float | None = None
+    loc_beta: float | None = None
+
+    loc_a: float | None = None  # LOCa - Main/total value
+    loc_a_alpha: float | None = None
+    loc_a_beta: float | None = None
+
+    phe_overlap: float | None = None  # <Phe> - Main/total value
+    phe_overlap_alpha: float | None = None
+    phe_overlap_beta: float | None = None
 
 
 @dataclass(frozen=True)
-class ExcitonAnalysisTransitionDM:
-    """Exciton analysis of the transition density matrix, matching parser output."""
+class ExcitonPropertiesSet:  # New class
+    """Holds one set of exciton analysis properties (e.g., for Total, Alpha, or Beta spin)."""
 
     total_transition_dipole_moment: float | None = None
     transition_dipole_moment_components: tuple[float, float, float] | None = None
@@ -222,6 +242,15 @@ class ExcitonAnalysisTransitionDM:
     correlation_coefficient: float | None = None
     center_of_mass_size_ang: float | None = None
     center_of_mass_size_ang_components: tuple[float, float, float] | None = None
+
+
+@dataclass(frozen=True)
+class ExcitonAnalysisTMData:  # Renamed from ExcitonAnalysisTransitionDM
+    """Exciton analysis of the transition density matrix, supporting RKS and UKS (Total, Alpha, Beta)."""
+
+    total_properties: ExcitonPropertiesSet | None = None  # For RKS, or "Total" for UKS
+    alpha_spin_properties: ExcitonPropertiesSet | None = None  # For UKS "Alpha spin"
+    beta_spin_properties: ExcitonPropertiesSet | None = None  # For UKS "Beta spin"
 
 
 @dataclass(frozen=True)
@@ -265,10 +294,10 @@ class TransitionDensityMatrixDetailedAnalysis:
     """Comprehensive analysis of the transition density matrix for a single excited state."""
 
     state_number: int
-    multiplicity: str  # e.g., "Singlet"
+    multiplicity: str  # e.g., "Singlet", "Triplet", "Excited State"
     mulliken: TransitionDMMulliken | None = None
     ct_numbers: TransitionDMCTNumbers | None = None
-    exciton_analysis: ExcitonAnalysisTransitionDM | None = None
+    exciton_analysis: ExcitonAnalysisTMData | None = None  # Updated type
 
 
 @dataclass(frozen=True)

@@ -25,7 +25,8 @@ from calcflow.parsers.qchem.typing.tddft import (
     ExcitedStateMultipole,
     ExcitedStateNOData,
     ExcitedStateProperties,
-    ExcitonAnalysisTransitionDM,
+    ExcitonAnalysisTMData,
+    ExcitonPropertiesSet,
     GroundStateAtomPopulation,
     GroundStateMulliken,
     GroundStateMultipole,
@@ -88,7 +89,9 @@ __all__ = [
     "TransitionDMAtomPopulation",
     "TransitionDMMulliken",
     "TransitionDMCTNumbers",
-    "ExcitonAnalysisTransitionDM",
     "NTOContribution",
     "NTOStateAnalysis",
+    # Transition Density Matrix based
+    "ExcitonPropertiesSet",
+    "ExcitonAnalysisTMData",
 ]

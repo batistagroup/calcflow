@@ -80,7 +80,12 @@ if run["parse"]:
         print(tddft_pc2.tddft)
         # print(tddft_pc2.gs_reference_analysis)
         assert tddft_pc2.tddft is not None
-        print(tddft_pc2.tddft.excited_state_analyses)
-        breakpoint()
+        assert tddft_pc2.tddft.excited_state_analyses is not None
+        print(len(tddft_pc2.tddft.excited_state_analyses))
 
+        assert tddft_pc2.tddft.transition_dm_analyses is not None
+        print(len(tddft_pc2.tddft.transition_dm_analyses))
+        assert tddft_pc2.tddft.transition_dm_analyses[0].exciton_analysis is not None
+        print(tddft_pc2.tddft.transition_dm_analyses[0].exciton_analysis.total_properties)
+        # breakpoint()
         # print(tddft_pc2.tddft.tddft_states)

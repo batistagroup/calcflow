@@ -38,9 +38,9 @@ def test_tddft_transition_dm_analysis_singlet_3(parsed_tddft_pc2_data: Calculati
     assert mulliken.populations[0].symbol == "H"
     assert mulliken.populations[0].atom_index == 0
     pytest.approx(mulliken.populations[0].transition_charge_e, 0.062445)
-    pytest.approx(mulliken.populations[0].hole_charge, 0.067398)
-    pytest.approx(mulliken.populations[0].electron_charge, -0.539695)
-    pytest.approx(mulliken.populations[0].delta_charge, -0.472297)
+    pytest.approx(mulliken.populations[0].hole_charge_rks, 0.067398)
+    pytest.approx(mulliken.populations[0].electron_charge_rks, -0.539695)
+    pytest.approx(mulliken.populations[0].delta_charge_rks, -0.472297)
     # Sums
     assert mulliken.sum_abs_trans_charges_qta == pytest.approx(0.248846)
     assert mulliken.sum_sq_trans_charges_qt2 == pytest.approx(0.023222)
@@ -55,7 +55,7 @@ def test_tddft_transition_dm_analysis_singlet_3(parsed_tddft_pc2_data: Calculati
     assert ct.phe_overlap == pytest.approx(-0.0169)
 
     # Test Exciton Analysis
-    exciton = s3_analysis.exciton_analysis
+    exciton = s3_analysis.exciton_analysis.total_properties
     assert exciton is not None
     assert exciton.total_transition_dipole_moment == pytest.approx(1.686852)
     assert exciton.transition_dipole_moment_components is not None
@@ -97,9 +97,9 @@ def test_tddft_transition_dm_analysis_singlet_7(parsed_tddft_pc2_data: Calculati
     assert mulliken.populations[1].symbol == "O"
     assert mulliken.populations[1].atom_index == 1
     pytest.approx(mulliken.populations[1].transition_charge_e, 0.000281)
-    pytest.approx(mulliken.populations[1].hole_charge, 0.967409)
-    pytest.approx(mulliken.populations[1].electron_charge, -0.239249)
-    pytest.approx(mulliken.populations[1].delta_charge, 0.728160)
+    pytest.approx(mulliken.populations[1].hole_charge_rks, 0.967409)
+    pytest.approx(mulliken.populations[1].electron_charge_rks, -0.239249)
+    pytest.approx(mulliken.populations[1].delta_charge_rks, 0.728160)
     # Sums
     assert mulliken.sum_abs_trans_charges_qta == pytest.approx(0.000563)
     assert mulliken.sum_sq_trans_charges_qt2 == pytest.approx(0.000000)
@@ -113,7 +113,7 @@ def test_tddft_transition_dm_analysis_singlet_7(parsed_tddft_pc2_data: Calculati
     assert ct.loc_a == pytest.approx(0.2509)
 
     # Test Exciton Analysis
-    exciton = s7_analysis.exciton_analysis
+    exciton = s7_analysis.exciton_analysis.total_properties
     assert exciton is not None
     assert exciton.transition_r_squared_au == pytest.approx(2.333932)
     assert exciton.electron_position_ang is not None
