@@ -10,6 +10,10 @@ class ScfIteration:
     iteration: int
     energy: float
     diis_error: float  # DIIS error magnitude
+    mom_active: bool | None = None
+    mom_method_type: str | None = None
+    mom_overlap_current: float | None = None
+    mom_overlap_target: float | None = None
 
 
 @dataclass(frozen=True)

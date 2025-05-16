@@ -40,6 +40,11 @@ SCF_BLOCK_END_HEURISTIC_PAT = re.compile(r"Orbital Energies|Mulliken Net Atomic 
 # Add the normal termination pattern here as well for the heuristic search
 NORMAL_TERM_PAT = re.compile(r"Thank you very much for using Q-Chem")
 
+# --- MOM Specific Patterns ---
+MOM_ACTIVE_PAT = re.compile(r"^\s*Maximum Overlap Method Active")
+IMOM_METHOD_PAT = re.compile(r"^\s*IMOM method")  # Assuming IMOM is the primary method for now
+MOM_OVERLAP_PAT = re.compile(r"^\s*MOM overlap:\s+(-?\d+\.\d+)\s+/\s+(-?\d+\.?\d*)")
+
 
 class ScfParser(SectionParser):
     """Parses the SCF calculation block."""
@@ -60,6 +65,12 @@ class ScfParser(SectionParser):
         results.smd_g_cds_kcal_mol = None
         results.smd_g_enp_au = None
         results.smd_g_tot_au = None
+
+        # Variables to hold MOM details 'pending' for the next SCF iteration line
+        pending_mom_active_signal = False
+        pending_mom_method_type: str | None = None
+        pending_mom_overlap_current: float | None = None
+        pending_mom_overlap_target: float | None = None
 
         # current_line already matched SCF_START_PAT
         # Find the start of the iteration table
@@ -92,7 +103,32 @@ class ScfParser(SectionParser):
                     results.parsed_scf = True  # Mark as attempted
                 raise ParsingError("Unexpected end of file in SCF iteration block.") from e
 
-            # Check for end of iteration table (heuristic: dashed line)
+            # 1. Check for MOM context lines first
+            if MOM_ACTIVE_PAT.search(line):
+                pending_mom_active_signal = True
+                logger.debug("MOM active signal received for the next cycle.")
+                continue
+
+            if IMOM_METHOD_PAT.search(line):  # Assumes IMOM for now
+                pending_mom_method_type = "IMOM"
+                logger.debug("MOM method type 'IMOM' received for the next cycle.")
+                continue
+
+            match_mom_overlap = MOM_OVERLAP_PAT.search(line)
+            if match_mom_overlap:
+                try:
+                    pending_mom_overlap_current = float(match_mom_overlap.group(1))
+                    pending_mom_overlap_target = float(match_mom_overlap.group(2))
+                    logger.debug(
+                        f"MOM overlap {pending_mom_overlap_current}/{pending_mom_overlap_target} received for the next cycle."
+                    )
+                except (ValueError, IndexError):
+                    logger.warning(f"Could not parse MOM overlap from line: {line.strip()}")
+                    pending_mom_overlap_current = None  # Ensure reset on error
+                    pending_mom_overlap_target = None
+                continue
+
+            # 2. Check for end of iteration table (heuristic: dashed line)
             if SCF_ITER_TABLE_END_PAT.search(line):
                 logger.debug("Found likely end marker for SCF iteration table.")
                 break
@@ -104,7 +140,30 @@ class ScfParser(SectionParser):
                     iteration = int(match_iter.group(1))
                     energy = float(match_iter.group(2))
                     diis_error = float(match_iter.group(3))
-                    iterations.append(ScfIteration(iteration=iteration, energy=energy, diis_error=diis_error))
+
+                    # Use pending MOM data if MOM was signaled as active
+                    actual_mom_active = pending_mom_active_signal
+                    actual_mom_method = pending_mom_method_type if actual_mom_active else None
+                    actual_overlap_curr = pending_mom_overlap_current if actual_mom_active else None
+                    actual_overlap_targ = pending_mom_overlap_target if actual_mom_active else None
+
+                    iterations.append(
+                        ScfIteration(
+                            iteration=iteration,
+                            energy=energy,
+                            diis_error=diis_error,
+                            mom_active=actual_mom_active if actual_mom_active else None,  # Store True or None
+                            mom_method_type=actual_mom_method,
+                            mom_overlap_current=actual_overlap_curr,
+                            mom_overlap_target=actual_overlap_targ,
+                        )
+                    )
+
+                    # Reset pending MOM details after consumption for this iteration
+                    pending_mom_active_signal = False
+                    pending_mom_method_type = None
+                    pending_mom_overlap_current = None
+                    pending_mom_overlap_target = None
 
                     # Check for convergence on the same line
                     if SCF_CONVERGENCE_PAT.search(line):
@@ -119,7 +178,7 @@ class ScfParser(SectionParser):
                 # If the line wasn't an iteration and not the end marker, assume table ended
                 if line.strip():  # Ignore blank lines
                     logger.debug(
-                        f"Non-iteration line encountered after SCF table started, assuming end of table: {line.strip()}"
+                        f"Non-iteration/MOM line encountered after SCF table started, assuming end of table: {line.strip()}"
                     )
                 break  # Assume table ended
 
