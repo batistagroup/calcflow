@@ -75,25 +75,20 @@ if run["parse"]:
 
     if todo["tddft"]:
         print("------- TDDFT STO-3G ---------")
-        tddft_pc2 = parse_qchem_tddft_output((clc_folder / "tddft-rks-pc2.out").read_text())
+        tddft_pc2 = parse_qchem_tddft_output((clc_folder / "tddft-uks-pc2.out").read_text())
         print(tddft_pc2)
-        # print(tddft_pc2.tddft)
-        # # print(tddft_pc2.tddft.excited_state_analyses)
-        # print("Ground state reference analysis:")
+        print(tddft_pc2.tddft)
         # print(tddft_pc2.gs_reference_analysis)
-        # print("Multipole:")
-        # print(tddft_pc2.multipole)
-        # print("Orbitals:")
-        # print(tddft_pc2.orbitals)
-
-        # print("Unrelaxed excited state properties:")
-        # print(tddft_pc2.tddft.excited_state_analyses)
-
-        # print("\n\n Transition Density Matrix Analysis:")
-        # print(tddft_pc2.tddft.transition_dm_analyses)
-
-        print("\n\n NTO Decomposition:")
         assert tddft_pc2.tddft is not None
-        print(tddft_pc2.tddft.nto_analyses)
+        assert tddft_pc2.tddft.excited_state_analyses is not None
+        print(len(tddft_pc2.tddft.excited_state_analyses))
 
+        assert tddft_pc2.tddft.transition_dm_analyses is not None
+        print(len(tddft_pc2.tddft.transition_dm_analyses))
+        assert tddft_pc2.tddft.transition_dm_analyses[0].exciton_analysis is not None
+        print(tddft_pc2.tddft.transition_dm_analyses[0].exciton_analysis.total_properties)
+
+        # print(tddft_pc2.tddft.nto_analyses[-2])
+        print(tddft_pc2.orbitals)
         # breakpoint()
+        # print(tddft_pc2.tddft.tddft_states)

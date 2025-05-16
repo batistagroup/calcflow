@@ -85,6 +85,7 @@ class _MutableCalculationData:
     parsed_meta_run_date: bool = False
     parsed_meta_method: bool = False
     parsed_meta_basis: bool = False
+    parsed_rem_block: bool = False  # Added flag for $rem block parsing
     # Add more flags as needed
     parsed_unrelaxed_excited_state_properties: bool = False
     parsed_tddft_transition_dm_analysis: bool = False  # Flag for Transition Density Matrix Analysis

@@ -91,8 +91,7 @@ def test_rem_matches_returns_false_if_already_parsed(
     rem_parser: RemBlockParser, initial_data: _MutableCalculationData
 ) -> None:
     """Verify matches() returns False if essential data is already parsed."""
-    initial_data.parsed_meta_method = True
-    initial_data.parsed_meta_basis = True
+    initial_data.parsed_rem_block = True
     initial_data.solvent_method = "smd"
     assert rem_parser.matches(REM_START_LINE, initial_data) is False
 

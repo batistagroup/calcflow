@@ -30,7 +30,7 @@ class ExcitedStateProperties:
     state_number: int
     excitation_energy_ev: float
     total_energy_au: float
-    multiplicity: Literal["Singlet", "Triplet"]  # e.g., "Singlet", "Triplet"
+    multiplicity: Literal["Singlet", "Triplet"] | None = None  # e.g., "Singlet", "Triplet"
     trans_moment_x: float | None = None  # Transition dipole moment X (Debye or a.u. - check QChem)
     trans_moment_y: float | None = None
     trans_moment_z: float | None = None
@@ -42,8 +42,12 @@ class ExcitedStateProperties:
             f"state_number={self.state_number}",
             f"excitation_energy_ev={self.excitation_energy_ev:.4f} eV",
             f"total_energy_au={self.total_energy_au:.6f} au",
-            f"multiplicity='{self.multiplicity}'",
         ]
+        if self.multiplicity is not None:
+            parts.append(f"multiplicity='{self.multiplicity}'")
+        else:
+            parts.append("multiplicity=None")
+
         if self.oscillator_strength is not None:
             parts.append(f"oscillator_strength={self.oscillator_strength:.4f}")
 
@@ -56,6 +60,57 @@ class ExcitedStateProperties:
 
         body = ",\n    ".join(parts)
         return f"{type(self).__name__}(\n    {body}\n)"
+
+
+@dataclass(frozen=True)
+class GroundStateNOData:
+    """Natural Orbital (NO) analysis for the ground state."""
+
+    frontier_occupations: Sequence[float] | None = None  # e.g., [0.9992, 1.0006]
+    n_electrons: float | None = None
+    n_unpaired: float | None = None  # n_u
+    n_unpaired_nl: float | None = None  # n_u,nl
+    pr_no: float | None = None
+
+
+@dataclass(frozen=True)
+class GroundStateAtomPopulation:
+    """Mulliken or other population analysis for a single atom in an excited state."""
+
+    atom_index: int  # 0-indexed, maps to original geometry
+    symbol: str  # Atom symbol
+    charge_e: float  # Net charge on the atom in the excited state
+    spin_e: float | None = None  # Spin population on the atom
+
+
+@dataclass(frozen=True)
+class GroundStateMulliken:
+    """Mulliken population analysis for an excited state (State/Difference DM)."""
+
+    populations: Sequence[GroundStateAtomPopulation] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class GroundStateMultipole:
+    """Multipole moment analysis for an excited state's density matrix."""
+
+    molecular_charge: float | None = None
+    n_electrons: float | None = None
+    center_electronic_charge_ang: tuple[float, float, float] | None = None
+    center_nuclear_charge_ang: tuple[float, float, float] | None = None
+    dipole_moment_debye: DipoleMoment | None = None  # Reusing existing DipoleMoment
+    rms_density_size_ang: tuple[float, float, float] | None = None  # Cartesian components
+
+
+@dataclass(frozen=True)
+class GroundStateReferenceAnalysis:
+    """Analysis data for the ground state reference within TDDFT output."""
+
+    no_data_rks_or_spin_traced: GroundStateNOData | None = None
+    no_data_alpha: GroundStateNOData | None = None
+    no_data_beta: GroundStateNOData | None = None
+    mulliken: GroundStateMulliken | None = None
+    multipole: GroundStateMultipole | None = None
 
 
 @dataclass(frozen=True)
@@ -79,6 +134,7 @@ class ExcitedStateAtomPopulation:
     hole_charge: float | None = None  # Contribution from hole (h+)
     electron_charge: float | None = None  # Contribution from electron (e-)
     delta_charge: float | None = None  # Change in charge (Del q)
+    spin_e: float | None = None  # Spin population on the atom
 
 
 @dataclass(frozen=True)
@@ -119,10 +175,18 @@ class TransitionDMAtomPopulation:
 
     atom_index: int
     symbol: str
-    transition_charge_e: float  # Trans. (e)
-    hole_charge: float | None = None  # h+
-    electron_charge: float | None = None  # e-
-    delta_charge: float | None = None  # Del q
+    transition_charge_e: float  # Trans. (e) - Common to RKS and UKS
+
+    # RKS specific or general (if UKS doesn't provide detailed h+/e-)
+    hole_charge_rks: float | None = None  # For RKS: h+
+    electron_charge_rks: float | None = None  # For RKS: e-
+    delta_charge_rks: float | None = None  # For RKS: Del q
+
+    # UKS specific
+    hole_charge_alpha_uks: float | None = None  # For UKS: h+ (alpha)
+    hole_charge_beta_uks: float | None = None  # For UKS: h+ (beta)
+    electron_charge_alpha_uks: float | None = None  # For UKS: e- (alpha)
+    electron_charge_beta_uks: float | None = None  # For UKS: e- (beta)
 
 
 @dataclass(frozen=True)
@@ -138,16 +202,28 @@ class TransitionDMMulliken:
 class TransitionDMCTNumbers:
     """Charge Transfer (CT) numbers from Mulliken analysis of transition DM."""
 
-    omega: float | None = None
-    two_alpha_beta_overlap: float | None = None  # 2<alpha|beta>
-    loc: float | None = None
-    loc_a: float | None = None  # LOCa
-    phe_overlap: float | None = None  # <Phe>
+    omega: float | None = None  # Main/total value
+    omega_alpha: float | None = None
+    omega_beta: float | None = None
+
+    two_alpha_beta_overlap: float | None = None  # 2<alpha|beta> - always a single value
+
+    loc: float | None = None  # Main/total value
+    loc_alpha: float | None = None
+    loc_beta: float | None = None
+
+    loc_a: float | None = None  # LOCa - Main/total value
+    loc_a_alpha: float | None = None
+    loc_a_beta: float | None = None
+
+    phe_overlap: float | None = None  # <Phe> - Main/total value
+    phe_overlap_alpha: float | None = None
+    phe_overlap_beta: float | None = None
 
 
 @dataclass(frozen=True)
-class ExcitonAnalysisTransitionDM:
-    """Exciton analysis of the transition density matrix, matching parser output."""
+class ExcitonPropertiesSet:  # New class
+    """Holds one set of exciton analysis properties (e.g., for Total, Alpha, or Beta spin)."""
 
     total_transition_dipole_moment: float | None = None
     transition_dipole_moment_components: tuple[float, float, float] | None = None
@@ -169,6 +245,15 @@ class ExcitonAnalysisTransitionDM:
 
 
 @dataclass(frozen=True)
+class ExcitonAnalysisTMData:  # Renamed from ExcitonAnalysisTransitionDM
+    """Exciton analysis of the transition density matrix, supporting RKS and UKS (Total, Alpha, Beta)."""
+
+    total_properties: ExcitonPropertiesSet | None = None  # For RKS, or "Total" for UKS
+    alpha_spin_properties: ExcitonPropertiesSet | None = None  # For UKS "Alpha spin"
+    beta_spin_properties: ExcitonPropertiesSet | None = None  # For UKS "Beta spin"
+
+
+@dataclass(frozen=True)
 class NTOContribution:
     """A single Natural Transition Orbital (NTO) contribution."""
 
@@ -178,6 +263,7 @@ class NTOContribution:
     electron_offset: int  # e.g. +3 for L+3
     coefficient: float
     weight_percent: float  # e.g., 99.9 for 99.9%
+    is_alpha_spin: bool
 
 
 @dataclass(frozen=True)
@@ -188,6 +274,8 @@ class NTOStateAnalysis:  # Renamed from NTOData
     multiplicity: str  # Added for consistency with other state-specific analyses
     contributions: Sequence[NTOContribution] = field(default_factory=list)
     omega_percent: float | None = None  # Overall omega for the decomposition
+    omega_alpha_percent: float | None = None  # Omega for the alpha spin channel (UKS)
+    omega_beta_percent: float | None = None  # Omega for the beta spin channel (UKS)
 
 
 @dataclass(frozen=True)
@@ -195,20 +283,13 @@ class ExcitedStateDetailedAnalysis:
     """Comprehensive analysis for a single excited state."""
 
     state_number: int
-    multiplicity: str  # e.g., "Singlet"
+    multiplicity: str  # e.g., "Singlet", "Excited State"
     no_data: ExcitedStateNOData | None = None
     mulliken: ExcitedStateMulliken | None = None
     multipole: ExcitedStateMultipole | None = None
     exciton_difference_dm_analysis: ExcitedStateExcitonDifferenceDM | None = None
-
-
-@dataclass(frozen=True)
-class GroundStateReferenceAnalysis:
-    """Analysis data for the ground state reference within TDDFT output."""
-
-    no_data: ExcitedStateNOData | None = None
-    mulliken: ExcitedStateMulliken | None = None
-    multipole: ExcitedStateMultipole | None = None
+    exciton_difference_dm_analysis_alpha: ExcitedStateExcitonDifferenceDM | None = None
+    exciton_difference_dm_analysis_beta: ExcitedStateExcitonDifferenceDM | None = None
 
 
 @dataclass(frozen=True)
@@ -216,10 +297,10 @@ class TransitionDensityMatrixDetailedAnalysis:
     """Comprehensive analysis of the transition density matrix for a single excited state."""
 
     state_number: int
-    multiplicity: str  # e.g., "Singlet"
+    multiplicity: str  # e.g., "Singlet", "Triplet", "Excited State"
     mulliken: TransitionDMMulliken | None = None
     ct_numbers: TransitionDMCTNumbers | None = None
-    exciton_analysis: ExcitonAnalysisTransitionDM | None = None
+    exciton_analysis: ExcitonAnalysisTMData | None = None  # Updated type
 
 
 @dataclass(frozen=True)
