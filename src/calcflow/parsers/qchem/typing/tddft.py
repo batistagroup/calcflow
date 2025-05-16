@@ -263,6 +263,7 @@ class NTOContribution:
     electron_offset: int  # e.g. +3 for L+3
     coefficient: float
     weight_percent: float  # e.g., 99.9 for 99.9%
+    is_alpha_spin: bool
 
 
 @dataclass(frozen=True)
@@ -273,6 +274,8 @@ class NTOStateAnalysis:  # Renamed from NTOData
     multiplicity: str  # Added for consistency with other state-specific analyses
     contributions: Sequence[NTOContribution] = field(default_factory=list)
     omega_percent: float | None = None  # Overall omega for the decomposition
+    omega_alpha_percent: float | None = None  # Omega for the alpha spin channel (UKS)
+    omega_beta_percent: float | None = None  # Omega for the beta spin channel (UKS)
 
 
 @dataclass(frozen=True)
