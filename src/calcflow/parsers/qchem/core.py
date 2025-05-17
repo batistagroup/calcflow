@@ -27,6 +27,7 @@ from calcflow.parsers.qchem.blocks.tddft import (
 from calcflow.parsers.qchem.typing import (
     CalculationData,
     LineIterator,
+    MomCalculationResult,
     SectionParser,
     _MutableCalculationData,
 )
@@ -37,6 +38,11 @@ from calcflow.utils import logger
 NUCLEAR_REPULSION_PAT = re.compile(r"^ Nuclear Repulsion Energy =\s+(-?\d+\.\d+)")
 # Use 'Total energy =' after SCF as the final SP energy
 FINAL_ENERGY_PAT = re.compile(r"^ Total energy =\s+(-?\d+\.\d+)")
+
+# --- Job Splitter Pattern for MOM --- #
+# Matches lines like "Running Job 2 of 2 some_input_file.in"
+# We are interested in the start of Job 2 to split the output.
+JOB2_START_PAT = re.compile(r"^Running Job 2 of \d+.*$", re.MULTILINE)
 
 # Termination Patterns
 # Make the pattern search for the message anywhere on the line, ignoring surrounding characters
@@ -289,3 +295,62 @@ def parse_qchem_tddft_output(output: str) -> CalculationData:
     """
     logger.info("Starting Q-Chem TDDFT output parsing.")
     return _parse_qchem_generic_output(output, PARSER_REGISTRY_TDDFT)
+
+
+# --- Public Entry Point for MOM Calculations --- #
+def parse_qchem_mom_output(output: str) -> MomCalculationResult:
+    """
+    Parses the text output of a Q-Chem MOM calculation, which typically
+    contains two sub-jobs.
+
+    Args:
+        output: The string content of the Q-Chem MOM output file.
+
+    Returns:
+        A MomCalculationResult object containing parsed data for both jobs.
+
+    Raises:
+        ParsingError: If the output cannot be split into two jobs or
+                      if parsing of either sub-job fails.
+    """
+    logger.info("Starting Q-Chem MOM (multi-job) output parsing.")
+
+    match_job2_start = JOB2_START_PAT.search(output)
+
+    if not match_job2_start:
+        raise ParsingError(
+            "Could not find the start of 'Job 2 of X' in the MOM output. "
+            "Expected marker (e.g., 'Running Job 2 of 2 ...') not present."
+        )
+
+    job2_start_index = match_job2_start.start()
+
+    # Job 1 output is from the beginning up to the start of the Job 2 marker line.
+    output_job1 = output[:job2_start_index]
+    # Job 2 output is from the Job 2 marker line to the end.
+    output_job2 = output[job2_start_index:]
+
+    if not output_job1.strip():
+        raise ParsingError("Job 1 output is empty or whitespace after splitting.")
+    if not output_job2.strip():
+        raise ParsingError("Job 2 output is empty or whitespace after splitting.")
+
+    logger.info("Successfully split MOM output into two job segments based on JOB2_START_PAT.")
+
+    logger.info("Parsing Job 1 (initial SCF) of MOM calculation.")
+    # The first job is a standard SP calculation.
+    # We use PARSER_REGISTRY_SP explicitly via parse_qchem_sp_output.
+    initial_scf_data = parse_qchem_sp_output(output_job1)
+
+    logger.info("Parsing Job 2 (MOM SCF) of MOM calculation.")
+    # The second job (MOM job) also uses SP-like parsers, but the ScfParser
+    # has been enhanced to pick up MOM details if present.
+    # We use _parse_qchem_generic_output with PARSER_REGISTRY_SP for Job 2
+    # as it contains the enhanced ScfParser.
+    mom_scf_data = _parse_qchem_generic_output(output_job2, PARSER_REGISTRY_SP)
+
+    return MomCalculationResult(
+        job1=initial_scf_data,
+        job2=mom_scf_data,
+        raw_output=output,
+    )

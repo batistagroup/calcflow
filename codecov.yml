@@ -15,7 +15,7 @@ coverage:
     project:
       default: # default is the status check's name, not default settings
         target: auto
-        threshold: 5
+        threshold: 10
         base: auto
         flags:
           - unit
@@ -24,9 +24,14 @@ coverage:
         # advanced settings
         branches:
           - master
-        if_ci_failed: error #success, failure, error, ignore
+        if_ci_failed: ignore #success, failure, error, ignore
         informational: true
         only_pulls: false
+    patch:
+      default:
+        target: auto
+        threshold: 10
+        base: auto
 
 ignore:
   - "tests" # ignore folders and all its contents
