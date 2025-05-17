@@ -292,10 +292,9 @@ class ScfParser(SectionParser):
                         continue  # With the new current_search_line
 
                 # Check for Final SCF Energy
-                if SCF_FINAL_ENERGY_PAT.search(current_search_line):
-                    final_scf_energy_from_explicit_line = float(
-                        SCF_FINAL_ENERGY_PAT.search(current_search_line).group(1)
-                    )
+                match = SCF_FINAL_ENERGY_PAT.search(current_search_line)
+                if match:
+                    final_scf_energy_from_explicit_line = float(match.group(1))
                     scf_energy_line_found = True
                     logger.debug(f"Found final SCF energy: {final_scf_energy_from_explicit_line}")
                     break  # Found SCF energy, exit this search loop
