@@ -350,7 +350,7 @@ def parse_qchem_mom_output(output: str) -> MomCalculationResult:
     mom_scf_data = _parse_qchem_generic_output(output_job2, PARSER_REGISTRY_SP)
 
     return MomCalculationResult(
-        initial_scf_job=initial_scf_data,
-        mom_scf_job=mom_scf_data,
+        job1=initial_scf_data,
+        job2=mom_scf_data,
         raw_output=output,
     )

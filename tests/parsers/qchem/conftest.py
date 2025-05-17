@@ -42,7 +42,7 @@ def parsed_tddft_uks_pc2_data() -> CalculationData:
 
 @pytest.fixture(scope="module")
 def parsed_mom_sp_data() -> MomCalculationResult:
-    """Fixture to parse the UKS TDDFT output file for H2O (pc2)."""
+    """Fixture to parse the MOM output file for H2O."""
     return qchem.parse_qchem_mom_output((ex_folder / "h2o" / "mom-sp.out").read_text())
 
 

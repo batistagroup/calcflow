@@ -13,19 +13,19 @@ OVERLAP_TOL = 1e-3  # MOM overlaps are usually to 2-3 decimal places in output
 def test_mom_job_splitting_and_raw_output(parsed_mom_sp_data: MomCalculationResult) -> None:
     """Test that the MOM output is split into two jobs and raw output is stored."""
     assert parsed_mom_sp_data is not None, "Fixture did not load/parse data"
-    assert parsed_mom_sp_data.initial_scf_job is not None, "Initial SCF job data is missing"
-    assert parsed_mom_sp_data.mom_scf_job is not None, "MOM SCF job data is missing"
+    assert parsed_mom_sp_data.job1 is not None, "Initial SCF job data is missing"
+    assert parsed_mom_sp_data.job2 is not None, "MOM SCF job data is missing"
     assert isinstance(parsed_mom_sp_data.raw_output, str), "Raw output should be a string"
     assert len(parsed_mom_sp_data.raw_output) > 0, "Raw output should not be empty"
-    assert "Running Job 1 of 2" in parsed_mom_sp_data.initial_scf_job.raw_output
-    assert "Running Job 2 of 2" in parsed_mom_sp_data.mom_scf_job.raw_output
-    assert "Running Job 2 of 2" not in parsed_mom_sp_data.initial_scf_job.raw_output
-    assert "Running Job 1 of 2" not in parsed_mom_sp_data.mom_scf_job.raw_output
+    assert "Running Job 1 of 2" in parsed_mom_sp_data.job1.raw_output
+    assert "Running Job 2 of 2" in parsed_mom_sp_data.job2.raw_output
+    assert "Running Job 2 of 2" not in parsed_mom_sp_data.job1.raw_output
+    assert "Running Job 1 of 2" not in parsed_mom_sp_data.job2.raw_output
 
 
 def test_mom_initial_scf_job_results(parsed_mom_sp_data: MomCalculationResult) -> None:
     """Test key results from the first (initial SCF) job."""
-    job1_data = parsed_mom_sp_data.initial_scf_job
+    job1_data = parsed_mom_sp_data.job1
     assert job1_data.scf is not None, "SCF results missing in Job 1"
 
     assert job1_data.scf.converged is True, "Job 1 SCF should be converged"
@@ -58,7 +58,7 @@ def test_mom_initial_scf_job_results(parsed_mom_sp_data: MomCalculationResult) -
 
 def test_mom_driven_scf_job_results(parsed_mom_sp_data: MomCalculationResult) -> None:
     """Test key results from the second (MOM-driven SCF) job."""
-    job2_data = parsed_mom_sp_data.mom_scf_job
+    job2_data = parsed_mom_sp_data.job2
     assert job2_data.scf is not None, "SCF results missing in Job 2"
 
     assert job2_data.scf.converged is True, "Job 2 SCF should be converged"
@@ -74,7 +74,7 @@ def test_mom_driven_scf_job_results(parsed_mom_sp_data: MomCalculationResult) ->
 
 def test_mom_details_in_job2_scf_cycles(parsed_mom_sp_data: MomCalculationResult) -> None:
     """Test MOM-specific details parsed within Job 2 SCF cycles."""
-    job2_scf_iterations = parsed_mom_sp_data.mom_scf_job.scf.iterations
+    job2_scf_iterations = parsed_mom_sp_data.job2.scf.iterations
     assert len(job2_scf_iterations) == 8, "Incorrect number of SCF iterations in Job 2"
 
     # Cycle 1 assertions (MOM data present)
@@ -122,7 +122,7 @@ def test_mom_details_in_job2_scf_cycles(parsed_mom_sp_data: MomCalculationResult
 
 def test_specific_mom_scf_iterations_job2(parsed_mom_sp_data: MomCalculationResult) -> None:
     """Check specific SCF iteration data from Job 2 including MOM details."""
-    scf_iterations = parsed_mom_sp_data.mom_scf_job.scf.iterations
+    scf_iterations = parsed_mom_sp_data.job2.scf.iterations
 
     expected_iterations_data = [
         # iter, energy, diis_error, mom_active, mom_method, mom_curr, mom_targ

@@ -92,7 +92,14 @@ if run["tddft-parse"]:
 
 if run["mom-parse"]:
     mom_pc2 = parse_qchem_mom_output((clc_folder / "mom-sp.out").read_text())
-    j1 = mom_pc2.initial_scf_job.scf.energy
-    j2 = mom_pc2.mom_scf_job.scf.energy
+    j1 = mom_pc2.job1.scf.energy
+    j2 = mom_pc2.job2.scf.energy
     ev = (j2 - j1) * 27.21138602
     print(f"E(H2O) = {ev:.6f} eV")
+
+    mom_pc2 = parse_qchem_mom_output((clc_folder / "mom-smd-sp.out").read_text())
+    j1 = mom_pc2.job1.scf.energy
+    j2 = mom_pc2.job2.scf.energy
+    ev = (j2 - j1) * 27.21138602
+    print(f"E(H2O) = {ev:.6f} eV")
+    print(mom_pc2.job2.scf)
