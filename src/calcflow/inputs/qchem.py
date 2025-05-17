@@ -473,12 +473,17 @@ class QchemInput(CalculationInput):
                 rem_vars["RPA"] = True
 
             # --- Reduced Excitation Space for TDDFT ---
-            if self.reduced_excitation_space:
-                if not self.solute_orbitals:  # Should be caught by setter, defensive check
-                    raise InputGenerationError("solute_orbitals must be set when reduced_excitation_space is True.")
-                rem_vars["TRNSS"] = True
-                rem_vars["TRTYPE"] = 3
-                rem_vars["N_SOL"] = len(self.solute_orbitals)
+            if self.reduced_excitation_space:  # noqa: SIM102
+                # Only add TRNSS keywords if:
+                # 1. This is the second job of a MOM calculation (mom_start = True)
+                # OR
+                # 2. This is NOT a MOM calculation (self.run_mom = False), so it's a single job.
+                if mom_start or not self.run_mom:
+                    if not self.solute_orbitals:  # Should be caught by setter, defensive check
+                        raise InputGenerationError("solute_orbitals must be set when reduced_excitation_space is True.")
+                    rem_vars["TRNSS"] = True
+                    rem_vars["TRTYPE"] = 3
+                    rem_vars["N_SOL"] = len(self.solute_orbitals)
 
         # --- Implicit Solvation --- #
         if self.implicit_solvation_model:
@@ -565,7 +570,7 @@ class QchemInput(CalculationInput):
             return ""
 
         lines = ["$solute"]
-        lines.extend(str(orb) for orb in self.solute_orbitals)
+        lines.append(" ".join(str(orb) for orb in self.solute_orbitals))
         lines.append("$end")
         return "\n".join(lines)
 
@@ -606,8 +611,10 @@ class QchemInput(CalculationInput):
             self._get_basis_block(),
             self._get_solvent_block(),
             self._get_smx_block(),
-            self._get_solute_block(),
         ]
+        if not self.run_mom:
+            first_job_blocks.append(self._get_solute_block())
+
         first_job = "\n\n".join(block for block in first_job_blocks if block)
 
         if not self.run_mom:
