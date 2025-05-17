@@ -27,6 +27,11 @@ coverage:
         if_ci_failed: ignore #success, failure, error, ignore
         informational: true
         only_pulls: false
+    patch:
+      default:
+        target: auto
+        threshold: 10
+        base: auto
 
 ignore:
   - "tests" # ignore folders and all its contents
