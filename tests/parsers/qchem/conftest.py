@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from calcflow.parsers import qchem
-from calcflow.parsers.qchem.typing import CalculationData, _MutableCalculationData
+from calcflow.parsers.qchem.typing import CalculationData, MomCalculationResult, _MutableCalculationData
 
 # Load the example output file content once
 ex_folder = Path(__file__).resolve().parents[3] / "data" / "calculations" / "examples" / "qchem"
@@ -38,6 +38,12 @@ def parsed_tddft_pc2_data() -> CalculationData:
 def parsed_tddft_uks_pc2_data() -> CalculationData:
     """Fixture to parse the UKS TDDFT output file for H2O (pc2)."""
     return qchem.parse_qchem_tddft_output((ex_folder / "h2o" / "tddft-uks-pc2.out").read_text())
+
+
+@pytest.fixture(scope="module")
+def parsed_mom_sp_data() -> MomCalculationResult:
+    """Fixture to parse the UKS TDDFT output file for H2O (pc2)."""
+    return qchem.parse_qchem_mom_output((ex_folder / "h2o" / "mom-sp.out").read_text())
 
 
 @pytest.fixture
