@@ -333,7 +333,7 @@ class ScfParser(SectionParser):
                 logger.warning(
                     "Using energy from last SCF iteration as final SCF energy; explicit 'SCF energy =' line not found or parsed."
                 )
-        else:  # Should be caught by the `if not all_iterations_collected:` check earlier
+        else:  # pragma: no cover # Should be caught by the `if not all_iterations_collected:` check earlier
             raise ParsingError("Cannot determine energy for ScfResults: no iterations and no explicit final energy.")
 
         # Validate G_ENP vs SCF energy if both found
