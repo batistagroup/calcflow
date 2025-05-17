@@ -125,8 +125,8 @@ def test_specific_mom_scf_iterations_job2(parsed_mom_sp_data: MomCalculationResu
     scf_iterations = parsed_mom_sp_data.job2.scf.iterations
 
     expected_iterations_data = [
-        # iter, energy, diis_error, mom_active, mom_method, mom_curr, mom_targ
-        (1, -76.0804398088, 7.45e-03, True, "IMOM", 5.0, 5.0),
+        # iter, energy, diis_error, mom_active, mom_method, mom_curr, mom_targ, step_type
+        (1, -76.0804398088, 7.45e-03, True, "IMOM", 5.0, 5.0, None),
         (
             2,
             -76.1166679058,
@@ -135,26 +135,37 @@ def test_specific_mom_scf_iterations_job2(parsed_mom_sp_data: MomCalculationResu
             "IMOM",
             4.98,
             5.0,
+            None,
         ),  # Corrected: parser picks up the last MOM overlap line (4.98)
-        (3, -76.1640019887, 5.14e-04, True, "IMOM", 4.98, 5.0),
-        (4, -76.1645744120, 9.39e-05, True, "IMOM", 4.98, 5.0),
-        (5, -76.1646370016, 2.52e-05, True, "IMOM", 4.98, 5.0),
-        (6, -76.1646527070, 3.48e-05, True, "IMOM", 4.98, 5.0),
-        (7, -76.1646460372, 2.29e-05, True, "IMOM", 4.98, 5.0),
-        (8, -76.1646410132, 1.15e-06, None, None, None, None),
+        (3, -76.1640019887, 5.14e-04, True, "IMOM", 4.98, 5.0, None),
+        (4, -76.1645744120, 9.39e-05, True, "IMOM", 4.98, 5.0, None),
+        (5, -76.1646370016, 2.52e-05, True, "IMOM", 4.98, 5.0, None),
+        (6, -76.1646527070, 3.48e-05, True, "IMOM", 4.98, 5.0, None),
+        (7, -76.1646460372, 2.29e-05, True, "IMOM", 4.98, 5.0, None),
+        (8, -76.1646410132, 1.15e-06, None, None, None, None, None),
     ]
 
     assert len(scf_iterations) == len(expected_iterations_data), "Mismatch in number of Job 2 iterations"
 
     for i, expected in enumerate(expected_iterations_data):
         actual_iter: ScfIteration = scf_iterations[i]
-        exp_iter_num, exp_energy, exp_diis, exp_mom_active, exp_mom_method, exp_mom_curr, exp_mom_targ = expected
+        (
+            exp_iter_num,
+            exp_energy,
+            exp_diis,
+            exp_mom_active,
+            exp_mom_method,
+            exp_mom_curr,
+            exp_mom_targ,
+            exp_step_type,
+        ) = expected
 
         assert actual_iter.iteration == exp_iter_num, f"Job 2, Iter {i + 1}: Iteration number mismatch"
         assert actual_iter.energy == pytest.approx(exp_energy, abs=ENERGY_TOL), f"Job 2, Iter {i + 1}: Energy mismatch"
         assert actual_iter.diis_error == pytest.approx(exp_diis, abs=1e-5), f"Job 2, Iter {i + 1}: DIIS error mismatch"
         assert actual_iter.mom_active == exp_mom_active, f"Job 2, Iter {i + 1}: mom_active mismatch"
         assert actual_iter.mom_method_type == exp_mom_method, f"Job 2, Iter {i + 1}: mom_method_type mismatch"
+        assert actual_iter.step_type == exp_step_type, f"Job 2, Iter {i + 1}: step_type mismatch"
         if exp_mom_active:  # Only check overlap if MOM is expected to be active
             assert actual_iter.mom_overlap_current == pytest.approx(exp_mom_curr, abs=OVERLAP_TOL), (
                 f"Job 2, Iter {i + 1}: mom_overlap_current mismatch"
@@ -165,3 +176,55 @@ def test_specific_mom_scf_iterations_job2(parsed_mom_sp_data: MomCalculationResu
         else:
             assert actual_iter.mom_overlap_current is None, f"Job 2, Iter {i + 1}: mom_overlap_current should be None"
             assert actual_iter.mom_overlap_target is None, f"Job 2, Iter {i + 1}: mom_overlap_target should be None"
+
+
+def test_mom_smd_job2_iterations_and_smd_energies(parsed_mom_smd_sp_data: MomCalculationResult) -> None:
+    """Test specific iterations and SMD energies from Job 2 of a MOM+SMD calculation."""
+    assert parsed_mom_smd_sp_data.job2 is not None, "Job 2 data is missing for MOM+SMD test"
+    job2_data = parsed_mom_smd_sp_data.job2
+    assert job2_data.scf is not None, "SCF results missing in Job 2 for MOM+SMD test"
+    job2_scf_results = job2_data.scf
+
+    assert job2_scf_results.converged is True, "Job 2 SCF (MOM+SMD) should be converged"
+    # From the output: 1 Roothaan + 7 DIIS iterations
+    assert job2_scf_results.n_iterations == 8, "Job 2 SCF (MOM+SMD) iteration count mismatch"
+    assert job2_scf_results.energy == pytest.approx(-76.16997884, abs=ENERGY_TOL)
+
+    job2_iterations = job2_scf_results.iterations
+    assert len(job2_iterations) == 8, "Mismatch in number of collected Job 2 (MOM+SMD) iterations"
+
+    # Iteration 1: Roothaan Step (first overall iteration, iter 1 in its table)
+    iter_roothaan: ScfIteration = job2_iterations[0]
+    assert iter_roothaan.iteration == 1, "Roothaan iter: number mismatch"
+    assert iter_roothaan.energy == pytest.approx(-76.0833919808, abs=ENERGY_TOL)
+    assert iter_roothaan.diis_error == pytest.approx(7.23e-03, abs=1e-5)
+    assert iter_roothaan.step_type == "Roothaan", "Roothaan iter: step_type mismatch"
+    assert iter_roothaan.mom_active is True, "Roothaan iter: mom_active mismatch"
+    assert iter_roothaan.mom_method_type == "IMOM", "Roothaan iter: mom_method_type mismatch"
+    assert iter_roothaan.mom_overlap_current == pytest.approx(5.0, abs=OVERLAP_TOL)
+    assert iter_roothaan.mom_overlap_target == pytest.approx(5.0, abs=OVERLAP_TOL)
+
+    # Iteration 2: First DIIS step (second overall iteration, iter 1 in its table)
+    iter_diis_1: ScfIteration = job2_iterations[1]
+    assert iter_diis_1.iteration == 1, "First DIIS iter: number mismatch"
+    assert iter_diis_1.energy == pytest.approx(-76.1266046257, abs=ENERGY_TOL)
+    assert iter_diis_1.diis_error == pytest.approx(6.45e-03, abs=1e-5)
+    assert iter_diis_1.step_type is None, "First DIIS iter: step_type mismatch"
+    assert iter_diis_1.mom_active is True, "First DIIS iter: mom_active mismatch"
+    assert iter_diis_1.mom_method_type == "IMOM", "First DIIS iter: mom_method_type mismatch"
+    assert iter_diis_1.mom_overlap_current == pytest.approx(4.99, abs=OVERLAP_TOL)
+    assert iter_diis_1.mom_overlap_target == pytest.approx(5.0, abs=OVERLAP_TOL)
+
+    # Iteration 8: Last DIIS step, converged (eighth overall, iter 7 in its table)
+    iter_diis_last: ScfIteration = job2_iterations[7]
+    assert iter_diis_last.iteration == 7, "Last DIIS iter: number mismatch"
+    assert iter_diis_last.energy == pytest.approx(-76.1699788432, abs=ENERGY_TOL)
+    assert iter_diis_last.diis_error == pytest.approx(3.44e-06, abs=1e-8)
+    assert iter_diis_last.step_type is None, "Last DIIS iter: step_type mismatch"
+
+    # Check SMD energies parsed for Job 2
+    # These are stored directly on the CalculationData object for job2 by the ScfParser
+    assert job2_data.smd.g_pcm_kcal_mol == pytest.approx(-3.5354, abs=1e-4)
+    assert job2_data.smd.g_cds_kcal_mol == pytest.approx(1.4731, abs=1e-4)
+    assert job2_data.smd.g_enp_au == pytest.approx(-76.16997884, abs=ENERGY_TOL)
+    assert job2_data.smd.g_tot_au == pytest.approx(-76.16763138, abs=ENERGY_TOL)

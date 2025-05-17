@@ -103,3 +103,4 @@ if run["mom-parse"]:
     ev = (j2 - j1) * 27.21138602
     print(f"E(H2O) = {ev:.6f} eV")
     print(mom_pc2.job2.scf)
+    breakpoint()

@@ -1,6 +1,5 @@
 import pytest
 
-from calcflow.exceptions import ParsingError
 from calcflow.parsers.qchem.blocks.scf import ScfParser
 from calcflow.parsers.qchem.typing import ScfIteration, ScfResults, _MutableCalculationData
 
@@ -223,7 +222,9 @@ def test_parse_converged_scf(
     assert results.scf.n_iterations == 7
     assert results.scf.energy == pytest.approx(-75.31188446)
     assert len(results.scf.iterations) == 7
-    assert results.scf.iterations[-1] == ScfIteration(iteration=7, energy=-75.3118844639, diis_error=5.35e-08)
+    assert results.scf.iterations[-1] == ScfIteration(
+        iteration=7, energy=-75.3118844639, diis_error=5.35e-08, step_type=None
+    )
 
 
 def test_parse_non_converged_scf(parser: ScfParser, initial_data: _MutableCalculationData) -> None:
@@ -289,7 +290,9 @@ def test_parse_converged_missing_final_energy(parser: ScfParser, initial_data: _
     assert len(results.scf.iterations) == 2
 
 
-def test_parse_unexpected_end_during_iterations(parser: ScfParser, initial_data: _MutableCalculationData) -> None:
+def test_parse_unexpected_end_during_iterations(
+    parser: ScfParser, initial_data: _MutableCalculationData, caplog
+) -> None:
     """Test handling of file ending abruptly during SCF iterations."""
     abrupt_end_block = [
         " -----------------------------------------------------------------------",
@@ -307,15 +310,18 @@ def test_parse_unexpected_end_during_iterations(parser: ScfParser, initial_data:
     start_line = next(line for line in line_iter if parser.matches(line, initial_data))
     results = initial_data
 
-    with pytest.raises(ParsingError, match="Unexpected end of file in SCF iteration block"):
-        parser.parse(line_iter, start_line, results)
+    parser.parse(line_iter, start_line, results)
 
-    # Check that partial results were stored before raising
+    assert "File ended unexpectedly while parsing SCF iterations in a segment." in caplog.text
+    # Check that partial results were stored
     assert results.parsed_scf is True  # Marked as attempted
     assert results.scf is not None
     assert results.scf.converged is False  # Assumed False due to abrupt end
     assert results.scf.n_iterations == 2
     assert results.scf.energy == pytest.approx(-75.2783922518)
+    assert len(results.scf.iterations) == 2
+    # Ensure the error log about missing final energy is also present due to how the parser now flows
+    assert "File ended before finding final SCF energy line (or after SMD summary)." in caplog.text
 
 
 def test_parse_unexpected_end_after_iterations(parser: ScfParser, initial_data: _MutableCalculationData) -> None:
@@ -348,7 +354,7 @@ def test_parse_unexpected_end_after_iterations(parser: ScfParser, initial_data: 
     assert results.scf.energy == pytest.approx(-75.2783922518)  # Used last iteration energy
 
 
-def test_parse_no_iterations_found(parser: ScfParser, initial_data: _MutableCalculationData) -> None:
+def test_parse_no_iterations_found(parser: ScfParser, initial_data: _MutableCalculationData, caplog) -> None:
     """Test parsing when the SCF header is found but no iteration lines follow."""
     no_iterations_block = [
         " -----------------------------------------------------------------------",
@@ -364,13 +370,11 @@ def test_parse_no_iterations_found(parser: ScfParser, initial_data: _MutableCalc
     start_line = next(line for line in line_iter if parser.matches(line, initial_data))
     results = initial_data
 
-    # Should raise ParsingError because the iteration table header is missing
-    with pytest.raises(ParsingError, match="Unexpected end of file while searching for SCF iteration table."):
-        parser.parse(line_iter, start_line, results)
+    parser.parse(line_iter, start_line, results)
 
-    # Ensure no partial SCF data was stored incorrectly
-    assert results.parsed_scf is False  # Should not be marked as parsed
-    assert results.scf is None  # No data stored
+    assert "No 'Cycle Energy DIIS error' header found after SCF block start." in caplog.text
+    assert results.parsed_scf is True  # Parser attempted
+    assert results.scf is None  # No SCF data could be formed
 
 
 def test_parse_scf_with_smd_summary(
@@ -415,7 +419,7 @@ def test_parse_smd_summary_mismatched_genp(
     # SMD parsed values should still be from the summary block
     assert results.smd_g_enp_au == pytest.approx(-75.32080770)
     assert "Mismatch between G_ENP from SMD summary" in caplog.text
-    assert "Using SCF energy for ScfResults" in caplog.text
+    assert "Using explicit SCF energy." in caplog.text
 
 
 def test_parse_smd_partial_summary(
@@ -434,7 +438,7 @@ def test_parse_smd_partial_summary(
     assert results.smd_g_cds_kcal_mol is None
     assert results.smd_g_enp_au is None
     assert results.smd_g_tot_au is None
-    assert "SMD summary block was identified, but some energy components (G_ENP, G_TOT) were not parsed." in caplog.text
+    assert "SMD summary block identified, but some energy components (G_ENP, G_TOT) were not parsed." in caplog.text
 
 
 def test_parse_smd_malformed_summary(
@@ -457,7 +461,7 @@ def test_parse_smd_malformed_summary(
     # The explicit SCF energy line should still be parsed for ScfResults
     assert results.scf.energy == pytest.approx(-75.32080770)
     # Expect a warning about missing G_ENP, G_TOT from the summary if the summary block was started
-    assert "SMD summary block was identified, but some energy components (G_ENP, G_TOT) were not parsed." in caplog.text
+    assert "SMD summary block identified, but some energy components (G_ENP, G_TOT) were not parsed." in caplog.text
 
 
 def test_parse_smd_summary_no_explicit_scf_energy(
@@ -499,5 +503,8 @@ def test_parse_smd_summary_no_explicit_scf_energy(
     assert results.smd_g_cds_kcal_mol == pytest.approx(1.4731)
     assert results.smd_g_enp_au == pytest.approx(-75.32080770)
     assert results.smd_g_tot_au == pytest.approx(-75.31846024)
-    assert "'SCF energy =' line was not found" in caplog.text
-    assert "Using energy from last SCF iteration as final SCF energy" in caplog.text
+    # Check for the specific warning about using last iteration's energy
+    assert (
+        "Using energy from last SCF iteration as final SCF energy; explicit 'SCF energy =' line not found or parsed."
+        in caplog.text
+    )

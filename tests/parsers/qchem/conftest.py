@@ -46,6 +46,12 @@ def parsed_mom_sp_data() -> MomCalculationResult:
     return qchem.parse_qchem_mom_output((ex_folder / "h2o" / "mom-sp.out").read_text())
 
 
+@pytest.fixture(scope="module")
+def parsed_mom_smd_sp_data() -> MomCalculationResult:
+    """Fixture to parse the MOM output file for H2O."""
+    return qchem.parse_qchem_mom_output((ex_folder / "h2o" / "mom-smd-sp.out").read_text())
+
+
 @pytest.fixture
 def mutable_data() -> _MutableCalculationData:
     """Provides a fresh mutable data object for testing."""
