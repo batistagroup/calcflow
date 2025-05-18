@@ -45,6 +45,8 @@ class QchemInput(CalculationInput):
         mom_alpha_occ: Alpha orbital occupation string for MOM (e.g., "1:77 79").
         mom_beta_occ: Beta orbital occupation string for MOM.
         mom_transition: Symbolic transition specification (e.g., "HOMO->LUMO").
+        reduced_excitation_space: Flag to enable reduced excitation space for TDDFT calculations.
+        solute_orbitals: List of molecular orbitals from which excitations are allowed when TRNSS is enabled.
     """
 
     program: ClassVar[str] = "qchem"
@@ -58,6 +60,10 @@ class QchemInput(CalculationInput):
     tddft_triplets: bool = False
     tddft_state_analysis: bool = True
     rpa: bool = False  # Controls whether to use RPA (True TDDFT) instead of CIS/TDA
+
+    # --- TDDFT Reduced Excitation Space ---
+    reduced_excitation_space: bool = False
+    solute_orbitals: list[int] | None = None
 
     # --- MOM Specific Attributes ---
     run_mom: bool = False
@@ -89,6 +95,16 @@ class QchemInput(CalculationInput):
                 raise ValidationError(
                     "If run_tddft is True, at least one of tddft_singlets or tddft_triplets must be True."
                 )
+
+        # Ensure reduced_excitation_space is only true if TDDFT is enabled
+        if self.reduced_excitation_space:
+            if not self.run_tddft:
+                raise ConfigurationError("reduced_excitation_space (TRNSS) requires TDDFT (run_tddft) to be enabled.")
+            # Validate solute_orbitals if reduced_excitation_space is enabled
+            if not self.solute_orbitals:
+                raise ValidationError("The solute_orbitals list cannot be empty for reduced excitation space.")
+            if not all(isinstance(orb, int) and orb > 0 for orb in self.solute_orbitals):
+                raise ValidationError("All solute_orbitals must be positive integers.")
 
         # Use the Q-Chem specific literal for validation
         if self.implicit_solvation_model and self.implicit_solvation_model not in get_args(
@@ -334,6 +350,50 @@ class QchemInput(CalculationInput):
         logger.debug(f"Setting RPA keyword to: {enable}")
         return replace(self, rpa=enable)
 
+    def set_reduced_excitation_space(self: T_QchemInput, solute_orbitals: list[int]) -> T_QchemInput:
+        """Configure a reduced excitation space for TDDFT calculations.
+
+        This setting activates Q-Chem's TRNSS capability, restricting excitations
+        to originate from a specified subset of molecular orbitals. It sets
+        TRNSS = TRUE, TRTYPE = 3, and N_SOL = len(solute_orbitals) in the $rem block,
+        and requires a $solute block specifying the active orbitals.
+
+        Args:
+            solute_orbitals: A list of positive integers representing the molecular orbitals
+                             from which excitations are allowed. The list will be
+                             stored internally sorted and with duplicates removed.
+
+        Returns:
+            A new QchemInput instance with reduced excitation space configured.
+
+        Raises:
+            ConfigurationError: If TDDFT (run_tddft) is not enabled.
+            ValidationError: If the solute_orbitals list is empty or contains
+                             non-positive integers.
+        """
+        if not self.run_tddft:
+            raise ConfigurationError(
+                "Reduced excitation space (TRNSS) requires TDDFT to be enabled. "
+                "Ensure run_tddft is True before calling this method."
+            )
+        if not solute_orbitals:
+            raise ValidationError("The solute_orbitals list cannot be empty for reduced excitation space.")
+        if not all(isinstance(orb, int) and orb > 0 for orb in solute_orbitals):
+            raise ValidationError("All solute_orbitals must be positive integers.")
+
+        # Store unique, sorted orbitals
+        processed_orbitals = sorted(list(set(solute_orbitals)))
+
+        logger.debug(
+            f"Setting reduced excitation space with orbitals: {processed_orbitals}. "
+            f"This will set TRNSS=True, TRTYPE=3, N_SOL={len(processed_orbitals)}."
+        )
+        return replace(
+            self,
+            reduced_excitation_space=True,
+            solute_orbitals=processed_orbitals,
+        )
+
     def set_basis(self: T_QchemInput, basis: str | dict[str, str]) -> T_QchemInput:
         """Set the basis set for the calculation.
 
@@ -412,15 +472,29 @@ class QchemInput(CalculationInput):
             rem_vars["MOM_METHOD"] = self.mom_method
 
         # --- TDDFT --- #
-        if self.run_tddft:
-            if self.tddft_nroots is None:
-                raise InputGenerationError("tddft_nroots must be set when run_tddft is True.")
-            rem_vars["CIS_N_ROOTS"] = self.tddft_nroots
-            rem_vars["CIS_SINGLETS"] = self.tddft_singlets
-            rem_vars["CIS_TRIPLETS"] = self.tddft_triplets
-            rem_vars["STATE_ANALYSIS"] = self.tddft_state_analysis
-            if self.rpa:
-                rem_vars["RPA"] = True
+        if self.run_tddft:  # noqa: SIM102 for clarity
+            # TDDFT keywords should only be added if:
+            # 1. This is the second job of a MOM calculation (mom_start = True)
+            # OR
+            # 2. This is NOT a MOM calculation (self.run_mom = False), so it's a single job.
+            if mom_start or not self.run_mom:
+                if self.tddft_nroots is None:
+                    raise InputGenerationError("tddft_nroots must be set when run_tddft is True.")
+                rem_vars["CIS_N_ROOTS"] = self.tddft_nroots
+                rem_vars["CIS_SINGLETS"] = self.tddft_singlets
+                rem_vars["CIS_TRIPLETS"] = self.tddft_triplets
+                rem_vars["STATE_ANALYSIS"] = self.tddft_state_analysis
+                if self.rpa:
+                    rem_vars["RPA"] = True
+
+                # --- Reduced Excitation Space for TDDFT --- (This logic is now nested)
+                if self.reduced_excitation_space:
+                    # The outer condition (mom_start or not self.run_mom) already ensures this is the correct job context.
+                    if not self.solute_orbitals:  # Should be caught by setter, defensive check
+                        raise InputGenerationError("solute_orbitals must be set when reduced_excitation_space is True.")
+                    rem_vars["TRNSS"] = True
+                    rem_vars["TRTYPE"] = 3
+                    rem_vars["N_SOL"] = len(self.solute_orbitals)
 
         # --- Implicit Solvation --- #
         if self.implicit_solvation_model:
@@ -493,6 +567,24 @@ class QchemInput(CalculationInput):
         logger.debug(f"Generating $smx block for solvent: {self.solvent}")
         return "\n".join(lines)
 
+    def _get_solute_block(self) -> str:
+        """Generates the $solute block for reduced excitation space TDDFT.
+
+        This block lists the molecular orbitals from which excitations are allowed
+        when TRNSS is enabled.
+
+        Returns:
+            String containing the formatted $solute block if reduced_excitation_space
+            is True and solute_orbitals are provided, otherwise an empty string.
+        """
+        if not self.reduced_excitation_space or not self.solute_orbitals:
+            return ""
+
+        lines = ["$solute"]
+        lines.append(" ".join(str(orb) for orb in self.solute_orbitals))
+        lines.append("$end")
+        return "\n".join(lines)
+
     def _pre_export_validation(self, geometry: "Geometry") -> None:
         if isinstance(self.basis_set, dict):
             geom_elements = geometry.unique_elements
@@ -531,6 +623,9 @@ class QchemInput(CalculationInput):
             self._get_solvent_block(),
             self._get_smx_block(),
         ]
+        if not self.run_mom:
+            first_job_blocks.append(self._get_solute_block())
+
         first_job = "\n\n".join(block for block in first_job_blocks if block)
 
         if not self.run_mom:
@@ -548,6 +643,7 @@ class QchemInput(CalculationInput):
             self._get_solvent_block(),  # Keep solvation consistent
             self._get_smx_block(),
             self._generate_occupied_block(geometry),
+            self._get_solute_block(),
         ]
         second_job = "\n\n".join(block for block in second_job_blocks if block)
 
