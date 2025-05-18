@@ -14,7 +14,6 @@ SUPPORTED_FUNCTIONALS = {"b3lyp", "pbe0", "m06", "cam-b3lyp", "wb97x", "wb97x-d3
 
 # Define allowed models specifically for ORCA
 ORCA_ALLOWED_SOLVATION_MODELS = Literal["smd", "cpcm"]
-TDDFT_METHODS = Literal["TDDFT", "TDA"]
 
 
 @dataclass(frozen=True)
@@ -36,8 +35,7 @@ class OrcaInput(CalculationInput):
         tddft_nroots: Number of roots to calculate in TDDFT. Defaults to 6 if TDDFT is enabled.
         tddft_iroot: Specific root to target in TDDFT geometry optimization. Defaults to None.
         tddft_triplets: Flag to include triplet states in TDDFT calculation. Defaults to False.
-        tddft_method: TDDFT method to use, either "TDDFT" or "TDA" (Tamm-Dancoff Approximation).
-            Defaults to "TDDFT".
+        tddft_use_tda: Flag to use the Tamm-Dancoff Approximation for TDDFT. Defaults to True.
         output_verbosity: Level of output verbosity. Defaults to "Normal".
         print_mos: Flag to control printing of Molecular Orbitals (MOs) and Overlap matrix.
             Defaults to False.
@@ -55,7 +53,7 @@ class OrcaInput(CalculationInput):
     tddft_nroots: int | None = None
     tddft_iroot: int | None = None
     tddft_triplets: bool = False
-    tddft_method: TDDFT_METHODS = "TDDFT"
+    tddft_use_tda: bool = True
 
     implicit_solvation_model: ORCA_ALLOWED_SOLVATION_MODELS | None = None
     solvent: str | None = None
@@ -184,7 +182,7 @@ class OrcaInput(CalculationInput):
         nroots: int | None = None,
         iroot: int | None = None,
         triplets: bool = False,
-        method: str = "TDA",
+        use_tda: bool = True,
     ) -> T_OrcaInput:
         """Configure and enable TDDFT calculation.
 
@@ -192,7 +190,7 @@ class OrcaInput(CalculationInput):
             nroots: Number of excited states to calculate. Defaults to 6 if neither nroots nor iroot specified.
             iroot: Specific excited state to target. Cannot be used with nroots.
             triplets: Whether to include triplet states. Defaults to False.
-            method: TDDFT method to use. Either "TDDFT" or "TDA". Defaults to "TDDFT".
+            use_tda: Whether to use the Tamm-Dancoff Approximation. Defaults to True.
 
         Returns:
             A new OrcaInput instance with TDDFT enabled and configured
@@ -201,16 +199,13 @@ class OrcaInput(CalculationInput):
             Either nroots or iroot must be specified, but not both.
             If neither is specified, defaults to calculating 6 roots.
         """
-        if method not in get_args(TDDFT_METHODS):
-            raise ValidationError(f"Invalid TDDFT method: {method}. Allowed: {get_args(TDDFT_METHODS)}")
-        casted = cast(TDDFT_METHODS, method)
         if nroots is None and iroot is None:
             nroots = 5
-            logger.info(f"Setting TDDFT with default nroots={nroots}, triplets={triplets}, method={method}")
+            logger.info(f"Setting TDDFT with default nroots={nroots}, triplets={triplets}, use_tda={use_tda}")
         elif iroot is not None:
-            logger.info(f"Setting TDDFT for iroot={iroot}, triplets={triplets}, method={method}")
+            logger.info(f"Setting TDDFT for iroot={iroot}, triplets={triplets}, use_tda={use_tda}")
         else:
-            logger.info(f"Setting TDDFT for nroots={nroots}, triplets={triplets}, method={method}")
+            logger.info(f"Setting TDDFT for nroots={nroots}, triplets={triplets}, use_tda={use_tda}")
 
         return replace(
             self,
@@ -218,7 +213,7 @@ class OrcaInput(CalculationInput):
             tddft_nroots=nroots,
             tddft_iroot=iroot,
             tddft_triplets=triplets,
-            tddft_method=casted,
+            tddft_use_tda=use_tda,
         )
 
     def _handle_level_of_theory(self) -> list[str]:
@@ -392,7 +387,7 @@ class OrcaInput(CalculationInput):
             raise ValidationError("TDDFT requested but neither nroots nor iroot specified.")
 
         lines.append(f"    Triplets {str(self.tddft_triplets).lower()}")
-        lines.append(f"    Method {self.tddft_method}")
+        lines.append(f"    TDA {str(self.tddft_use_tda).lower()}")
         lines.append("end")
         return "\n".join(lines)
 

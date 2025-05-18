@@ -123,6 +123,23 @@ def test_post_init_warnings(caplog: LogCaptureFixture) -> None:
     assert "unrestricted calculation with a singlet spin multiplicity" in caplog.text
     caplog.clear()
 
+def test_set_charge(base_input: SimpleInput) -> None:
+    """Test the set_charge method."""
+    assert base_input.charge == 0  # Default from fixture
+
+    # Set new valid charge
+    charged_input = base_input.set_charge(-1)
+    assert charged_input.charge == -1
+    assert charged_input is not base_input  # Ensure immutability
+    assert charged_input.spin_multiplicity == base_input.spin_multiplicity # Other fields unchanged
+
+    # Test invalid charge type
+    with pytest.raises(ValidationError, match="Charge must be an integer"):
+        base_input.set_charge("invalid_charge") # type: ignore
+
+    with pytest.raises(ValidationError, match="Charge must be an integer"):
+        base_input.set_charge(1.5) # type: ignore
+
 def test_export_input_file(base_input: SimpleInput) -> None:
     """Test the basic export_input_file implementation."""
     geom = Geometry(num_atoms=2, comment="", atoms=[("O", (0, 0, 0)), ("H", (0, 0, 1))])

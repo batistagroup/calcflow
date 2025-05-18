@@ -50,7 +50,7 @@ class TestOrcaInputInitValidation:
         assert minimal_orca_input.tddft_nroots is None
         assert minimal_orca_input.tddft_iroot is None
         assert not minimal_orca_input.tddft_triplets
-        assert minimal_orca_input.tddft_method == "TDDFT"
+        assert minimal_orca_input.tddft_use_tda  # Defaults to True
         assert minimal_orca_input.implicit_solvation_model is None
         assert minimal_orca_input.solvent is None
 
@@ -68,7 +68,7 @@ class TestOrcaInputInitValidation:
             run_tddft=True,
             tddft_nroots=10,
             tddft_triplets=True,
-            tddft_method="TDA",
+            tddft_use_tda=True,  # Explicitly True, but also default
             implicit_solvation_model="cpcm",
             solvent="water",
         )
@@ -80,7 +80,7 @@ class TestOrcaInputInitValidation:
         assert instance.tddft_nroots == 10
         assert instance.tddft_iroot is None
         assert instance.tddft_triplets
-        assert instance.tddft_method == "TDA"
+        assert instance.tddft_use_tda
         assert instance.implicit_solvation_model == "cpcm"
         assert instance.solvent == "water"
 
@@ -321,36 +321,36 @@ class TestOrcaInputMethods:
         assert modified_input.tddft_nroots == 5  # Default when nroots/iroot are None
         assert modified_input.tddft_iroot is None
         assert not modified_input.tddft_triplets
-        assert modified_input.tddft_method == "TDA"  # Default method in set_tddft
+        assert modified_input.tddft_use_tda  # Default use_tda in set_tddft
 
     def test_set_tddft_with_nroots(self, minimal_orca_input: OrcaInput) -> None:
         """Test set_tddft specifying nroots."""
-        modified_input = minimal_orca_input.set_tddft(nroots=10, triplets=True, method="TDDFT")
+        modified_input = minimal_orca_input.set_tddft(nroots=10, triplets=True, use_tda=False)
         assert modified_input.run_tddft
         assert modified_input.tddft_nroots == 10
         assert modified_input.tddft_iroot is None
         assert modified_input.tddft_triplets
-        assert modified_input.tddft_method == "TDDFT"
+        assert not modified_input.tddft_use_tda
 
     def test_set_tddft_with_iroot(self, minimal_orca_input: OrcaInput) -> None:
         """Test set_tddft specifying iroot."""
-        modified_input = minimal_orca_input.set_tddft(iroot=3, triplets=False, method="TDA")
+        modified_input = minimal_orca_input.set_tddft(iroot=3, triplets=False, use_tda=True)
         assert modified_input.run_tddft
         assert modified_input.tddft_nroots is None  # nroots should be None if iroot specified
         assert modified_input.tddft_iroot == 3
         assert not modified_input.tddft_triplets
-        assert modified_input.tddft_method == "TDA"
+        assert modified_input.tddft_use_tda
 
     def test_set_tddft_overwrites_previous(self, minimal_orca_input: OrcaInput) -> None:
         """Test that subsequent calls to set_tddft overwrite previous settings."""
-        input1 = minimal_orca_input.set_tddft(nroots=5)
-        input2 = input1.set_tddft(iroot=2, triplets=True)
+        input1 = minimal_orca_input.set_tddft(nroots=5, use_tda=False)  # Explicitly set to False for change
+        input2 = input1.set_tddft(iroot=2, triplets=True, use_tda=True)  # Default TDA
 
         assert input2.run_tddft
         assert input2.tddft_nroots is None
         assert input2.tddft_iroot == 2
         assert input2.tddft_triplets
-        assert input2.tddft_method == "TDA"  # Default method
+        assert input2.tddft_use_tda  # Default use_tda
 
     # Note: Validation for conflicting nroots/iroot happens in __post_init__,
     # not directly in set_tddft, so we don't test that specific error here.
@@ -644,20 +644,22 @@ end"""
 
     def test_export_with_tddft_nroots(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
         """Test export with TDDFT enabled using nroots."""
-        tddft_input = minimal_orca_input.set_tddft(nroots=5, triplets=True, method="TDDFT")
+        # Expect TDA False here
+        tddft_input = minimal_orca_input.set_tddft(nroots=5, triplets=True, use_tda=False)
         # We need to re-validate after replace/set_tddft for the export checks
         tddft_input_validated = replace(tddft_input)
         output = tddft_input_validated.export_input_file(default_geom)
         expected_block = """%tddft
     NRoots 5
     Triplets true
-    Method TDDFT
+    TDA false
 end"""
         assert expected_block in output
 
     def test_export_with_tddft_iroot(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
         """Test export with TDDFT enabled using iroot."""
-        tddft_input = minimal_orca_input.set_tddft(iroot=2, triplets=False, method="TDA")
+        # Expect TDA True (default)
+        tddft_input = minimal_orca_input.set_tddft(iroot=2, triplets=False, use_tda=True)
         # Re-validate after replace/set_tddft
         tddft_input_validated = replace(tddft_input)
         output = tddft_input_validated.export_input_file(default_geom)
@@ -665,7 +667,7 @@ end"""
     NRoots 1
     IRoot 2
     Triplets false
-    Method TDA
+    TDA true
 end"""
         assert expected_block in output
 
@@ -702,7 +704,7 @@ end"""
             run_tddft=True,
             tddft_iroot=3,
             tddft_triplets=True,
-            tddft_method="TDA",
+            tddft_use_tda=True,  # TDA is true
             print_mos=True,
         )
         output = full_input.export_input_file(default_geom)
@@ -718,7 +720,7 @@ end"""
         assert "%tddft" in output
         assert "IRoot 3" in output
         assert "Triplets true" in output
-        assert "Method TDA" in output
+        assert "TDA true" in output
         assert "%output" in output
         assert "Print[ P_MOs ] 1" in output
         # Check geometry section

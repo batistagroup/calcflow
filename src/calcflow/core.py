@@ -149,3 +149,21 @@ class CalculationInput(ABC):
         # The __post_init__ method will handle warnings related to spin multiplicity mismatch.
         logger.debug(f"Setting unrestricted to: {True}")
         return replace(self, unrestricted=True)
+
+    def set_charge(self: T_CalcInput, charge: int) -> T_CalcInput:
+        """
+        Set the molecular charge.
+
+        Args:
+            charge (int): The new molecular charge.
+
+        Returns:
+            T_CalcInput: A new instance of the CalculationInput subclass with the charge updated.
+
+        Raises:
+            ValidationError: If charge is not an integer.
+        """
+        if not isinstance(charge, int):
+            raise ValidationError("Charge must be an integer.")
+        logger.debug(f"Setting charge to: {charge}")
+        return replace(self, charge=charge)
