@@ -1,4 +1,5 @@
 import logging
+import re
 from dataclasses import replace
 
 import pytest
@@ -43,3 +44,37 @@ def mom_enabled_input(default_qchem_input: QchemInput) -> QchemInput:
 def unrestricted_input(default_qchem_input: QchemInput) -> QchemInput:
     """Fixture for a QchemInput that is unrestricted."""
     return replace(default_qchem_input, unrestricted=True, basis_set="def2-svp")
+
+
+class Helpers:
+    @staticmethod
+    def parse_qchem_rem_section(section_string: str) -> dict[str, str]:
+        """
+        Parses a Q-Chem input section (like $rem, $solvent, $smx) into a dict.
+        Assumes section_string is the content *between* the $section_name and $end lines,
+        with leading/trailing whitespace already stripped from the overall section content.
+        """
+        parsed_data: dict[str, str] = {}
+        lines = section_string.split("\n")
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            # Split only on the first occurrence of one or more whitespace chars
+            parts = re.split(r"\s+", line, maxsplit=1)
+            if len(parts) == 2:
+                key = parts[0].upper()
+                # Keep original case for values (e.g., True/False, solvent names, basis set names)
+                # The QchemInput class itself handles desired casing for output.
+                value = parts[1]
+                parsed_data[key] = value
+            # If a line doesn't split into two parts (e.g. a malformed line or a standalone keyword
+            # without a value, which is uncommon for the sections this parser targets),
+            # it's ignored. This behavior can be adjusted if needed.
+        return parsed_data
+
+
+@pytest.fixture
+def helpers() -> Helpers:
+    """Fixture for the Helpers class."""
+    return Helpers

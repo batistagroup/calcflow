@@ -56,16 +56,38 @@ def test_set_reduced_excitation_space_invalid_orbital_values(
         inp_tddft.set_reduced_excitation_space(solute_orbitals=invalid_orbitals)
 
 
-def test_get_rem_block_tddft_reduced_excitation(default_qchem_input: QchemInput) -> None:
+def test_get_rem_block_tddft_reduced_excitation(helpers, default_qchem_input: QchemInput) -> None:
     """Test $rem block with TDDFT and reduced excitation space."""
     inp = default_qchem_input.set_tddft(nroots=5).set_reduced_excitation_space(solute_orbitals=[8, 10, 11])
-    rem_block = inp._get_rem_block()
 
-    assert "TRNSS             True" in rem_block
-    assert "TRTYPE            3" in rem_block
-    assert "N_SOL             3" in rem_block
-    # Ensure other TDDFT params are still there
-    assert "CIS_N_ROOTS       5" in rem_block
+    expected_rem_dict = {
+        # Base from default_qchem_input
+        "METHOD": "hf",
+        "BASIS": "sto-3g",
+        "JOBTYPE": "sp",
+        "UNRESTRICTED": "False",
+        "SYMMETRY": "False",
+        "SYM_IGNORE": "True",
+        # TDDFT params
+        "CIS_N_ROOTS": "5",
+        "CIS_SINGLETS": "True",  # Default for set_tddft
+        "CIS_TRIPLETS": "False",  # Default for set_tddft
+        "STATE_ANALYSIS": "True",  # Default for set_tddft
+        # TRNSS params
+        "TRNSS": "True",
+        "TRTYPE": "3",
+        "N_SOL": "3",
+    }
+
+    actual_block_full_string = inp._get_rem_block()
+    actual_block_content_lines = actual_block_full_string.strip().split("\n")
+    if len(actual_block_content_lines) < 2:  # Should have $rem and $end
+        assert False, f"REM block is malformed or too short: {actual_block_full_string}"
+
+    actual_block_inner_content = "\n".join(actual_block_content_lines[1:-1])
+    actual_rem_dict = helpers.parse_qchem_rem_section(actual_block_inner_content)
+
+    assert actual_rem_dict == expected_rem_dict
 
 
 def test_get_solute_block_active(default_qchem_input: QchemInput) -> None:
