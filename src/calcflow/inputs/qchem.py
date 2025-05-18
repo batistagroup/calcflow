@@ -17,7 +17,7 @@ QCHEM_ALLOWED_MOM_METHODS = Literal["IMOM", "MOM"]
 T_QchemInput = TypeVar("T_QchemInput", bound="QchemInput")
 
 # fmt:off
-SUPPORTED_FUNCTIONALS = {"b3lyp", "pbe0", "m06", "cam-b3lyp", "wb97x", "wb97x-d3" }
+SUPPORTED_FUNCTIONALS = {"b3lyp", "pbe0", "m06", "cam-b3lyp", "wb97x", "wb97x-d3", "src1-r1"}
 # fmt:on
 
 QCHEM_BASIS_REGISTRY = basis_registry.ProgramBasisRegistry("qchem")
@@ -255,8 +255,7 @@ class QchemInput(CalculationInput):
         """
         if not self.run_mom:
             raise ConfigurationError(
-                "MOM must be enabled (run_mom=True) via enable_mom() "
-                "before setting MOM to target the ground state."
+                "MOM must be enabled (run_mom=True) via enable_mom() before setting MOM to target the ground state."
             )
 
         # Defer electron count validation until geometry is available.
@@ -274,7 +273,7 @@ class QchemInput(CalculationInput):
             mom_transition="GROUND_STATE",
             mom_alpha_occ=None,
             mom_beta_occ=None,
-            unrestricted=True, # MOM typically needs unrestricted
+            unrestricted=True,  # MOM typically needs unrestricted
         )
 
     def _generate_occupied_block(self, geometry: "Geometry") -> str:
