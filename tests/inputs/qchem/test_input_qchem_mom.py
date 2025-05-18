@@ -127,11 +127,11 @@ def test_generate_occupied_block_not_unrestricted(mom_enabled_input: QchemInput,
 def test_generate_occupied_block_non_singlet(mom_enabled_input: QchemInput, h2o_geometry: Geometry) -> None:
     """Test error if MOM enabled for non-closed-shell-singlet reference."""
     inp_charged = replace(mom_enabled_input, charge=1, unrestricted=True).set_mom_transition("HOMO->LUMO")
-    with pytest.raises(NotSupportedError, match="MOM currently only supports closed-shell singlet reference states"):
+    with pytest.raises(NotSupportedError, match="MOM occupation determination currently only supports closed-shell singlet reference states"):
         inp_charged._generate_occupied_block(h2o_geometry)
 
     inp_triplet = replace(mom_enabled_input, spin_multiplicity=3, unrestricted=True).set_mom_transition("HOMO->LUMO")
-    with pytest.raises(NotSupportedError, match="MOM currently only supports closed-shell singlet reference states"):
+    with pytest.raises(NotSupportedError, match="MOM occupation determination currently only supports closed-shell singlet reference states"):
         inp_triplet._generate_occupied_block(h2o_geometry)
 
 
@@ -139,7 +139,7 @@ def test_generate_occupied_block_no_occupation_set(unrestricted_input: QchemInpu
     """Test error if MOM enabled but neither transition nor direct occupation is set."""
     inp = unrestricted_input.enable_mom()  # MOM enabled, unrestricted, singlet, but no occupation details
     with pytest.raises(
-        ConfigurationError, match="Either mom_transition or both mom_alpha_occ and mom_beta_occ must be set"
+        ConfigurationError, match="If mom_transition is not 'GROUND_STATE' or a symbolic transition, then both mom_alpha_occ and mom_beta_occ must be explicitly set."
     ):
         inp._generate_occupied_block(h2o_geometry)
 
