@@ -59,7 +59,7 @@ def test_get_rem_block_minimal(helpers, default_qchem_input: QchemInput) -> None
     actual_block_full_string = inp._get_rem_block()
     actual_block_content_lines = actual_block_full_string.strip().split("\n")
     if len(actual_block_content_lines) < 2:
-        assert False, f"REM block is too short: {actual_block_full_string}"
+        pytest.fail(f"REM block is too short: {actual_block_full_string}")
     actual_block_inner_content = "\n".join(actual_block_content_lines[1:-1])
     actual_dict = helpers.parse_qchem_rem_section(actual_block_inner_content)
     assert actual_dict == expected_dict
@@ -86,7 +86,7 @@ def test_get_rem_block_opt_dft_unrestricted(helpers, default_qchem_input: QchemI
     actual_block_full_string = inp._get_rem_block()
     actual_block_content_lines = actual_block_full_string.strip().split("\n")
     if len(actual_block_content_lines) < 2:
-        assert False, f"REM block is too short: {actual_block_full_string}"
+        pytest.fail(f"REM block is too short: {actual_block_full_string}")
     actual_block_inner_content = "\n".join(actual_block_content_lines[1:-1])
     actual_dict = helpers.parse_qchem_rem_section(actual_block_inner_content)
     assert actual_dict == expected_dict
@@ -110,7 +110,7 @@ def test_get_rem_block_tddft(helpers, default_qchem_input: QchemInput) -> None:
     actual_block_full_string = inp._get_rem_block()
     actual_block_content_lines = actual_block_full_string.strip().split("\n")
     if len(actual_block_content_lines) < 2:
-        assert False, f"REM block is too short: {actual_block_full_string}"
+        pytest.fail(f"REM block is too short: {actual_block_full_string}")
     actual_block_inner_content = "\n".join(actual_block_content_lines[1:-1])
     actual_dict = helpers.parse_qchem_rem_section(actual_block_inner_content)
     assert actual_dict == expected_dict
@@ -135,7 +135,7 @@ def test_get_rem_block_tddft_rpa(helpers, default_qchem_input: QchemInput) -> No
     actual_block_full_string = inp._get_rem_block()
     actual_block_content_lines = actual_block_full_string.strip().split("\n")
     if len(actual_block_content_lines) < 2:
-        assert False, f"REM block is too short: {actual_block_full_string}"
+        pytest.fail(f"REM block is too short: {actual_block_full_string}")
     actual_block_inner_content = "\n".join(actual_block_content_lines[1:-1])
     actual_dict = helpers.parse_qchem_rem_section(actual_block_inner_content)
     assert actual_dict == expected_dict
@@ -156,7 +156,7 @@ def test_get_rem_block_solvation(helpers, default_qchem_input: QchemInput) -> No
     actual_block_full_string = inp._get_rem_block()
     actual_block_content_lines = actual_block_full_string.strip().split("\n")
     if len(actual_block_content_lines) < 2:
-        assert False, f"REM block is too short: {actual_block_full_string}"
+        pytest.fail(f"REM block is too short: {actual_block_full_string}")
     actual_block_inner_content = "\n".join(actual_block_content_lines[1:-1])
     actual_dict = helpers.parse_qchem_rem_section(actual_block_inner_content)
     assert actual_dict == expected_dict
@@ -176,7 +176,7 @@ def test_get_rem_block_dict_basis(helpers, default_qchem_input: QchemInput) -> N
     actual_block_full_string = inp._get_rem_block()
     actual_block_content_lines = actual_block_full_string.strip().split("\n")
     if len(actual_block_content_lines) < 2:
-        assert False, f"REM block is too short: {actual_block_full_string}"
+        pytest.fail(f"REM block is too short: {actual_block_full_string}")
     actual_block_inner_content = "\n".join(actual_block_content_lines[1:-1])
     actual_dict = helpers.parse_qchem_rem_section(actual_block_inner_content)
     assert actual_dict == expected_dict
@@ -231,7 +231,7 @@ def test_get_solvent_block_pcm(helpers, default_qchem_input: QchemInput) -> None
     else:
         actual_block_content_lines = actual_block_full_string.strip().split("\n")
         if len(actual_block_content_lines) < 2:  # Should have $section and $end
-            assert False, f"Solvent block is malformed: {actual_block_full_string}"
+            pytest.fail(f"Solvent block is malformed: {actual_block_full_string}")
         actual_block_inner_content = "\n".join(actual_block_content_lines[1:-1])
         actual_dict = helpers.parse_qchem_rem_section(actual_block_inner_content)
     assert actual_dict == expected_dict
@@ -255,7 +255,7 @@ def test_get_smx_block_smd(helpers, default_qchem_input: QchemInput) -> None:
     else:
         actual_block_content_lines = actual_block_full_string.strip().split("\n")
         if len(actual_block_content_lines) < 2:  # Should have $section and $end
-            assert False, f"SMX block is malformed: {actual_block_full_string}"
+            pytest.fail(f"SMX block is malformed: {actual_block_full_string}")
         actual_block_inner_content = "\n".join(actual_block_content_lines[1:-1])
         actual_dict = helpers.parse_qchem_rem_section(actual_block_inner_content)
     assert actual_dict == expected_dict

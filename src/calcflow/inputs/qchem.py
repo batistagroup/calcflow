@@ -96,6 +96,16 @@ class QchemInput(CalculationInput):
                     "If run_tddft is True, at least one of tddft_singlets or tddft_triplets must be True."
                 )
 
+        # Ensure reduced_excitation_space is only true if TDDFT is enabled
+        if self.reduced_excitation_space:
+            if not self.run_tddft:
+                raise ConfigurationError("reduced_excitation_space (TRNSS) requires TDDFT (run_tddft) to be enabled.")
+            # Validate solute_orbitals if reduced_excitation_space is enabled
+            if not self.solute_orbitals:
+                raise ValidationError("The solute_orbitals list cannot be empty for reduced excitation space.")
+            if not all(isinstance(orb, int) and orb > 0 for orb in self.solute_orbitals):
+                raise ValidationError("All solute_orbitals must be positive integers.")
+
         # Use the Q-Chem specific literal for validation
         if self.implicit_solvation_model and self.implicit_solvation_model not in get_args(
             QCHEM_ALLOWED_SOLVATION_MODELS

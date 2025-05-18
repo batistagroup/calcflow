@@ -11,7 +11,7 @@ from calcflow.utils import logger
 logger.setLevel(logging.CRITICAL)
 
 
-def test_export_input_file_minimal(h2o_geometry: Geometry, default_qchem_input: QchemInput) -> None:
+def test_export_input_file_minimal(h2o_geometry: Geometry, default_qchem_input: QchemInput, helpers) -> None:
     """Test exporting a minimal input file (HF/sto-3g energy)."""
     inp = default_qchem_input
     expected_output = """$molecule
@@ -32,10 +32,10 @@ $end
 """
     actual_output = inp.export_input_file(h2o_geometry)
     # Compare ignoring potential subtle whitespace differences
-    assert set(actual_output.split()) == set(expected_output.split())
+    helpers.compare_qchem_input_files(actual_output, expected_output)
 
 
-def test_export_input_file_opt_dft_pcm(h2o_geometry: Geometry, default_qchem_input: QchemInput) -> None:
+def test_export_input_file_opt_dft_pcm(h2o_geometry: Geometry, default_qchem_input: QchemInput, helpers) -> None:
     """Test exporting an input file for B3LYP/def2-svp Opt with PCM water."""
     inp = replace(
         default_qchem_input,
@@ -66,10 +66,10 @@ $solvent
 $end
 """
     actual_output = inp.export_input_file(h2o_geometry)
-    assert set(actual_output.split()) == set(expected_output.split())
+    helpers.compare_qchem_input_files(actual_output, expected_output)
 
 
-def test_export_input_file_tddft_smd(h2o_geometry: Geometry, default_qchem_input: QchemInput) -> None:
+def test_export_input_file_tddft_smd(h2o_geometry: Geometry, default_qchem_input: QchemInput, helpers) -> None:
     """Test exporting an input file for TDDFT (triplets) with SMD ethanol."""
     inp = (
         default_qchem_input.set_tddft(nroots=8, singlets=False, triplets=True)
@@ -104,10 +104,10 @@ $smx
 $end
 """
     actual_output = inp.export_input_file(h2o_geometry)
-    assert set(actual_output.split()) == set(expected_output.split())
+    helpers.compare_qchem_input_files(actual_output, expected_output)
 
 
-def test_export_input_file_dict_basis(h2o_geometry: Geometry, default_qchem_input: QchemInput) -> None:
+def test_export_input_file_dict_basis(h2o_geometry: Geometry, default_qchem_input: QchemInput, helpers) -> None:
     """Test exporting an input file with a dictionary basis set."""
     basis_dict = {"O": "6-31g*", "H": "sto-3g"}
     inp = default_qchem_input.set_basis(basis_dict)
@@ -138,10 +138,10 @@ sto-3g
 $end
 """
     actual_output = inp.export_input_file(h2o_geometry)
-    assert set(actual_output.split()) == set(expected_output.split())
+    helpers.compare_qchem_input_files(actual_output, expected_output)
 
 
-def test_export_input_file_from_geometry(h2o_geometry: Geometry, default_qchem_input: QchemInput) -> None:
+def test_export_input_file_from_geometry(h2o_geometry: Geometry, default_qchem_input: QchemInput, helpers) -> None:
     """Test exporting directly from a Geometry object."""
     inp = default_qchem_input
     # Expected output is the same as test_export_input_file_minimal
@@ -162,7 +162,7 @@ $rem
 $end
 """
     actual_output = inp.export_input_file(h2o_geometry)
-    assert set(actual_output.split()) == set(expected_output.split())
+    helpers.compare_qchem_input_files(actual_output, expected_output)
 
 
 def test_export_input_file_from_geometry_dict_basis_validation(
@@ -177,7 +177,7 @@ def test_export_input_file_from_geometry_dict_basis_validation(
 
 
 def test_export_input_file_from_geometry_dict_basis_valid(
-    h2o_geometry: Geometry, default_qchem_input: QchemInput
+    h2o_geometry: Geometry, default_qchem_input: QchemInput, helpers
 ) -> None:
     """Test valid export from geometry with complete dictionary basis set."""
     basis_dict_complete = {"O": "6-31g*", "H": "sto-3g"}
@@ -210,10 +210,10 @@ sto-3g
 $end
 """
     actual_output = inp.export_input_file(h2o_geometry)
-    assert set(actual_output.split()) == set(expected_output.split())
+    helpers.compare_qchem_input_files(actual_output, expected_output)
 
 
-def test_export_input_file_custom_mixed_basis(h2o_geometry: Geometry, default_qchem_input: QchemInput) -> None:
+def test_export_input_file_custom_mixed_basis(h2o_geometry: Geometry, default_qchem_input: QchemInput, helpers) -> None:
     """Test exporting an input file with a mixed custom/standard dictionary basis set."""
     # From src/calcflow/basis_sets/qchem/pcX.py
     pcx2_o_def = """S   1   1.00
@@ -286,4 +286,4 @@ $end
     # importing qchem triggers the registration
 
     actual_output = inp.export_input_file(h2o_geometry)
-    assert set(actual_output.split()) == set(expected_output.split())
+    helpers.compare_qchem_input_files(actual_output, expected_output)

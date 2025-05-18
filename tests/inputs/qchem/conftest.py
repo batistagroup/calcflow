@@ -93,6 +93,72 @@ class Helpers:
             blocks[block_name] = block_content
         return blocks
 
+    @staticmethod
+    def compare_qchem_input_files(actual_input_str: str, expected_input_str: str) -> None:
+        """Compares two Q-Chem input file strings block by block."""
+        actual_blocks = Helpers.split_qchem_input_into_blocks(actual_input_str)
+        expected_blocks = Helpers.split_qchem_input_into_blocks(expected_input_str)
+
+        # Compare block names
+        actual_block_names = set(actual_blocks.keys())
+        expected_block_names = set(expected_blocks.keys())
+        assert actual_block_names == expected_block_names, (
+            f"Mismatched block names. Actual: {sorted(list(actual_block_names))}, Expected: {sorted(list(expected_block_names))}"
+        )
+
+        # Compare content of each block
+        for name in expected_block_names:
+            actual_content = actual_blocks[name]
+            expected_content = expected_blocks[name]
+
+            if name in {"rem", "solvent", "smx", "occupied"}:  # Use parse_qchem_rem_section for these
+                actual_parsed = Helpers.parse_qchem_rem_section(actual_content)
+                expected_parsed = Helpers.parse_qchem_rem_section(expected_content)
+                assert actual_parsed == expected_parsed, (
+                    f"Mismatched parsed content in ${name} block.\nActual: {actual_parsed}\nExpected: {expected_parsed}"
+                )
+            elif name == "basis":
+                # Special handling for basis block: check line by line after stripping
+                actual_lines = [line.strip() for line in actual_content.splitlines() if line.strip()]
+                expected_lines = [line.strip() for line in expected_content.splitlines() if line.strip()]
+                # Normalize wildcard lines like **** which can have varying whitespace
+                actual_lines = [re.sub(r"\s*", "", line) if line.strip() == "****" else line for line in actual_lines]
+                expected_lines = [
+                    re.sub(r"\s*", "", line) if line.strip() == "****" else line for line in expected_lines
+                ]
+
+                assert actual_lines == expected_lines, (
+                    f"Mismatched lines in ${name} block (line-by-line comparison).\nActual lines:\n{actual_content}\nExpected lines:\n{expected_content}"
+                )
+            else:  # Default to line-by-line comparison for other blocks like $molecule, $solute
+                # Strip leading/trailing whitespace from each line
+                actual_lines = [line.strip() for line in actual_content.splitlines()]
+                expected_lines = [line.strip() for line in expected_content.splitlines()]
+
+                # Remove entirely empty lines for comparison robustness
+                actual_lines = [line for line in actual_lines if line]
+                expected_lines = [line for line in expected_lines if line]
+
+                # For molecule block coordinates, split by whitespace for flexibility
+                if name == "molecule" and len(actual_lines) > 1 and len(expected_lines) > 1:
+                    # Compare the first line (charge multiplicity) directly
+                    assert actual_lines[0] == expected_lines[0], (
+                        f"Mismatched first line in ${name} block.\nActual: {actual_lines[0]}\nExpected: {expected_lines[0]}"
+                    )
+
+                    # Compare coordinate lines by splitting on whitespace
+                    actual_coords = [line.split() for line in actual_lines[1:]]
+                    expected_coords = [line.split() for line in expected_lines[1:]]
+
+                    assert actual_coords == expected_coords, (
+                        f"Mismatched coordinate lines in ${name} block.\nActual:\n{actual_content}\nExpected:\n{expected_content}"
+                    )
+                else:
+                    # Fallback to simple line comparison for other blocks or simple molecule blocks
+                    assert actual_lines == expected_lines, (
+                        f"Mismatched lines in ${name} block (line-by-line comparison).\nActual lines:\n{actual_content}\nExpected lines:\n{expected_content}"
+                    )
+
 
 @pytest.fixture
 def helpers() -> Helpers:

@@ -2,7 +2,7 @@ import logging
 
 import pytest
 
-from calcflow.exceptions import ValidationError
+from calcflow.exceptions import ConfigurationError, ValidationError
 from calcflow.inputs.qchem import QchemInput
 from calcflow.utils import logger
 
@@ -131,3 +131,46 @@ def test_qchem_input_post_init_valid_tddft() -> None:
     assert inp_triplets.tddft_nroots == 3
     assert not inp_triplets.tddft_singlets
     assert inp_triplets.tddft_triplets
+
+
+def test_qchem_input_post_init_trnss_without_tddft() -> None:
+    """Test validation error if reduced_excitation_space is True but run_tddft is False."""
+    with pytest.raises(
+        ConfigurationError, match="reduced_excitation_space \(TRNSS\) requires TDDFT \(run_tddft\) to be enabled."
+    ):
+        QchemInput(
+            charge=0,
+            spin_multiplicity=1,
+            task="energy",
+            level_of_theory="hf",
+            basis_set="sto-3g",
+            reduced_excitation_space=True,
+            run_tddft=False,  # Explicitly set to False
+            solute_orbitals=[1, 2],  # Provide valid orbitals to isolate the TDDFT dependency check
+        )
+
+
+@pytest.mark.parametrize(
+    "solute_orbitals, expected_error_match",
+    [
+        ([], "The solute_orbitals list cannot be empty for reduced excitation space."),
+        ([1, 0], "All solute_orbitals must be positive integers."),
+        ([1, -2], "All solute_orbitals must be positive integers."),
+        ([1.5], "All solute_orbitals must be positive integers."),  # Test non-integer
+    ],
+)
+def test_qchem_input_post_init_trnss_invalid_solute_orbitals(solute_orbitals, expected_error_match) -> None:
+    """Test validation error if reduced_excitation_space is True but solute_orbitals are invalid."""
+    # TDDFT must be enabled for TRNSS check to be reached
+    with pytest.raises(ValidationError, match=expected_error_match):
+        QchemInput(
+            charge=0,
+            spin_multiplicity=1,
+            task="energy",
+            level_of_theory="hf",
+            basis_set="sto-3g",
+            run_tddft=True,  # TDDFT enabled to reach solute_orbitals validation
+            tddft_nroots=5,
+            reduced_excitation_space=True,
+            solute_orbitals=solute_orbitals,
+        )
