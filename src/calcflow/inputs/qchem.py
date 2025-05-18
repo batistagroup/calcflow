@@ -462,23 +462,24 @@ class QchemInput(CalculationInput):
             rem_vars["MOM_METHOD"] = self.mom_method
 
         # --- TDDFT --- #
-        if self.run_tddft:
-            if self.tddft_nroots is None:
-                raise InputGenerationError("tddft_nroots must be set when run_tddft is True.")
-            rem_vars["CIS_N_ROOTS"] = self.tddft_nroots
-            rem_vars["CIS_SINGLETS"] = self.tddft_singlets
-            rem_vars["CIS_TRIPLETS"] = self.tddft_triplets
-            rem_vars["STATE_ANALYSIS"] = self.tddft_state_analysis
-            if self.rpa:
-                rem_vars["RPA"] = True
+        if self.run_tddft:  # noqa: SIM102 for clarity
+            # TDDFT keywords should only be added if:
+            # 1. This is the second job of a MOM calculation (mom_start = True)
+            # OR
+            # 2. This is NOT a MOM calculation (self.run_mom = False), so it's a single job.
+            if mom_start or not self.run_mom:
+                if self.tddft_nroots is None:
+                    raise InputGenerationError("tddft_nroots must be set when run_tddft is True.")
+                rem_vars["CIS_N_ROOTS"] = self.tddft_nroots
+                rem_vars["CIS_SINGLETS"] = self.tddft_singlets
+                rem_vars["CIS_TRIPLETS"] = self.tddft_triplets
+                rem_vars["STATE_ANALYSIS"] = self.tddft_state_analysis
+                if self.rpa:
+                    rem_vars["RPA"] = True
 
-            # --- Reduced Excitation Space for TDDFT ---
-            if self.reduced_excitation_space:  # noqa: SIM102
-                # Only add TRNSS keywords if:
-                # 1. This is the second job of a MOM calculation (mom_start = True)
-                # OR
-                # 2. This is NOT a MOM calculation (self.run_mom = False), so it's a single job.
-                if mom_start or not self.run_mom:
+                # --- Reduced Excitation Space for TDDFT --- (This logic is now nested)
+                if self.reduced_excitation_space:
+                    # The outer condition (mom_start or not self.run_mom) already ensures this is the correct job context.
                     if not self.solute_orbitals:  # Should be caught by setter, defensive check
                         raise InputGenerationError("solute_orbitals must be set when reduced_excitation_space is True.")
                     rem_vars["TRNSS"] = True

@@ -73,6 +73,26 @@ class Helpers:
             # it's ignored. This behavior can be adjusted if needed.
         return parsed_data
 
+    @staticmethod
+    def split_qchem_input_into_blocks(input_str: str) -> dict[str, str]:
+        """
+        Splits a Q-Chem input string (single job) into a dictionary of blocks.
+        Keys are block names (lowercase, e.g., "molecule", "rem").
+        Values are the inner content of the blocks, stripped.
+        """
+        blocks: dict[str, str] = {}
+        # Regex to find blocks like $blockname ... $end
+        # (?is) flags: i for case-insensitive block names, s for . to match newlines
+        pattern = re.compile(
+            r"^\$(?P<name>[a-zA-Z_][a-zA-Z0-9_]*)\s*?\n(?P<content>.*?)\n^\$end", re.MULTILINE | re.DOTALL
+        )
+
+        for match in pattern.finditer(input_str):
+            block_name = match.group("name").lower()
+            block_content = match.group("content").strip()
+            blocks[block_name] = block_content
+        return blocks
+
 
 @pytest.fixture
 def helpers() -> Helpers:

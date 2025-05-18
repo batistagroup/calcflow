@@ -10,6 +10,11 @@ from calcflow.utils import logger
 logger.setLevel(logging.CRITICAL)
 
 
+# Helper function for normalizing block content for comparison
+def _normalize_block_content(content: str) -> str:
+    return "\n".join(line.strip() for line in content.strip().split("\n"))
+
+
 def test_set_reduced_excitation_space_valid(default_qchem_input: QchemInput) -> None:
     """Test setting valid reduced excitation space parameters."""
     # Enable TDDFT first
@@ -82,7 +87,7 @@ def test_get_rem_block_tddft_reduced_excitation(helpers, default_qchem_input: Qc
     actual_block_full_string = inp._get_rem_block()
     actual_block_content_lines = actual_block_full_string.strip().split("\n")
     if len(actual_block_content_lines) < 2:  # Should have $rem and $end
-        assert False, f"REM block is malformed or too short: {actual_block_full_string}"
+        raise AssertionError(f"REM block is malformed or too short: {actual_block_full_string}")
 
     actual_block_inner_content = "\n".join(actual_block_content_lines[1:-1])
     actual_rem_dict = helpers.parse_qchem_rem_section(actual_block_inner_content)
@@ -106,7 +111,9 @@ def test_get_solute_block_inactive(default_qchem_input: QchemInput) -> None:
     assert inp_tddft_only._get_solute_block() == ""  # TDDFT enabled, but not TRNSS
 
 
-def test_export_input_file_tddft_reduced_excitation(h2o_geometry: Geometry, default_qchem_input: QchemInput) -> None:
+def test_export_input_file_tddft_reduced_excitation(
+    helpers, h2o_geometry: Geometry, default_qchem_input: QchemInput
+) -> None:
     """Test exporting an input file with TDDFT and reduced excitation space."""
     inp = (
         default_qchem_input.set_tddft(nroots=3)
@@ -114,34 +121,53 @@ def test_export_input_file_tddft_reduced_excitation(h2o_geometry: Geometry, defa
         .set_basis("def2-svp")  # Use a slightly more realistic basis
     )
 
-    expected_output_parts = [
-        "$molecule",
-        "0 1",
-        "O        0.00000000      0.00000000      0.11730000",
-        "$rem",
-        "METHOD            hf",
-        "BASIS             def2-svp",
-        "JOBTYPE           sp",
-        "CIS_N_ROOTS       3",
-        "TRNSS             True",
-        "TRTYPE            3",
-        "N_SOL             2",
-        "$solute",
-        "4 5",
-        "$end",
-    ]
+    actual_output_str = inp.export_input_file(h2o_geometry)
+    actual_blocks = helpers.split_qchem_input_into_blocks(actual_output_str)
 
-    actual_output = inp.export_input_file(h2o_geometry)
+    # Check $molecule block
+    expected_molecule_content = _normalize_block_content("""
+0 1
+O        0.00000000      0.00000000      0.11730000
+H        0.00000000      0.75720000     -0.46920000
+H        0.00000000     -0.75720000     -0.46920000
+    """)
+    assert "molecule" in actual_blocks
+    assert _normalize_block_content(actual_blocks["molecule"]) == expected_molecule_content
 
-    for part in expected_output_parts:
-        assert part in actual_output
+    # Check $rem block
+    expected_rem_params = {
+        "METHOD": "hf",
+        "BASIS": "def2-svp",
+        "JOBTYPE": "sp",
+        "UNRESTRICTED": "False",
+        "SYMMETRY": "False",
+        "SYM_IGNORE": "True",
+        "CIS_N_ROOTS": "3",
+        "CIS_SINGLETS": "True",
+        "CIS_TRIPLETS": "False",
+        "STATE_ANALYSIS": "True",
+        "TRNSS": "True",
+        "TRTYPE": "3",
+        "N_SOL": "2",
+    }
+    assert "rem" in actual_blocks
+    actual_rem_params = helpers.parse_qchem_rem_section(actual_blocks["rem"])
+    assert actual_rem_params == expected_rem_params
 
-    # Check block order roughly: molecule -> rem -> solute
-    assert actual_output.find("$molecule") < actual_output.find("$rem")
-    assert actual_output.find("$rem") < actual_output.find("$solute")
+    # Check $solute block
+    expected_solute_content = _normalize_block_content("""
+4 5
+    """)
+    assert "solute" in actual_blocks
+    assert _normalize_block_content(actual_blocks["solute"]) == expected_solute_content
+
+    # Check block order (basic)
+    assert list(actual_blocks.keys()) == ["molecule", "rem", "solute"]
 
 
-def test_export_input_file_mom_tddft_reduced_excitation(h2o_geometry: Geometry, unrestricted_input: QchemInput) -> None:
+def test_export_input_file_mom_tddft_reduced_excitation(
+    helpers, h2o_geometry: Geometry, unrestricted_input: QchemInput
+) -> None:
     """Test exporting MOM with TDDFT (reduced excitation) in the second job."""
     inp = (
         unrestricted_input.enable_mom()
@@ -151,30 +177,86 @@ def test_export_input_file_mom_tddft_reduced_excitation(h2o_geometry: Geometry, 
         .set_basis("def2-tzvp")  # Use a different basis for clarity
     )
 
-    output = inp.export_input_file(h2o_geometry)
-    jobs = output.split("\n\n@@@\n\n")
-    assert len(jobs) == 2
-    job1, job2 = jobs
+    output_str = inp.export_input_file(h2o_geometry)
+    job_strs = output_str.split("\n\n@@@\n\n")
+    assert len(job_strs) == 2
+    job1_str, job2_str = job_strs
 
     # --- Check Job 1 (standard unrestricted calc) ---
-    assert "$solute" not in job1
-    assert "TRNSS" not in job1
-    assert "BASIS             def2-tzvp" in job1  # Check basis propagates
+    job1_blocks = helpers.split_qchem_input_into_blocks(job1_str)
+
+    # $molecule block - Job 1
+    expected_mol_j1_content = _normalize_block_content(f"""
+{unrestricted_input.charge} {unrestricted_input.spin_multiplicity}
+{h2o_geometry.get_coordinate_block().strip()}
+    """)
+    assert "molecule" in job1_blocks
+    assert _normalize_block_content(job1_blocks["molecule"]) == expected_mol_j1_content
+
+    # $rem block - Job 1
+    expected_rem_j1 = {
+        "METHOD": unrestricted_input.level_of_theory,  # hf from fixture
+        "BASIS": "def2-tzvp",  # Overridden by .set_basis()
+        "JOBTYPE": "sp",  # Default task for unrestricted_input if not MOM-opt
+        "UNRESTRICTED": "True",
+        "SYMMETRY": "False",
+        "SYM_IGNORE": "True",
+        # No MOM, TDDFT, or TRNSS in job 1
+    }
+    assert "rem" in job1_blocks
+    actual_rem_j1 = helpers.parse_qchem_rem_section(job1_blocks["rem"])
+    assert actual_rem_j1 == expected_rem_j1
+    assert "solute" not in job1_blocks
+    assert "occupied" not in job1_blocks
+    assert list(job1_blocks.keys()) == ["molecule", "rem"]  # Expected order for Job 1
 
     # --- Check Job 2 (MOM + TDDFT with reduced excitation) ---
-    assert "$rem" in job2
-    assert "SCF_GUESS         read" in job2
-    assert "MOM_START         1" in job2
-    assert "CIS_N_ROOTS       2" in job2
-    assert "TRNSS             True" in job2
-    assert "TRTYPE            3" in job2
-    assert "N_SOL             2" in job2
-    assert "BASIS             def2-tzvp" in job2  # Ensure basis is consistent in job 2
+    job2_blocks = helpers.split_qchem_input_into_blocks(job2_str)
 
-    assert "$occupied" in job2
-    assert "1:4 6" in job2  # From HOMO->LUMO for H2O
-    assert "1:5" in job2
+    # $molecule block - Job 2
+    expected_mol_j2_content = _normalize_block_content("read")
+    assert "molecule" in job2_blocks
+    assert _normalize_block_content(job2_blocks["molecule"]) == expected_mol_j2_content
 
-    assert "$solute" in job2
-    assert "\n4 5\n" in job2  # Ensure specific orbitals are listed
-    assert job2.find("$occupied") < job2.find("$solute")  # Check solute block is after occupied if both present
+    # $rem block - Job 2
+    expected_rem_j2 = {
+        "METHOD": unrestricted_input.level_of_theory,  # hf from fixture
+        "BASIS": "def2-tzvp",  # Carried over
+        "JOBTYPE": "sp",  # Forced for MOM excited state part
+        "UNRESTRICTED": "True",  # Forced for MOM
+        "SYMMETRY": "False",
+        "SYM_IGNORE": "True",
+        "SCF_GUESS": "read",
+        "MOM_START": "1",
+        "MOM_METHOD": "IMOM",  # Default from enable_mom()
+        "CIS_N_ROOTS": "2",
+        "CIS_SINGLETS": "True",
+        "CIS_TRIPLETS": "False",
+        "STATE_ANALYSIS": "True",
+        "TRNSS": "True",
+        "TRTYPE": "3",
+        "N_SOL": "2",
+    }
+    assert "rem" in job2_blocks
+    actual_rem_j2 = helpers.parse_qchem_rem_section(job2_blocks["rem"])
+    assert actual_rem_j2 == expected_rem_j2
+
+    # $occupied block - Job 2
+    # H2O: 10 electrons -> 5 alpha, 5 beta. HOMO=5. MOM: HOMO->LUMO (5->6)
+    # Alpha: 1:4 6, Beta: 1:5
+    expected_occupied_j2_content = _normalize_block_content("""
+1:4 6
+1:5
+    """)
+    assert "occupied" in job2_blocks
+    assert _normalize_block_content(job2_blocks["occupied"]) == expected_occupied_j2_content
+
+    # $solute block - Job 2
+    expected_solute_j2_content = _normalize_block_content("""
+4 5
+    """)
+    assert "solute" in job2_blocks
+    assert _normalize_block_content(job2_blocks["solute"]) == expected_solute_j2_content
+
+    # Check block order for Job 2
+    assert list(job2_blocks.keys()) == ["molecule", "rem", "occupied", "solute"]
