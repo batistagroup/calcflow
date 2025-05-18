@@ -4,7 +4,7 @@ from dataclasses import replace
 import pytest
 
 from calcflow.exceptions import ConfigurationError, NotSupportedError, ValidationError
-from calcflow.geometry.static import Geometry
+from calcflow.geometry.static import AtomCoords, Geometry
 from calcflow.inputs.qchem import QchemInput, _convert_transition_to_occupations
 
 
@@ -127,11 +127,17 @@ def test_generate_occupied_block_not_unrestricted(mom_enabled_input: QchemInput,
 def test_generate_occupied_block_non_singlet(mom_enabled_input: QchemInput, h2o_geometry: Geometry) -> None:
     """Test error if MOM enabled for non-closed-shell-singlet reference."""
     inp_charged = replace(mom_enabled_input, charge=1, unrestricted=True).set_mom_transition("HOMO->LUMO")
-    with pytest.raises(NotSupportedError, match="MOM occupation determination currently only supports closed-shell singlet reference states"):
+    with pytest.raises(
+        NotSupportedError,
+        match="MOM occupation determination currently only supports closed-shell singlet reference states",
+    ):
         inp_charged._generate_occupied_block(h2o_geometry)
 
     inp_triplet = replace(mom_enabled_input, spin_multiplicity=3, unrestricted=True).set_mom_transition("HOMO->LUMO")
-    with pytest.raises(NotSupportedError, match="MOM occupation determination currently only supports closed-shell singlet reference states"):
+    with pytest.raises(
+        NotSupportedError,
+        match="MOM occupation determination currently only supports closed-shell singlet reference states",
+    ):
         inp_triplet._generate_occupied_block(h2o_geometry)
 
 
@@ -139,7 +145,8 @@ def test_generate_occupied_block_no_occupation_set(unrestricted_input: QchemInpu
     """Test error if MOM enabled but neither transition nor direct occupation is set."""
     inp = unrestricted_input.enable_mom()  # MOM enabled, unrestricted, singlet, but no occupation details
     with pytest.raises(
-        ConfigurationError, match="If mom_transition is not 'GROUND_STATE' or a symbolic transition, then both mom_alpha_occ and mom_beta_occ must be explicitly set."
+        ConfigurationError,
+        match="If mom_transition is not 'GROUND_STATE' or a symbolic transition, then both mom_alpha_occ and mom_beta_occ must be explicitly set.",
     ):
         inp._generate_occupied_block(h2o_geometry)
 
@@ -396,3 +403,163 @@ def test_convert_transition_to_occupations_invalid_transitions(
 # "HOMO->LUMO-1" or invalid characters are expected to be caught by the
 # calling function (set_mom_transition) before this helper is invoked.
 # Therefore, we only test the core conversion logic and the electron count check here.
+
+
+# --- Tests for set_mom_ground_state ---
+
+
+def test_set_mom_ground_state_success(mom_enabled_input: QchemInput) -> None:
+    """Test successful call to set_mom_ground_state."""
+    inp = mom_enabled_input.set_mom_ground_state()
+    assert inp.mom_transition == "GROUND_STATE"
+    assert inp.mom_alpha_occ is None
+    assert inp.mom_beta_occ is None
+    assert inp.unrestricted is True  # Should be set by set_mom_ground_state
+    assert inp is not mom_enabled_input  # Immutability
+
+
+def test_set_mom_ground_state_before_enable(default_qchem_input: QchemInput) -> None:
+    """Test calling set_mom_ground_state before enable_mom raises ConfigurationError."""
+    with pytest.raises(
+        ConfigurationError,
+        match=r"MOM must be enabled \(run_mom=True\) via enable_mom\(\) before setting MOM to target the ground state\.",
+    ):
+        default_qchem_input.set_mom_ground_state()
+
+
+@pytest.mark.parametrize(
+    "geometry_elements_coords, charge, multiplicity, expected_alpha, expected_beta, expected_error, error_match",
+    [
+        # Valid cases
+        ((["O", "H", "H"], [[0, 0, 0], [0, 0, 1], [0, 1, 0]]), 0, 1, "1:5", "1:5", None, None),  # H2O, 10e-
+        ((["He"], [[0, 0, 0]]), 0, 1, "1", "1", None, None),  # He, 2e-
+        # Invalid system: non-closed-shell singlet for _generate_occupied_block check
+        (
+            (["O", "H", "H"], [[0, 0, 0], [0, 0, 1], [0, 1, 0]]),
+            1,
+            1,
+            None,
+            None,
+            NotSupportedError,
+            "MOM occupation determination currently only supports closed-shell singlet reference states",
+        ),
+        (
+            (["O", "H", "H"], [[0, 0, 0], [0, 0, 1], [0, 1, 0]]),
+            0,
+            3,
+            None,
+            None,
+            NotSupportedError,
+            "MOM occupation determination currently only supports closed-shell singlet reference states",
+        ),
+        # Invalid system: odd total electrons for GROUND_STATE processing (QchemInput charge=0, mult=1)
+        (
+            (["Li"], [[0, 0, 0]]),
+            0,
+            1,
+            None,
+            None,
+            ConfigurationError,
+            "Expected an even number of total electrons",
+        ),  # Li (Z=3), total_e = 3.
+        # Corrected test for QchemInput(charge=1) for a system that would otherwise have 0 electrons.
+        # This should be caught by the initial NotSupportedError due to QchemInput.charge != 0.
+        (
+            (["H"], [[0, 0, 0]]),
+            1,
+            1,
+            None,
+            None,
+            NotSupportedError,
+            "MOM occupation determination currently only supports closed-shell singlet reference states",
+        ),  # H(Z=1), QchemInput(charge=1). total_e = 0.
+        # New test for insufficient occupied orbitals (QchemInput charge=0, mult=1, but 0 total electrons from geometry)
+        (
+            ([], []),
+            0,
+            1,
+            None,
+            None,
+            ConfigurationError,
+            "System with 0 electrons .* insufficient occupied orbitals for 'GROUND_STATE' MOM",
+        ),  # No atoms -> total_nuclear_charge=0. total_e = 0.
+        # N atom (total_nuclear_charge=7) QchemInput(charge=0, mult=1) -> 7e-. Expect odd electron error.
+        ((["N"], [[0, 0, 0]]), 0, 1, None, None, ConfigurationError, "Expected an even number of total electrons"),
+    ],
+)
+def test_generate_occupied_block_mom_ground_state(
+    unrestricted_input: QchemInput,
+    geometry_elements_coords: tuple[list[str], list[list[float]]],
+    charge: int,
+    multiplicity: int,
+    expected_alpha: str | None,
+    expected_beta: str | None,
+    expected_error: type[Exception] | None,
+    error_match: str | None,
+) -> None:
+    """Test _generate_occupied_block with mom_transition='GROUND_STATE'."""
+    elements, coords_list = geometry_elements_coords
+    num_atoms = len(elements)
+
+    mock_atoms: list[AtomCoords] = []
+    for i, el_symbol in enumerate(elements):
+        # Ensure coords_list has enough entries, or use dummy if not (though test data should be consistent)
+        current_coords = tuple(coords_list[i]) if i < len(coords_list) else (0.0, 0.0, 0.0)
+        mock_atoms.append((el_symbol, current_coords))  # type: ignore
+
+    geom = Geometry(num_atoms=num_atoms, comment="Test geom", atoms=mock_atoms)
+    # total_nuclear_charge will now be calculated by the Geometry object's property
+
+    inp = replace(unrestricted_input, charge=charge, spin_multiplicity=multiplicity)
+    inp = inp.enable_mom().set_mom_ground_state()  # unrestricted is True now
+
+    if expected_error:
+        with pytest.raises(expected_error, match=error_match):
+            inp._generate_occupied_block(geom)
+    else:
+        block = inp._generate_occupied_block(geom)
+        expected = f"""$occupied
+{expected_alpha}
+{expected_beta}
+$end"""
+        assert block == expected
+
+
+def test_export_input_file_mom_ground_state(h2o_geometry: Geometry, unrestricted_input: QchemInput) -> None:
+    """Test exporting a two-job MOM input file with mom_transition='GROUND_STATE'."""
+    # H2O has 10 electrons. For charge 0, multiplicity 1, HOMO=5.
+    # Ground state: alpha=1:5, beta=1:5
+    inp = unrestricted_input.enable_mom().set_mom_ground_state()
+    # Ensure h2o_geometry has total_nuclear_charge if it's not set by default by the fixture
+    if not hasattr(h2o_geometry, "total_nuclear_charge") or h2o_geometry.total_nuclear_charge == 0:
+        h2o_geometry.total_nuclear_charge = 10  # O (8) + H (1) + H (1)
+
+    output = inp.export_input_file(h2o_geometry)
+    jobs = output.split("\n\n@@@\n\n")
+    assert len(jobs) == 2
+    job1, job2 = jobs
+
+    # --- Check Job 1 ---
+    assert "$molecule" in job1
+    assert f"{inp.charge} {inp.spin_multiplicity}" in job1  # Should be 0 1 from unrestricted_input
+    assert "O        0.00000000" in job1
+    assert "$rem" in job1
+    assert "METHOD          hf" in job1
+    assert "BASIS           def2-svp" in job1
+    assert "JOBTYPE         sp" in job1
+    assert "UNRESTRICTED    True" in job1  # From unrestricted_input and set_mom_ground_state
+    assert "MOM_START" not in job1
+    assert "$occupied" not in job1
+
+    # --- Check Job 2 ---
+    assert job2.startswith("$molecule\n    read\n$end")
+    assert "$rem" in job2
+    assert "SCF_GUESS       read" in job2
+    assert "MOM_START       1" in job2
+    assert f"MOM_METHOD      {inp.mom_method}" in job2  # Should be IMOM by default
+    assert "UNRESTRICTED    True" in job2  # Should be forced True
+    assert "JOBTYPE         sp" in job2  # Should be forced SP
+    assert "$occupied" in job2
+    assert "1:5" in job2  # For H2O ground state alpha and beta
+    # More specific check for alpha and beta lines
+    assert "\n1:5\n1:5\n" in job2  # Alpha occ \n Beta occ
