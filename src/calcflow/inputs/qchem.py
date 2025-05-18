@@ -17,7 +17,7 @@ QCHEM_ALLOWED_MOM_METHODS = Literal["IMOM", "MOM"]
 T_QchemInput = TypeVar("T_QchemInput", bound="QchemInput")
 
 # fmt:off
-SUPPORTED_FUNCTIONALS = {"b3lyp", "pbe0", "m06", "cam-b3lyp", "wb97x", "wb97x-d3" }
+SUPPORTED_FUNCTIONALS = {"b3lyp", "pbe0", "m06", "cam-b3lyp", "wb97x", "wb97x-d3", "src1-r1"}
 # fmt:on
 
 QCHEM_BASIS_REGISTRY = basis_registry.ProgramBasisRegistry("qchem")
@@ -222,6 +222,60 @@ class QchemInput(CalculationInput):
 
         return replace(self, mom_transition=validated_transition, mom_alpha_occ=None, mom_beta_occ=None)
 
+    def set_mom_ground_state(self: T_QchemInput) -> T_QchemInput:
+        """Sets the MOM calculation to target the ground state electronic configuration.
+
+        This method is intended for scenarios where MOM is enabled (run_mom=True),
+        but the calculation should target the ground state. This allows using
+        MOM's convergence algorithms or specific MOM methods (like IMOM) for
+        obtaining the ground state, followed by potential post-processing like TDDFT
+        on this MOM-converged ground state.
+
+        This method marks the transition as "GROUND_STATE". The actual occupation
+        strings will be generated later during input file export, based on the
+        molecule's total electrons, charge, and spin multiplicity.
+
+        Crucially, this method requires that the system is intended to be a
+        closed-shell singlet (charge=0, spin_multiplicity=1) for the
+        "GROUND_STATE" marker to be correctly interpreted. The validation for this
+        occurs during the generation of the $occupied block.
+
+        This will also ensure `unrestricted=True` is set, as MOM calculations
+        typically require it, and clears any explicit `mom_alpha_occ` and `mom_beta_occ`
+        to avoid conflicts with the "GROUND_STATE" marker.
+
+        Returns:
+            A new QchemInput instance configured for a MOM ground state calculation.
+
+        Raises:
+            ConfigurationError: If MOM is not enabled (run_mom=False).
+            NotSupportedError: If the system is not a closed-shell singlet
+                               (charge != 0 or spin_multiplicity != 1), checked
+                               during input generation.
+        """
+        if not self.run_mom:
+            raise ConfigurationError(
+                "MOM must be enabled (run_mom=True) via enable_mom() before setting MOM to target the ground state."
+            )
+
+        # Defer electron count validation until geometry is available.
+        # The check for charge and spin_multiplicity for this specific mode
+        # will happen in _generate_occupied_block when "GROUND_STATE" is processed.
+
+        logger.info(
+            "Setting MOM to target ground state reference. "
+            "Occupation will be determined at input generation. "
+            "mom_transition='GROUND_STATE'. Unrestricted will be True."
+        )
+
+        return replace(
+            self,
+            mom_transition="GROUND_STATE",
+            mom_alpha_occ=None,
+            mom_beta_occ=None,
+            unrestricted=True,
+        )
+
     def _generate_occupied_block(self, geometry: "Geometry") -> str:
         """Generates the $occupied block for MOM calculations.
 
@@ -241,20 +295,46 @@ class QchemInput(CalculationInput):
         if not self.unrestricted:
             raise ConfigurationError("MOM requires unrestricted=True")
 
-        # For now, we only support closed-shell singlet reference states
+        # For MOM targeting ground state or excited states, we currently only support
+        # closed-shell singlet reference states for determining occupations.
         if self.charge != 0 or self.spin_multiplicity != 1:
             raise NotSupportedError(
-                "MOM currently only supports closed-shell singlet reference states. "
+                "MOM occupation determination currently only supports closed-shell singlet reference states. "
                 f"Got charge={self.charge}, multiplicity={self.spin_multiplicity}."
             )
 
-        # Calculate total electrons if using symbolic transition
-        if self.mom_transition is not None:
-            total_electrons = geometry.total_nuclear_charge - self.charge
+        total_electrons = geometry.total_nuclear_charge - self.charge
+
+        if self.mom_transition == "GROUND_STATE":
+            if total_electrons < 0:
+                raise ConfigurationError(
+                    f"Invalid total electron count ({total_electrons}) for 'GROUND_STATE' MOM. "
+                    f"(Nuclear charge: {geometry.total_nuclear_charge}, System charge: {self.charge})."
+                )
+            if total_electrons % 2 != 0:
+                raise ConfigurationError(
+                    f"Expected an even number of total electrons ({total_electrons}) for 'GROUND_STATE' MOM "
+                    f"with a closed-shell singlet reference."
+                )
+            n_occupied_per_spin = total_electrons // 2
+            if n_occupied_per_spin <= 0:
+                # This case also covers total_electrons == 0
+                raise ConfigurationError(
+                    f"System with {total_electrons} electrons ({n_occupied_per_spin} per spin) has insufficient "
+                    f"occupied orbitals for 'GROUND_STATE' MOM. At least 1 occupied orbital per spin required."
+                )
+            alpha_occ = f"1:{n_occupied_per_spin}" if n_occupied_per_spin > 1 else "1"
+            beta_occ = alpha_occ  # Closed-shell singlet ground state
+        elif self.mom_transition is not None:
+            # This path handles symbolic transitions like HOMO->LUMO
             alpha_occ, beta_occ = _convert_transition_to_occupations(self.mom_transition, total_electrons)
         elif self.mom_alpha_occ is None or self.mom_beta_occ is None:
-            raise ConfigurationError("Either mom_transition or both mom_alpha_occ and mom_beta_occ must be set.")
+            raise ConfigurationError(
+                "If mom_transition is not 'GROUND_STATE' or a symbolic transition, "
+                "then both mom_alpha_occ and mom_beta_occ must be explicitly set."
+            )
         else:
+            # Use explicitly provided occupation strings
             alpha_occ = self.mom_alpha_occ
             beta_occ = self.mom_beta_occ
 
@@ -641,6 +721,7 @@ class QchemInput(CalculationInput):
                 skip_optimization=True,
             ),
             self._get_solvent_block(),  # Keep solvation consistent
+            self._get_basis_block(),
             self._get_smx_block(),
             self._generate_occupied_block(geometry),
             self._get_solute_block(),

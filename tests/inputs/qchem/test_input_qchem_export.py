@@ -287,3 +287,63 @@ $end
 
     actual_output = inp.export_input_file(h2o_geometry)
     helpers.compare_qchem_input_files(actual_output, expected_output)
+
+
+def test_export_input_file_mom_dict_basis(h2o_geometry: Geometry, default_qchem_input: QchemInput, helpers) -> None:
+    """Test exporting a MOM input file with a dictionary basis set, ensuring $basis is in the second job."""
+    basis_dict = {"O": "6-31g*", "H": "sto-3g"}
+    inp = (
+        default_qchem_input.enable_mom()
+        .set_mom_ground_state()  # Sets up for a two-job MOM calculation
+        .set_basis(basis_dict)
+    )
+
+    output = inp.export_input_file(h2o_geometry)
+    jobs = output.split("\n\n@@@\n\n")
+    assert len(jobs) == 2, "Expected a two-job MOM calculation output"
+    job1, job2 = jobs
+
+    # --- Check Job 1 (should also have the basis block) ---
+    assert "$basis" in job1, "The $basis block should be present in the first job for MOM with dict basis"
+    assert "O 0\n6-31g*\n****" in job1
+    assert "H 0\nsto-3g\n****" in job1
+    assert "BASIS           gen" in job1  # $rem block should specify gen basis
+
+    # --- Check Job 2 (main check for the bug fix) ---
+    # Check $molecule block
+    assert "$molecule\n    read\n$end" in job2, "Second job should read molecule"
+
+    # Check $rem block contents
+    # We can reuse the parse_qchem_rem_section helper if we extract the $rem block string from job2
+    job2_blocks = helpers.split_qchem_input_into_blocks(job2)
+    assert "rem" in job2_blocks, "$rem block missing from job2"
+    job2_rem_parsed = helpers.parse_qchem_rem_section(job2_blocks["rem"])
+
+    expected_rem_keys_job2 = {
+        "METHOD": default_qchem_input.level_of_theory,
+        "BASIS": "gen",
+        "JOBTYPE": "sp",
+        "UNRESTRICTED": "True",
+        "SYMMETRY": "False",
+        "SYM_IGNORE": "True",
+        "SCF_GUESS": "read",
+        "MOM_START": "1",
+        "MOM_METHOD": inp.mom_method,
+    }
+    for key, expected_value in expected_rem_keys_job2.items():
+        assert key in job2_rem_parsed, f"{key} missing from job2 $rem block"
+        assert job2_rem_parsed[key].lower() == str(expected_value).lower(), (
+            f"Mismatch for {key} in job2 $rem: got {job2_rem_parsed[key]}, expected {expected_value}"
+        )
+
+    # Check $basis block content in job2
+    assert "basis" in job2_blocks, "$basis block missing from job2"
+    job2_basis_content = job2_blocks["basis"]
+    assert "O 0\n6-31g*\n****" in job2_basis_content  # Check for specific basis content
+    assert "H 0\nsto-3g\n****" in job2_basis_content
+
+    # Check $occupied block content in job2
+    assert "occupied" in job2_blocks, "$occupied block missing from job2"
+    job2_occupied_content = job2_blocks["occupied"]
+    # For H2O ground state (10e- -> 5 alpha, 5 beta from set_mom_ground_state)
+    assert "1:5\n1:5" in job2_occupied_content  # Alpha occ \n Beta occ (without $occupied/$end wrapper)
