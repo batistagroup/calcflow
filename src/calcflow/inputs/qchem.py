@@ -721,6 +721,7 @@ class QchemInput(CalculationInput):
                 skip_optimization=True,
             ),
             self._get_solvent_block(),  # Keep solvation consistent
+            self._get_basis_block(),
             self._get_smx_block(),
             self._generate_occupied_block(geometry),
             self._get_solute_block(),
