@@ -347,7 +347,7 @@ def parse_qchem_mom_output(output: str) -> MomCalculationResult:
     # has been enhanced to pick up MOM details if present.
     # We use _parse_qchem_generic_output with PARSER_REGISTRY_SP for Job 2
     # as it contains the enhanced ScfParser.
-    mom_scf_data = _parse_qchem_generic_output(output_job2, PARSER_REGISTRY_SP)
+    mom_scf_data = _parse_qchem_generic_output(output_job2, PARSER_REGISTRY_TDDFT)
 
     return MomCalculationResult(
         job1=initial_scf_data,

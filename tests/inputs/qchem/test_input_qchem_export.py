@@ -323,7 +323,7 @@ def test_export_input_file_mom_dict_basis(h2o_geometry: Geometry, default_qchem_
         "METHOD": default_qchem_input.level_of_theory,
         "BASIS": "gen",
         "JOBTYPE": "sp",
-        "UNRESTRICTED": "False",
+        "UNRESTRICTED": "True",
         "SYMMETRY": "False",
         "SYM_IGNORE": "True",
         "SCF_GUESS": "read",

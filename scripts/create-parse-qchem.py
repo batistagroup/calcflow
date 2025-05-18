@@ -119,3 +119,4 @@ if run["mom-xas-parse"]:
     print(mom_pc2.job2)
     print(mom_pc2.job2.scf)
     print(mom_pc2.job2.tddft)
+    breakpoint()
