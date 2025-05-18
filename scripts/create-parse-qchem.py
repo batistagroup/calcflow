@@ -35,7 +35,8 @@ run = {
     "sp-parse": False,
     "tddft-create": False,
     "tddft-parse": False,
-    "mom-parse": True,
+    "mom-parse": False,
+    "mom-xas-parse": True,
 }
 
 if run["sp-create"]:
@@ -111,4 +112,10 @@ if run["mom-parse"]:
     ev = (j2 - j1) * 27.21138602
     print(f"E(H2O) = {ev:.6f} eV")
     print(mom_pc2.job2.scf)
-    breakpoint()
+
+if run["mom-xas-parse"]:
+    mom_pc2 = parse_qchem_mom_output((clc_folder / "mom-smd-xas.out").read_text())
+    print(mom_pc2.job1)
+    print(mom_pc2.job2)
+    print(mom_pc2.job2.scf)
+    print(mom_pc2.job2.tddft)

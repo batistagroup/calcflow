@@ -273,7 +273,7 @@ class QchemInput(CalculationInput):
             mom_transition="GROUND_STATE",
             mom_alpha_occ=None,
             mom_beta_occ=None,
-            unrestricted=True,  # MOM typically needs unrestricted
+            unrestricted=True,
         )
 
     def _generate_occupied_block(self, geometry: "Geometry") -> str:
