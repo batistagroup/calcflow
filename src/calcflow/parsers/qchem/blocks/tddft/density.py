@@ -1,4 +1,5 @@
 import re
+from dataclasses import replace
 from typing import Any
 
 from calcflow.parsers.qchem.typing import (
@@ -12,6 +13,7 @@ from calcflow.parsers.qchem.typing import (
     TransitionDMMulliken,
     _MutableCalculationData,
 )
+from calcflow.parsers.qchem.typing.pattern import PatternDefinition, VersionSpec
 from calcflow.utils import logger
 
 # --- Helper functions --- #
@@ -59,6 +61,33 @@ KNOWN_NEXT_SECTION_STARTS = [
     "SCF Analysis",  # For cases where TDM is last block before final SCF summary
 ]
 
+# Pattern registries for TDM sub-sections
+TDM_SECTION_PATTERNS_RKS = [
+    PatternDefinition(
+        field_name="mulliken",
+        description="Mulliken Population Analysis (Transition DM)",
+        versioned_patterns=[
+            (re.compile(r"^Mulliken Population Analysis \(Transition DM\)$"), "5.4.0", None),
+        ],
+    ),
+    PatternDefinition(
+        field_name="ct_numbers",
+        description="CT numbers (Mulliken)",
+        versioned_patterns=[
+            (re.compile(r"^CT numbers \(Mulliken\)$"), "5.4.0", None),
+        ],
+    ),
+    PatternDefinition(
+        field_name="exciton_analysis",
+        description="Exciton analysis of the transition density matrix",
+        versioned_patterns=[
+            (re.compile(r"^Exciton analysis of the transition density matrix$"), "5.4.0", None),
+        ],
+    ),
+]
+
+TDM_SECTION_PATTERNS_UKS = TDM_SECTION_PATTERNS_RKS  # For now, same patterns
+
 
 class TransitionDensityMatrixParser(SectionParser):
     """
@@ -76,21 +105,21 @@ class TransitionDensityMatrixParser(SectionParser):
     def parse(self, iterator: LineIterator, current_line_header: str, results: _MutableCalculationData) -> None:
         logger.debug("Starting parsing of Transition Density Matrix Analysis section.")
 
+        qchem_version_obj = getattr(results, "qchem_version", None)
+        assert isinstance(qchem_version_obj, VersionSpec)
+
         active_line: str | None
         try:
-            # Consume the line after the matched header (current_line_header) and any decorative lines
             active_line = next(iterator)
             while active_line is not None and ("----" in active_line or not active_line.strip()):
                 active_line = next(iterator)
-        except StopIteration:  # pragma: no cover
-            logger.warning(
-                "EOF reached unexpectedly after Transition Density Matrix Analysis header."
-            )  # pragma: no cover
-            results.parsed_tddft_transition_dm_analysis = True  # pragma: no cover
-            return  # pragma: no cover
+        except StopIteration:
+            logger.warning("EOF reached unexpectedly after Transition Density Matrix Analysis header.")
+            results.parsed_tddft_transition_dm_analysis = True
+            return
 
         request_break_main_loop = False
-        if active_line is None:  # Check if EOF was hit during initial fluff consumption
+        if active_line is None:
             request_break_main_loop = True
 
         while not request_break_main_loop and active_line is not None:
@@ -107,7 +136,6 @@ class TransitionDensityMatrixParser(SectionParser):
                 request_break_main_loop = True
                 continue
 
-            # Updated regex for state header to include "Excited State"
             state_match = re.match(
                 r"^\s*(Singlet|Triplet|Excited State)\s+(\d+)\s*:\s*$", line_to_process_this_iteration.strip()
             )
@@ -116,20 +144,24 @@ class TransitionDensityMatrixParser(SectionParser):
                 state_number = int(state_number_str)
                 logger.debug(f"Parsing TDM for {multiplicity_label} state {state_number}")
 
-                mulliken_data: TransitionDMMulliken | None = None
-                ct_numbers_data: TransitionDMCTNumbers | None = None
-                exciton_analysis_data: ExcitonAnalysisTMData | None = None  # Updated type
+                analysis = TransitionDensityMatrixDetailedAnalysis(
+                    state_number=state_number,
+                    multiplicity=multiplicity_label,
+                    mulliken=None,
+                    ct_numbers=None,
+                    exciton_analysis=None,
+                )
 
-                line_within_state: str | None
+                is_uks_like_state = "Excited State" in multiplicity_label
+                section_patterns = TDM_SECTION_PATTERNS_UKS if is_uks_like_state else TDM_SECTION_PATTERNS_RKS
+
                 try:
                     line_within_state = next(iterator)
-                except StopIteration:  # pragma: no cover
-                    logger.debug(
-                        f"EOF after {multiplicity_label} state {state_number} header during TDM parsing."
-                    )  # pragma: no cover
-                    request_break_main_loop = True  # pragma: no cover
-                    active_line = None  # pragma: no cover
-                    continue  # pragma: no cover
+                except StopIteration:
+                    logger.debug(f"EOF after {multiplicity_label} state {state_number} header during TDM parsing.")
+                    request_break_main_loop = True
+                    active_line = None
+                    continue
 
                 while line_within_state is not None:
                     current_line_in_state_stripped = line_within_state.strip()
@@ -151,36 +183,48 @@ class TransitionDensityMatrixParser(SectionParser):
                     if is_new_state_header or is_next_major_tdm_section:
                         results.buffered_line = line_within_state
                         line_within_state = None
-                    else:
-                        if "Mulliken Population Analysis (Transition DM)" in line_within_state:
-                            mulliken_data, line_within_state = self._parse_mulliken_tdm(
-                                iterator, line_within_state, results
-                            )
-                        elif "CT numbers (Mulliken)" in line_within_state:
-                            ct_numbers_data, line_within_state = self._parse_ct_numbers(
-                                iterator, line_within_state, results
-                            )
-                        elif "Exciton analysis of the transition density matrix" in line_within_state:
-                            exciton_analysis_data, line_within_state = self._parse_exciton_analysis_tdm(
-                                iterator, line_within_state, results
-                            )
-                        else:
-                            logger.debug(
-                                f"Unparsed line '{current_line_in_state_stripped}' in TDM state {state_number}, assuming end of state."
-                            )  # pragma: no cover
-                            results.buffered_line = line_within_state  # pragma: no cover
-                            line_within_state = None  # pragma: no cover
+                        continue
 
-                if mulliken_data or ct_numbers_data or exciton_analysis_data:
-                    analysis = TransitionDensityMatrixDetailedAnalysis(
-                        state_number=state_number,
-                        multiplicity=multiplicity_label,  # Use the label from regex
-                        mulliken=mulliken_data,
-                        ct_numbers=ct_numbers_data,
-                        exciton_analysis=exciton_analysis_data,
+                    matched_action_this_line = False
+                    for pattern_def in section_patterns:
+                        versioned_pattern = pattern_def.get_matching_pattern(qchem_version_obj)
+                        if versioned_pattern and versioned_pattern.pattern.match(current_line_in_state_stripped):
+                            field = pattern_def.field_name
+                            if field == "mulliken":
+                                mulliken_data, next_line = self._parse_mulliken_tdm(
+                                    iterator, line_within_state, results
+                                )
+                                analysis = replace(analysis, mulliken=mulliken_data)
+                                line_within_state = next_line
+                                matched_action_this_line = True
+                                break
+                            elif field == "ct_numbers":
+                                ct_numbers_data, next_line = self._parse_ct_numbers(
+                                    iterator, line_within_state, results
+                                )
+                                analysis = replace(analysis, ct_numbers=ct_numbers_data)
+                                line_within_state = next_line
+                                matched_action_this_line = True
+                                break
+                            elif field == "exciton_analysis":
+                                exciton_analysis_data, next_line = self._parse_exciton_analysis_tdm(
+                                    iterator, line_within_state, results
+                                )
+                                analysis = replace(analysis, exciton_analysis=exciton_analysis_data)
+                                line_within_state = next_line
+                                matched_action_this_line = True
+                                break
+                    if matched_action_this_line:
+                        continue
+
+                    logger.debug(
+                        f"Unparsed line '{current_line_in_state_stripped}' in TDM state {state_number}, assuming end of state."
                     )
-                    results.transition_density_matrix_detailed_analyses_list.append(analysis)
-                    logger.debug(f"Stored TDM Analysis for {multiplicity_label} state {state_number}")
+                    results.buffered_line = line_within_state
+                    line_within_state = None
+
+                results.transition_density_matrix_detailed_analyses_list.append(analysis)
+                logger.debug(f"Stored TDM Analysis for {multiplicity_label} state {state_number}")
 
                 if line_within_state is None and not results.buffered_line:
                     request_break_main_loop = True
@@ -188,18 +232,18 @@ class TransitionDensityMatrixParser(SectionParser):
             else:
                 logger.debug(
                     f"TDM parsing stopped by unrecognized line: {line_to_process_this_iteration.strip()} or end of section."
-                )  # pragma: no cover
-                results.buffered_line = line_to_process_this_iteration  # pragma: no cover
-                request_break_main_loop = True  # pragma: no cover
+                )
+                results.buffered_line = line_to_process_this_iteration
+                request_break_main_loop = True
                 continue
 
             if not request_break_main_loop and not results.buffered_line:
                 try:
                     active_line = next(iterator)
-                except StopIteration:  # pragma: no cover
-                    logger.debug("EOF reached at the end of TDM main parsing loop.")  # pragma: no cover
-                    active_line = None  # pragma: no cover
-                    request_break_main_loop = True  # pragma: no cover
+                except StopIteration:
+                    logger.debug("EOF reached at the end of TDM main parsing loop.")
+                    active_line = None
+                    request_break_main_loop = True
 
         results.parsed_tddft_transition_dm_analysis = True
         count = len(results.transition_density_matrix_detailed_analyses_list)
@@ -208,10 +252,7 @@ class TransitionDensityMatrixParser(SectionParser):
         elif not results.buffered_line or any(
             known_start in results.buffered_line for known_start in KNOWN_NEXT_SECTION_STARTS
         ):
-            # Only warn if we didn't stop due to finding next section or a legitimate unrecognized line
-            pass  # Warning was too noisy, allow empty sections.
-        # else:
-        #     logger.warning("Parsed TDM Analysis section but found no detailed state analyses and not cleanly terminated.")
+            pass
 
     def _parse_mulliken_tdm(
         self, iterator: LineIterator, current_block_line: str, results: _MutableCalculationData
