@@ -24,38 +24,48 @@ class VersionSpec:
     patch: int
 
     @classmethod
-    def from_str(cls, version_str: str):
+    def from_str(cls, version_str: str) -> "VersionSpec":
         """Parse a version string into a VersionSpec."""
         parts = version_str.split(".")
         return cls(major=int(parts[0]), minor=int(parts[1]), patch=int(parts[2]) if len(parts) > 2 else 0)
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, str):
             other = VersionSpec.from_str(other)
+        elif not isinstance(other, VersionSpec):
+            return False
         return self.major == other.major and self.minor == other.minor and self.patch == other.patch
 
-    def __lt__(self, other) -> bool:
+    def __lt__(self, other: str | object) -> bool:
         if isinstance(other, str):
             other = VersionSpec.from_str(other)
+        elif not isinstance(other, VersionSpec):
+            return False
         return (
             self.major < other.major
             or (self.major == other.major and self.minor < other.minor)
             or (self.major == other.major and self.minor == other.minor and self.patch < other.patch)
         )
 
-    def __le__(self, other) -> bool:
+    def __le__(self, other: str | object) -> bool:
         if isinstance(other, str):
             other = VersionSpec.from_str(other)
+        elif not isinstance(other, VersionSpec):
+            return False
         return self < other or self == other
 
-    def __gt__(self, other) -> bool:
+    def __gt__(self, other: str | object) -> bool:
         if isinstance(other, str):
             other = VersionSpec.from_str(other)
+        elif not isinstance(other, VersionSpec):
+            return False
         return not self <= other
 
-    def __ge__(self, other) -> bool:
+    def __ge__(self, other: str | object) -> bool:
         if isinstance(other, str):
             other = VersionSpec.from_str(other)
+        elif not isinstance(other, VersionSpec):
+            return False
         return not self < other
 
     @property
@@ -74,7 +84,7 @@ class VersionedPattern:
     """A pattern with an associated version."""
 
     pattern: Pattern[str]
-    version: VersionSpec
+    version: VersionSpec | None
     transform: Callable[[Match[str]], Any] = lambda m: m.group(1)  # Default transform
 
 
@@ -106,7 +116,7 @@ class PatternDefinition:
         required: bool = False,
         block_type: str | None = None,
         description: str = "",
-        versioned_patterns: list[tuple[Pattern[str], VersionSpec | str, Callable[[Match[str]], Any] | None]]
+        versioned_patterns: list[tuple[Pattern[str], VersionSpec | str | None, Callable[[Match[str]], Any] | None]]
         | None = None,
     ) -> None:
         """Initialize a PatternDefinition with optional versioned patterns."""
@@ -124,7 +134,7 @@ class PatternDefinition:
     def add_pattern(
         self,
         pattern: Pattern[str],
-        version: str | VersionSpec | None = None,
+        version: str | VersionSpec | None,
         transform: Callable[[Match[str]], Any] = lambda m: m.group(1),
     ) -> None:
         """Add a new pattern with version to this definition."""
