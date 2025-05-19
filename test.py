@@ -1,15 +1,16 @@
 import re
 
 analysis_block = """
+(3)  G-ENP(liq) elect-nuc-pol free energy of system      -76.456221333 a.u.
 (4)  G-CDS(liq) cavity-dispersion-solvent structure 
      free energy                                                1.4731 kcal/mol
-(6)  G-S(liq) free energy of system                      -75.318460236 a.u.
- SCF   energy in the final basis set =      -75.3184602363
- Total energy in the final basis set =      -75.3184602363
+(6)  G-S(liq) free energy of system                      -76.453873869 a.u.
+ SCF   energy in the final basis set =      -76.4538738687
+ Total energy in the final basis set =      -76.4538738687
  
 """
 
-pattern = re.compile(r"^\s*free energy*\s*(-?\d+\.\d+)\s*kcal/mol")
+pattern = re.compile(r"^\s*\(3\)\s+G-ENP\(liq\).*?\s*(-?\d+\.\d+)\s*a\.u\.")
 
 
 for line in analysis_block.split("\n"):

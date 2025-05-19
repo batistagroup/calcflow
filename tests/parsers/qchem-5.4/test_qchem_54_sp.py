@@ -91,10 +91,7 @@ def test_parse_qchem54_sp_smd_output(
     assert results.scf is not None
     assert results.scf.converged is True
     assert results.scf.n_iterations == 7
-    # For QChem 5.4, 'SCF energy =' is not present in the standard format.
-    # 'SCF energy in the final basis set =' is present but not matched by SCF_FINAL_ENERGY_PAT.
-    # So, scf.energy should be the energy of the last iteration.
-    assert results.scf.energy == pytest.approx(-75.3208077007)
+    assert results.scf.energy == pytest.approx(-75.3184602363)
     assert len(results.scf.iterations) == 7
 
     expected_iterations = [
@@ -120,18 +117,12 @@ def test_parse_qchem54_sp_smd_output(
     # means the current ScfParser will not parse these values.
     assert results.smd_g_pcm_kcal_mol is None
     assert results.smd_g_cds_kcal_mol == pytest.approx(1.4731)
-    assert results.smd_g_enp_au is None
-    assert results.smd_g_tot_au is None
+    assert results.smd_g_enp_au == pytest.approx(-75.320807701)
+    assert results.smd_g_tot_au == pytest.approx(-75.318460236)
 
     # Consequently, the SmdResults object should not be created.
     assert results.smd is not None
     assert results.smd.g_cds_kcal_mol == pytest.approx(1.4731)
-
-    # Assert that the warning for using last iteration energy is logged
-    assert (
-        "Using energy from last SCF iteration as final SCF energy; explicit 'SCF energy =' line not found or parsed."
-        in caplog.text
-    )
 
 
 def test_parse_full_qchem54_sp_smd_file(
@@ -150,10 +141,8 @@ def test_parse_full_qchem54_sp_smd_file(
     assert results.scf is not None
     assert results.scf.converged is True
     assert results.scf.n_iterations == 7
-    # For QChem 5.4, 'SCF energy =' is not present in the standard format.
-    # 'SCF energy in the final basis set =' is present but not matched by SCF_FINAL_ENERGY_PAT.
-    # So, scf.energy should be the energy of the last iteration.
-    assert results.scf.energy == pytest.approx(-75.3208077007)
+
+    assert results.scf.energy == pytest.approx(-75.3184602363)
 
     # Check specific iteration energies
     assert len(results.scf.iterations) == 7
