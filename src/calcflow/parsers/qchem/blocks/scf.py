@@ -42,10 +42,6 @@ TOTAL_ENERGY_PAT = re.compile(r"^\s*Total energy\s*=\s*(-?\d+\.\d+)")
 
 # SMD Summary Patterns
 SMD_SUMMARY_START_PAT = re.compile(r"^\s*Summary of SMD free energies:")
-G_PCM_PAT = re.compile(r"^\s*G_PCM\s*=\s*(-?\d+\.\d+)\s*kcal/mol")
-G_CDS_PAT = re.compile(r"^\s*G_CDS\s*=\s*(-?\d+\.\d+)\s*kcal/mol")
-G_ENP_PAT = re.compile(r"^\s*G_ENP\s*=\s*(-?\d+\.\d+)\s*a\.u\.")
-G_TOT_PAT = re.compile(r"^\s*G\(tot\)\s*=\s*(-?\d+\.\d+)\s*a\.u\.")
 
 # MOM Specific Patterns
 MOM_ACTIVE_PAT = re.compile(r"^\s*Maximum Overlap Method Active")
@@ -63,12 +59,6 @@ ORBITAL_HEADER_PAT = re.compile(r"^\s*Orbital Energies \(a\.u\.\)")
 TDA_HEADER_PAT = re.compile(r"^\s*TDDFT/TDA\s+Excitation\s+Energies\s*$")
 TDDFT_HEADER_PAT = re.compile(r"^\s*TDDFT\s+Excitation\s+Energies\s*$")
 
-
-# Using PatternDefinition from calcflow.parsers.qchem.typing.pattern
-
-
-# Define a pattern for "Total energy in the final basis set" for QChem 5.4
-TOTAL_ENERGY_FINAL_BASIS_PAT = re.compile(r"^\s*Total energy in the final basis set\s*=\s*(-?\d+\.\d+)")
 
 # Registry of patterns for SCF data extraction
 SCF_PATTERNS = [
@@ -89,7 +79,11 @@ SCF_PATTERNS = [
             # QChem 6.0+ uses "Total energy"
             (TOTAL_ENERGY_PAT, "6.0", lambda m: float(m.group(1))),
             # QChem 5.x uses "Total energy in the final basis set"
-            (TOTAL_ENERGY_FINAL_BASIS_PAT, "5.4", lambda m: float(m.group(1))),
+            (
+                re.compile(r"^\s*Total energy in the final basis set\s*=\s*(-?\d+\.\d+)"),
+                "5.4",
+                lambda m: float(m.group(1)),
+            ),
         ],
     ),
     # SMD patterns
@@ -98,7 +92,7 @@ SCF_PATTERNS = [
         block_type="smd_summary",
         description="SMD polarization energy component",
         versioned_patterns=[
-            (G_PCM_PAT, None, lambda m: float(m.group(1))),
+            (re.compile(r"^\s*G_PCM\s*=\s*(-?\d+\.\d+)\s*kcal/mol"), None, lambda m: float(m.group(1))),
         ],
     ),
     PatternDefinition(
@@ -106,7 +100,7 @@ SCF_PATTERNS = [
         block_type="smd_summary",
         description="SMD non-electrostatic energy component",
         versioned_patterns=[
-            (G_CDS_PAT, None, lambda m: float(m.group(1))),
+            (re.compile(r"^\s*G_CDS\s*=\s*(-?\d+\.\d+)\s*kcal/mol"), None, lambda m: float(m.group(1))),
         ],
     ),
     PatternDefinition(
@@ -114,7 +108,7 @@ SCF_PATTERNS = [
         block_type="smd_summary",
         description="SCF energy in solvent (E_SCF + G_PCM)",
         versioned_patterns=[
-            (G_ENP_PAT, None, lambda m: float(m.group(1))),
+            (re.compile(r"^\s*G_ENP\s*=\s*(-?\d+\.\d+)\s*a\.u\."), None, lambda m: float(m.group(1))),
         ],
     ),
     PatternDefinition(
@@ -122,7 +116,7 @@ SCF_PATTERNS = [
         block_type="smd_summary",
         description="Total free energy in solution (G_ENP + G_CDS)",
         versioned_patterns=[
-            (G_TOT_PAT, None, lambda m: float(m.group(1))),
+            (re.compile(r"^\s*G\(tot\)\s*=\s*(-?\d+\.\d+)\s*a\.u\."), None, lambda m: float(m.group(1))),
         ],
     ),
     # MOM patterns
