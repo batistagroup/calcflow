@@ -1,0 +1,177 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.12.10, pytest-8.3.5, pluggy-1.5.0 -- /Users/morgunov/Developer/batista/calcflow/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /Users/morgunov/Developer/batista/calcflow
+configfile: pyproject.toml
+plugins: cov-6.1.1
+collecting ... collected 2 items
+
+tests/parsers/qchem-5.4/test_qchem_54_sp.py::test_parse_qchem54_sp_smd_output 2025-05-19 10:41:04 [WARNING] calcflow: Using energy from last SCF iteration as final SCF energy; explicit 'SCF energy =' line not found or parsed.
+2025-05-19 10:41:04 [INFO] calcflow: Parsed SCF data. Converged: True, Energy: -75.32080770, Iterations: 7.
+FAILED
+tests/parsers/qchem-5.4/test_qchem_54_sp.py::test_parse_full_qchem54_sp_smd_file 2025-05-19 10:41:04 [INFO] calcflow: Starting Q-Chem Single Point (SP) output parsing.
+2025-05-19 10:41:04 [INFO] calcflow: Core dispatch: Line 9 ('Q-Chem 5.4, Q-Chem, Inc., Pleasanton, CA (2021)') MATCHED by MetadataParser. Calling .parse().
+2025-05-19 10:41:04 [INFO] calcflow: Core dispatch: MetadataParser .parse() completed.
+2025-05-19 10:41:04 [INFO] calcflow: Core dispatch: Line 92 ('Q-Chem begins on Sun May 18 17:41:08 2025') MATCHED by MetadataParser. Calling .parse().
+2025-05-19 10:41:04 [INFO] calcflow: Core dispatch: MetadataParser .parse() completed.
+2025-05-19 10:41:04 [INFO] calcflow: Core dispatch: Line 108 ('$molecule') MATCHED by GeometryParser. Calling .parse().
+2025-05-19 10:41:04 [INFO] calcflow: Parsed input geometry with 3 atoms.
+2025-05-19 10:41:04 [INFO] calcflow: Core dispatch: GeometryParser .parse() completed.
+2025-05-19 10:41:04 [INFO] calcflow: Core dispatch: Line 110 ('$rem') MATCHED by RemBlockParser. Calling .parse().
+2025-05-19 10:41:04 [INFO] calcflow: Core dispatch: RemBlockParser .parse() completed.
+2025-05-19 10:41:04 [INFO] calcflow: Core dispatch: Line 112 ('$smx') MATCHED by SmxBlockParser. Calling .parse().
+2025-05-19 10:41:04 [INFO] calcflow: Core dispatch: SmxBlockParser .parse() completed.
+2025-05-19 10:41:04 [INFO] calcflow: Core dispatch: Line 123 ('Standard Nuclear Orientation (Angstroms)') MATCHED by GeometryParser. Calling .parse().
+2025-05-19 10:41:04 [INFO] calcflow: Parsed standard orientation geometry with 3 atoms.
+2025-05-19 10:41:04 [INFO] calcflow: Core dispatch: GeometryParser .parse() completed.
+2025-05-19 10:41:04 [INFO] calcflow: Core dispatch: Line 169 ('General SCF calculation program by') MATCHED by ScfParser. Calling .parse().
+2025-05-19 10:41:04 [WARNING] calcflow: Using energy from last SCF iteration as final SCF energy; explicit 'SCF energy =' line not found or parsed.
+2025-05-19 10:41:04 [INFO] calcflow: Parsed SCF data. Converged: True, Energy: -75.32080770, Iterations: 7.
+2025-05-19 10:41:04 [INFO] calcflow: Core dispatch: ScfParser .parse() completed.
+2025-05-19 10:41:04 [INFO] calcflow: Core dispatch: Line 180 ('Cartesian Multipole Moments') MATCHED by MultipoleParser. Calling .parse().
+2025-05-19 10:41:04 [INFO] calcflow: Core dispatch: MultipoleParser .parse() completed.
+2025-05-19 10:41:04 [INFO] calcflow: Q-Chem SP parsing finished. Status: NORMAL, Final Energy: -75.3184602363
+FAILED
+
+=================================== FAILURES ===================================
+_______________________ test_parse_qchem54_sp_smd_output _______________________
+
+parser = <calcflow.parsers.qchem.blocks.scf.ScfParser object at 0x105ebc5c0>
+sample_qchem54_sp_smd_output = [' -----------------------------------------------------------------------', '  General SCF calculation program by', '...------------------------------------------------------------------', ' Exchange:     PBE0', ' Correlation:  None', ...]
+initial_data_qchem54 = _MutableCalculationData(raw_output='', termination_status='UNKNOWN', qchem_version='5.4', host=None, run_date=None, re...lse, parsed_tddft_excitations=False, parsed_sa_nto_decomposition=False, gs_reference_analysis=None, buffered_line=None)
+caplog = <_pytest.logging.LogCaptureFixture object at 0x105af97f0>
+
+    def test_parse_qchem54_sp_smd_output(
+        parser: ScfParser,
+        sample_qchem54_sp_smd_output: list[str],
+        initial_data_qchem54: _MutableCalculationData,
+        caplog,
+    ) -> None:
+        """Test parsing a Q-Chem 5.4 SP SMD output block focusing on SCF and related energies."""
+        scf_start_line_content = ""
+        scf_start_line_index = -1
+    
+        for i, line in enumerate(sample_qchem54_sp_smd_output):
+            if parser.matches(line, initial_data_qchem54):
+                scf_start_line_content = line
+                scf_start_line_index = i
+                break
+    
+        assert scf_start_line_index != -1, "SCF start pattern not found in sample output"
+    
+        line_iter_for_parse = iter(sample_qchem54_sp_smd_output[scf_start_line_index + 1 :])
+        results = initial_data_qchem54
+        parser.parse(line_iter_for_parse, scf_start_line_content, results)
+    
+        assert results.parsed_scf is True
+        assert results.scf is not None
+        assert results.scf.converged is True
+        assert results.scf.n_iterations == 7
+        # For QChem 5.4, 'SCF energy =' is not present in the standard format.
+        # 'SCF energy in the final basis set =' is present but not matched by SCF_FINAL_ENERGY_PAT.
+        # So, scf.energy should be the energy of the last iteration.
+        assert results.scf.energy == pytest.approx(-75.3208077007)
+        assert len(results.scf.iterations) == 7
+    
+        expected_iterations = [
+            ScfIteration(iteration=1, energy=-75.0734525405, diis_error=3.82e-01, step_type=None),
+            ScfIteration(iteration=2, energy=-75.2973764603, diis_error=4.85e-02, step_type=None),
+            ScfIteration(iteration=3, energy=-75.3188175792, diis_error=1.63e-02, step_type=None),
+            ScfIteration(iteration=4, energy=-75.3207889290, diis_error=1.19e-03, step_type=None),
+            ScfIteration(iteration=5, energy=-75.3208073914, diis_error=1.25e-04, step_type=None),
+            ScfIteration(iteration=6, energy=-75.3208076904, diis_error=2.28e-05, step_type=None),
+            ScfIteration(iteration=7, energy=-75.3208077007, diis_error=2.17e-08, step_type=None),
+        ]
+        for i, expected_iter in enumerate(expected_iterations):
+            assert results.scf.iterations[i].iteration == expected_iter.iteration
+            assert results.scf.iterations[i].energy == pytest.approx(expected_iter.energy)
+            assert results.scf.iterations[i].diis_error == pytest.approx(expected_iter.diis_error)
+            assert results.scf.iterations[i].step_type == expected_iter.step_type
+    
+        # Check final_energy (parsed from "Total energy in the final basis set")
+        assert results.final_energy == pytest.approx(-75.3184602363)
+    
+        # Check SMD values:
+        # The Q-Chem 5.4 output format for SMD components and the lack of "Summary of SMD free energies:"
+        # means the current ScfParser will not parse these values.
+        assert results.smd_g_pcm_kcal_mol is None
+>       assert results.smd_g_cds_kcal_mol == pytest.approx(1.4731)
+E       assert None == 1.4731 ± 1.5e-06
+E         
+E         comparison failed
+E         Obtained: None
+E         Expected: 1.4731 ± 1.5e-06
+
+tests/parsers/qchem-5.4/test_qchem_54_sp.py:121: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  calcflow:scf.py:365 Using energy from last SCF iteration as final SCF energy; explicit 'SCF energy =' line not found or parsed.
+INFO     calcflow:scf.py:409 Parsed SCF data. Converged: True, Energy: -75.32080770, Iterations: 7.
+_____________________ test_parse_full_qchem54_sp_smd_file ______________________
+
+parsed_sp_sto_smd = CalculationData(method='wb97x-d3', basis='sto-3g', status='NORMAL')
+caplog = <_pytest.logging.LogCaptureFixture object at 0x105ebd8b0>
+
+    def test_parse_full_qchem54_sp_smd_file(
+        parsed_sp_sto_smd: CalculationData,  # from conftest.py
+        caplog,
+    ) -> None:
+        """Test parsing a full Q-Chem 5.4 SP SMD output file and check key values."""
+        results = parsed_sp_sto_smd
+    
+        # Check basic properties from the full parse
+        assert results.metadata.qchem_version == "5.4"  # Assuming conftest file is indeed 5.4
+        # job_type might not be explicitly set in CalculationData root for all parser paths,
+        # but if it were, it would be: assert results.job_type == "sp"
+    
+        # SCF specific checks
+        assert results.scf is not None
+        assert results.scf.converged is True
+        assert results.scf.n_iterations == 7
+        # For QChem 5.4, 'SCF energy =' is not present in the standard format.
+        # 'SCF energy in the final basis set =' is present but not matched by SCF_FINAL_ENERGY_PAT.
+        # So, scf.energy should be the energy of the last iteration.
+        assert results.scf.energy == pytest.approx(-75.3208077007)
+    
+        # Check specific iteration energies
+        assert len(results.scf.iterations) == 7
+        assert results.scf.iterations[0].energy == pytest.approx(-75.0734525405)
+        assert results.scf.iterations[0].diis_error == pytest.approx(3.82e-01)
+        assert results.scf.iterations[6].energy == pytest.approx(-75.3208077007)  # Last iteration
+        assert results.scf.iterations[6].diis_error == pytest.approx(2.17e-08)
+    
+        # Check final_energy (parsed from "Total energy in the final basis set")
+        assert results.final_energy == pytest.approx(-75.3184602363)
+    
+        # Consequently, the SmdResults object should not be created based on these patterns.
+>       assert results.smd is not None
+E       AssertionError: assert None is not None
+E        +  where None = CalculationData(method='wb97x-d3', basis='sto-3g', status='NORMAL').smd
+
+tests/parsers/qchem-5.4/test_qchem_54_sp.py:168: AssertionError
+------------------------------ Captured log setup ------------------------------
+INFO     calcflow:core.py:266 Starting Q-Chem Single Point (SP) output parsing.
+INFO     calcflow:core.py:148 Core dispatch: Line 9 ('Q-Chem 5.4, Q-Chem, Inc., Pleasanton, CA (2021)') MATCHED by MetadataParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: MetadataParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 92 ('Q-Chem begins on Sun May 18 17:41:08 2025') MATCHED by MetadataParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: MetadataParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 108 ('$molecule') MATCHED by GeometryParser. Calling .parse().
+INFO     calcflow:geometry.py:139 Parsed input geometry with 3 atoms.
+INFO     calcflow:core.py:155 Core dispatch: GeometryParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 110 ('$rem') MATCHED by RemBlockParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: RemBlockParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 112 ('$smx') MATCHED by SmxBlockParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: SmxBlockParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 123 ('Standard Nuclear Orientation (Angstroms)') MATCHED by GeometryParser. Calling .parse().
+INFO     calcflow:geometry.py:143 Parsed standard orientation geometry with 3 atoms.
+INFO     calcflow:core.py:155 Core dispatch: GeometryParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 169 ('General SCF calculation program by') MATCHED by ScfParser. Calling .parse().
+WARNING  calcflow:scf.py:365 Using energy from last SCF iteration as final SCF energy; explicit 'SCF energy =' line not found or parsed.
+INFO     calcflow:scf.py:409 Parsed SCF data. Converged: True, Energy: -75.32080770, Iterations: 7.
+INFO     calcflow:core.py:155 Core dispatch: ScfParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 180 ('Cartesian Multipole Moments') MATCHED by MultipoleParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: MultipoleParser .parse() completed.
+INFO     calcflow:core.py:247 Q-Chem SP parsing finished. Status: NORMAL, Final Energy: -75.3184602363
+=========================== short test summary info ============================
+FAILED tests/parsers/qchem-5.4/test_qchem_54_sp.py::test_parse_qchem54_sp_smd_output
+FAILED tests/parsers/qchem-5.4/test_qchem_54_sp.py::test_parse_full_qchem54_sp_smd_file
+============================== 2 failed in 0.01s ===============================

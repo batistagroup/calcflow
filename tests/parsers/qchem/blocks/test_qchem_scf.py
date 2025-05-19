@@ -466,6 +466,7 @@ def test_parse_scf_with_smd_summary(
     line_iter = iter(sample_scf_block_with_smd[sample_scf_block_with_smd.index(start_line) + 1 :])
     results = initial_data
 
+    results.qchem_version = "6.2"
     parser.parse(line_iter, start_line, results)
 
     assert results.parsed_scf is True
@@ -585,7 +586,7 @@ def test_parse_smd_summary_no_explicit_scf_energy(
     # Recreate iterator starting from the line after the start line
     line_iter = iter(scf_block_smd_no_final_scf[scf_block_smd_no_final_scf.index(start_line) + 1 :])
     results = initial_data
-
+    results.qchem_version = "6.2"
     parser.parse(line_iter, start_line, results)
 
     assert results.parsed_scf is True
@@ -641,7 +642,7 @@ def test_parse_sample_smd_h2o_sp_sto(
     # Recreate iterator starting from the line after the start line
     line_iter = iter(sample_smd_h2o_sp_sto[sample_smd_h2o_sp_sto.index(start_line) + 1 :])
     results = initial_data
-
+    results.qchem_version = "6.2"
     parser.parse(line_iter, start_line, results)
 
     assert results.parsed_scf is True

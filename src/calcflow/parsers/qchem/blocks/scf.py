@@ -100,7 +100,7 @@ SCF_PATTERNS = [
         block_type="smd_summary",
         description="SMD non-electrostatic energy component",
         versioned_patterns=[
-            (re.compile(r"^\s*G_CDS\s*=\s*(-?\d+\.\d+)\s*kcal/mol"), None, lambda m: float(m.group(1))),
+            (re.compile(r"^\s*G_CDS\s*=\s*(-?\d+\.\d+)\s*kcal/mol"), "6.2", lambda m: float(m.group(1))),
         ],
     ),
     PatternDefinition(
