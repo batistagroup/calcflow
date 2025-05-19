@@ -123,12 +123,16 @@ class TransitionDensityMatrixParser(SectionParser):
             request_break_main_loop = True
 
         while not request_break_main_loop and active_line is not None:
-            line_to_process_this_iteration: str
+            line_to_process_this_iteration: str | None
             if results.buffered_line:
                 line_to_process_this_iteration = results.buffered_line
                 results.buffered_line = None
             else:
                 line_to_process_this_iteration = active_line
+
+            if line_to_process_this_iteration is None:
+                request_break_main_loop = True
+                break
 
             if any(known_start in line_to_process_this_iteration for known_start in KNOWN_NEXT_SECTION_STARTS):
                 logger.debug(f"TDM parsing stopped by next section: {line_to_process_this_iteration.strip()}")
@@ -156,7 +160,7 @@ class TransitionDensityMatrixParser(SectionParser):
                 section_patterns = TDM_SECTION_PATTERNS_UKS if is_uks_like_state else TDM_SECTION_PATTERNS_RKS
 
                 try:
-                    line_within_state = next(iterator)
+                    line_within_state: str | None = next(iterator)
                 except StopIteration:
                     logger.debug(f"EOF after {multiplicity_label} state {state_number} header during TDM parsing.")
                     request_break_main_loop = True
@@ -176,8 +180,10 @@ class TransitionDensityMatrixParser(SectionParser):
                     is_new_state_header = re.match(
                         r"^\s*(Singlet|Triplet|Excited State)\s+(\d+)\s*:\s*$", current_line_in_state_stripped
                     )
-                    is_next_major_tdm_section = any(
-                        known_start in line_within_state for known_start in KNOWN_NEXT_SECTION_STARTS
+                    is_next_major_tdm_section = (
+                        any(known_start in line_within_state for known_start in KNOWN_NEXT_SECTION_STARTS)
+                        if line_within_state is not None
+                        else False
                     )
 
                     if is_new_state_header or is_next_major_tdm_section:
@@ -190,7 +196,7 @@ class TransitionDensityMatrixParser(SectionParser):
                         versioned_pattern = pattern_def.get_matching_pattern(qchem_version_obj)
                         if versioned_pattern and versioned_pattern.pattern.match(current_line_in_state_stripped):
                             field = pattern_def.field_name
-                            if field == "mulliken":
+                            if field == "mulliken" and line_within_state is not None:
                                 mulliken_data, next_line = self._parse_mulliken_tdm(
                                     iterator, line_within_state, results
                                 )
@@ -198,7 +204,7 @@ class TransitionDensityMatrixParser(SectionParser):
                                 line_within_state = next_line
                                 matched_action_this_line = True
                                 break
-                            elif field == "ct_numbers":
+                            elif field == "ct_numbers" and line_within_state is not None:
                                 ct_numbers_data, next_line = self._parse_ct_numbers(
                                     iterator, line_within_state, results
                                 )
@@ -206,7 +212,7 @@ class TransitionDensityMatrixParser(SectionParser):
                                 line_within_state = next_line
                                 matched_action_this_line = True
                                 break
-                            elif field == "exciton_analysis":
+                            elif field == "exciton_analysis" and line_within_state is not None:
                                 exciton_analysis_data, next_line = self._parse_exciton_analysis_tdm(
                                     iterator, line_within_state, results
                                 )
@@ -239,7 +245,8 @@ class TransitionDensityMatrixParser(SectionParser):
 
             if not request_break_main_loop and not results.buffered_line:
                 try:
-                    active_line = next(iterator)
+                    next_active_line: str | None = next(iterator)
+                    active_line = next_active_line
                 except StopIteration:
                     logger.debug("EOF reached at the end of TDM main parsing loop.")
                     active_line = None
