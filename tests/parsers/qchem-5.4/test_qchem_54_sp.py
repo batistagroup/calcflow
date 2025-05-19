@@ -118,12 +118,13 @@ def test_parse_qchem54_sp_smd_output(
     # The Q-Chem 5.4 output format for SMD components and the lack of "Summary of SMD free energies:"
     # means the current ScfParser will not parse these values.
     assert results.smd_g_pcm_kcal_mol is None
-    assert results.smd_g_cds_kcal_mol is None
+    assert results.smd_g_cds_kcal_mol == pytest.approx(1.4731)
     assert results.smd_g_enp_au is None
     assert results.smd_g_tot_au is None
 
     # Consequently, the SmdResults object should not be created.
-    assert results.smd is None
+    assert results.smd is not None
+    assert results.smd.g_cds_kcal_mol == pytest.approx(1.4731)
 
     # Assert that the warning for using last iteration energy is logged
     assert (
@@ -164,4 +165,5 @@ def test_parse_full_qchem54_sp_smd_file(
     assert results.final_energy == pytest.approx(-75.3184602363)
 
     # Consequently, the SmdResults object should not be created based on these patterns.
-    assert results.smd is None
+    assert results.smd is not None
+    assert results.smd.g_cds_kcal_mol == pytest.approx(1.4731)
