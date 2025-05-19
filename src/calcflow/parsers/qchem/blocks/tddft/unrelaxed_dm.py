@@ -40,6 +40,7 @@ UNRELAXED_DM_SECTION_PATTERNS_RKS = [
         field_name="mulliken",
         description="Mulliken Population Analysis (State/Difference DM)",
         versioned_patterns=[
+            (re.compile(r"^Mulliken Population Analysis$"), "5.4.0", None),
             (re.compile(r"^Mulliken Population Analysis \(State/Difference DM\)$"), "6.2.0", None),
         ],
     ),
@@ -71,6 +72,7 @@ UNRELAXED_DM_SECTION_PATTERNS_UKS = [
         field_name="mulliken",
         description="Mulliken Population Analysis (State/Difference DM)",
         versioned_patterns=[
+            (re.compile(r"^Mulliken Population Analysis$"), "5.4.0", None),
             (re.compile(r"^Mulliken Population Analysis \(State/Difference DM\)$"), "6.2.0", None),
         ],
     ),
@@ -351,6 +353,10 @@ class UnrelaxedExcitedStatePropertiesParser:
                         electron_charge=electron_charge,
                         delta_charge=delta_charge,
                         spin_e=spin_e,  # Will be None for RKS
+                        hole_charge_alpha=h_alpha if is_uks_format else None,  # For UKS
+                        hole_charge_beta=h_beta if is_uks_format else None,  # For UKS
+                        electron_charge_alpha=e_alpha if is_uks_format else None,  # For UKS
+                        electron_charge_beta=e_beta if is_uks_format else None,  # For UKS
                     )
                 )
                 found_data = True
@@ -442,6 +448,7 @@ class UnrelaxedExcitedStatePropertiesParser:
                 # We primarily care about the components for the dataclass.
                 # The scalar value is not explicitly stored in ExcitedStateMultipole currently.
                 # If it needs to be, the dataclass and this parsing would need adjustment.
+                # total_rms = float(stripped_line.split()[-1])
                 cart_components = self._parse_cartesian_components_next_line(
                     iterator, results, "Cartesian components [Ang]:"
                 )

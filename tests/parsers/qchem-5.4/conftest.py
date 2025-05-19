@@ -33,10 +33,10 @@ def parsed_sp_sto_smd() -> CalculationData:
 #     return qchem.parse_qchem_tddft_output((ex_folder / "h2o" / "tddft-rks-pc2.out").read_text())
 
 
-# @pytest.fixture(scope="module")
-# def parsed_tddft_uks_pc2_data() -> CalculationData:
-#     """Fixture to parse the UKS TDDFT output file for H2O (pc2)."""
-#     return qchem.parse_qchem_tddft_output((ex_folder / "h2o" / "tddft-uks-pc2.out").read_text())
+@pytest.fixture(scope="module")
+def parsed_tddft_uks_pc2_data() -> CalculationData:
+    """Fixture to parse the UKS TDDFT output file for H2O (pc2)."""
+    return qchem.parse_qchem_tddft_output((ex_folder / "h2o-5.4" / "tddft-uks-pc2.out").read_text())
 
 
 # @pytest.fixture(scope="module")

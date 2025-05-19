@@ -135,6 +135,10 @@ class ExcitedStateAtomPopulation:
     electron_charge: float | None = None  # Contribution from electron (e-)
     delta_charge: float | None = None  # Change in charge (Del q)
     spin_e: float | None = None  # Spin population on the atom
+    hole_charge_alpha: float | None = None  # h+ (alpha)
+    hole_charge_beta: float | None = None  # h+ (beta)
+    electron_charge_alpha: float | None = None  # e- (alpha)
+    electron_charge_beta: float | None = None  # e- (beta)
 
 
 @dataclass(frozen=True)

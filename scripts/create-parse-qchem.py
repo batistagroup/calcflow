@@ -134,3 +134,4 @@ if run["tddft-uks-parse-5.4"]:
     tddft_pc2 = parse_qchem_tddft_output((clc_54_folder / "tddft-uks-pc2.out").read_text())
     print(tddft_pc2)
     print(tddft_pc2.tddft)
+    breakpoint()
