@@ -1,0 +1,414 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.12.10, pytest-8.3.5, pluggy-1.5.0 -- /Users/morgunov/Developer/batista/calcflow/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /Users/morgunov/Developer/batista/calcflow
+configfile: pyproject.toml
+plugins: cov-6.1.1
+collecting ... collected 11 items
+
+tests/parsers/qchem/test_qchem_sp.py::test_parse_qchem_sp_output_h2o 2025-05-18 22:40:17 [INFO] calcflow: Starting Q-Chem Single Point (SP) output parsing.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 9 ('Q-Chem 6.2, Q-Chem, Inc., Pleasanton, CA (2024)') MATCHED by MetadataParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: MetadataParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 104 ('Q-Chem begins on Sun May  4 14:52:42 2025') MATCHED by MetadataParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: MetadataParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 106 ('Host: login30') MATCHED by MetadataParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: MetadataParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 119 ('$molecule') MATCHED by GeometryParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Parsed input geometry with 3 atoms.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: GeometryParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 121 ('$rem') MATCHED by RemBlockParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: RemBlockParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 133 ('Standard Nuclear Orientation (Angstroms)') MATCHED by GeometryParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Parsed standard orientation geometry with 3 atoms.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: GeometryParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 162 ('General SCF calculation program by') MATCHED by ScfParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Parsed SCF data. Converged: True, Energy: -75.31188446, Iterations: 7.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: ScfParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 172 ('Ground-State Mulliken Net Atomic Charges') MATCHED by MullikenChargesParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Successfully parsed and stored 3 Mulliken charges.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: MullikenChargesParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 176 ('Cartesian Multipole Moments') MATCHED by MultipoleParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: MultipoleParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Q-Chem SP parsing finished. Status: NORMAL, Final Energy: -75.31188446
+FAILED
+tests/parsers/qchem/test_qchem_sp.py::test_malformed_final_energy 2025-05-18 22:40:17 [INFO] calcflow: Starting Q-Chem Single Point (SP) output parsing.
+2025-05-18 22:40:17 [WARNING] calcflow: Standard orientation geometry block was not found or parsed.
+2025-05-18 22:40:17 [ERROR] calcflow: Input geometry block ($molecule) was not found or parsed.
+2025-05-18 22:40:17 [WARNING] calcflow: Termination status unknown after parsing, assuming ERROR.
+2025-05-18 22:40:17 [INFO] calcflow: Q-Chem SP parsing finished. Status: ERROR, Final Energy: None
+PASSED
+tests/parsers/qchem/test_qchem_sp.py::test_malformed_nuclear_repulsion 2025-05-18 22:40:17 [INFO] calcflow: Starting Q-Chem Single Point (SP) output parsing.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 2 ('Standard Nuclear Orientation (Angstroms)') MATCHED by GeometryParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Parsed standard orientation geometry with 1 atoms.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: GeometryParser .parse() completed.
+2025-05-18 22:40:17 [ERROR] calcflow: Input geometry block ($molecule) was not found or parsed.
+2025-05-18 22:40:17 [WARNING] calcflow: Termination status unknown after parsing, assuming ERROR.
+2025-05-18 22:40:17 [INFO] calcflow: Q-Chem SP parsing finished. Status: ERROR, Final Energy: None
+PASSED
+tests/parsers/qchem/test_qchem_sp.py::test_explicit_error_termination 2025-05-18 22:40:17 [INFO] calcflow: Starting Q-Chem Single Point (SP) output parsing.
+2025-05-18 22:40:17 [WARNING] calcflow: Standard orientation geometry block was not found or parsed.
+2025-05-18 22:40:17 [ERROR] calcflow: Input geometry block ($molecule) was not found or parsed.
+2025-05-18 22:40:17 [INFO] calcflow: Q-Chem SP parsing finished. Status: ERROR, Final Energy: None
+PASSED
+tests/parsers/qchem/test_qchem_sp.py::test_missing_normal_termination 2025-05-18 22:40:17 [INFO] calcflow: Starting Q-Chem Single Point (SP) output parsing.
+2025-05-18 22:40:17 [WARNING] calcflow: Standard orientation geometry block was not found or parsed.
+2025-05-18 22:40:17 [ERROR] calcflow: Input geometry block ($molecule) was not found or parsed.
+2025-05-18 22:40:17 [WARNING] calcflow: Termination status unknown after parsing, assuming ERROR.
+2025-05-18 22:40:17 [INFO] calcflow: Q-Chem SP parsing finished. Status: ERROR, Final Energy: None
+PASSED
+tests/parsers/qchem/test_qchem_sp.py::test_missing_input_geometry 2025-05-18 22:40:17 [INFO] calcflow: Starting Q-Chem Single Point (SP) output parsing.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 2 ('$rem') MATCHED by RemBlockParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: RemBlockParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 4 ('Standard Nuclear Orientation (Angstroms)') MATCHED by GeometryParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Parsed standard orientation geometry with 1 atoms.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: GeometryParser .parse() completed.
+2025-05-18 22:40:17 [ERROR] calcflow: Input geometry block ($molecule) was not found or parsed.
+2025-05-18 22:40:17 [INFO] calcflow: Q-Chem SP parsing finished. Status: NORMAL, Final Energy: None
+PASSED
+tests/parsers/qchem/test_qchem_sp.py::test_premature_end_during_block_parsing 2025-05-18 22:40:17 [INFO] calcflow: Starting Q-Chem Single Point (SP) output parsing.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 2 ('$molecule') MATCHED by GeometryParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Parsed input geometry with 1 atoms.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: GeometryParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 3 ('$rem') MATCHED by RemBlockParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: RemBlockParser .parse() completed.
+2025-05-18 22:40:17 [WARNING] calcflow: Standard orientation geometry block was not found or parsed.
+2025-05-18 22:40:17 [WARNING] calcflow: Termination status unknown after parsing, assuming ERROR.
+2025-05-18 22:40:17 [INFO] calcflow: Q-Chem SP parsing finished. Status: ERROR, Final Energy: None
+PASSED
+tests/parsers/qchem/test_qchem_sp.py::test_empty_input 2025-05-18 22:40:17 [INFO] calcflow: Starting Q-Chem Single Point (SP) output parsing.
+2025-05-18 22:40:17 [WARNING] calcflow: Standard orientation geometry block was not found or parsed.
+2025-05-18 22:40:17 [ERROR] calcflow: Input geometry block ($molecule) was not found or parsed.
+2025-05-18 22:40:17 [WARNING] calcflow: Termination status unknown after parsing, assuming ERROR.
+2025-05-18 22:40:17 [INFO] calcflow: Q-Chem SP parsing finished. Status: ERROR, Final Energy: None
+PASSED
+tests/parsers/qchem/test_qchem_sp.py::test_minimal_header_input 2025-05-18 22:40:17 [INFO] calcflow: Starting Q-Chem Single Point (SP) output parsing.
+2025-05-18 22:40:17 [WARNING] calcflow: Standard orientation geometry block was not found or parsed.
+2025-05-18 22:40:17 [ERROR] calcflow: Input geometry block ($molecule) was not found or parsed.
+2025-05-18 22:40:17 [WARNING] calcflow: Termination status unknown after parsing, assuming ERROR.
+2025-05-18 22:40:17 [INFO] calcflow: Q-Chem SP parsing finished. Status: ERROR, Final Energy: None
+PASSED
+tests/parsers/qchem/test_qchem_sp.py::test_parse_qchem_sp_output_h2o_smd 2025-05-18 22:40:17 [INFO] calcflow: Starting Q-Chem Single Point (SP) output parsing.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 9 ('Q-Chem 6.2, Q-Chem, Inc., Pleasanton, CA (2024)') MATCHED by MetadataParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: MetadataParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 104 ('Q-Chem begins on Sun May  4 14:52:50 2025') MATCHED by MetadataParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: MetadataParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 106 ('Host: login30') MATCHED by MetadataParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: MetadataParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 120 ('$molecule') MATCHED by GeometryParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Parsed input geometry with 3 atoms.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: GeometryParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 122 ('$rem') MATCHED by RemBlockParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: RemBlockParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 124 ('$smx') MATCHED by SmxBlockParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: SmxBlockParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 136 ('Standard Nuclear Orientation (Angstroms)') MATCHED by GeometryParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Parsed standard orientation geometry with 3 atoms.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: GeometryParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 181 ('General SCF calculation program by') MATCHED by ScfParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Parsed SCF data. Converged: True, Energy: -75.32080770, Iterations: 7.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: ScfParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 191 ('Ground-State Mulliken Net Atomic Charges') MATCHED by MullikenChargesParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Successfully parsed and stored 3 Mulliken charges.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: MullikenChargesParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 195 ('Cartesian Multipole Moments') MATCHED by MultipoleParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: MultipoleParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Q-Chem SP parsing finished. Status: NORMAL, Final Energy: -75.31846024
+FAILED
+tests/parsers/qchem/test_qchem_sp.py::test_parse_qchem_sp_output_h2o_tzvppd_smd 2025-05-18 22:40:17 [INFO] calcflow: Starting Q-Chem Single Point (SP) output parsing.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 9 ('Q-Chem 6.2, Q-Chem, Inc., Pleasanton, CA (2024)') MATCHED by MetadataParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: MetadataParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 104 ('Q-Chem begins on Sun May  4 14:52:49 2025') MATCHED by MetadataParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: MetadataParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 106 ('Host: login30') MATCHED by MetadataParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: MetadataParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 120 ('$molecule') MATCHED by GeometryParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Parsed input geometry with 3 atoms.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: GeometryParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 122 ('$rem') MATCHED by RemBlockParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: RemBlockParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 124 ('$smx') MATCHED by SmxBlockParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: SmxBlockParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 136 ('Standard Nuclear Orientation (Angstroms)') MATCHED by GeometryParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Parsed standard orientation geometry with 3 atoms.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: GeometryParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 181 ('General SCF calculation program by') MATCHED by ScfParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Parsed SCF data. Converged: True, Energy: -76.45607642, Iterations: 7.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: ScfParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 199 ('Ground-State Mulliken Net Atomic Charges') MATCHED by MullikenChargesParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Successfully parsed and stored 3 Mulliken charges.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: MullikenChargesParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: Line 203 ('Cartesian Multipole Moments') MATCHED by MultipoleParser. Calling .parse().
+2025-05-18 22:40:17 [INFO] calcflow: Core dispatch: MultipoleParser .parse() completed.
+2025-05-18 22:40:17 [INFO] calcflow: Q-Chem SP parsing finished. Status: NORMAL, Final Energy: -76.45372896
+FAILED
+
+=================================== FAILURES ===================================
+________________________ test_parse_qchem_sp_output_h2o ________________________
+
+parsed_sp_sto_data = CalculationData(method='wb97x-d3', basis='sto-3g', status='NORMAL')
+
+    def test_parse_qchem_sp_output_h2o(parsed_sp_sto_data: CalculationData) -> None:
+        """
+        Integration test for parsing the standard H2O SP output file.
+    
+        Verifies that the main fields extracted by parse_qchem_sp_output match
+        the expected values from the data/calculations/examples/qchem/h2o/sp.out file.
+        """
+        data = parsed_sp_sto_data
+    
+        # --- Top-Level Checks ---
+        assert data.termination_status == "NORMAL"
+        assert data.final_energy == approx(-75.31188446)
+        assert data.nuclear_repulsion == approx(8.93764808)
+    
+        # --- Metadata Checks ---
+        assert data.metadata.qchem_version == "6.2"
+        assert data.metadata.host == "login30"
+        # assert data.metadata.run_date == "Sun May  4 14:52:42 2025" # Date is dynamic in example
+        assert data.metadata.calculation_method == "wb97x-d3"
+        assert data.metadata.basis_set == "sto-3g"
+    
+        # --- Geometry Checks ---
+        # Input Geometry ($molecule)
+        assert data.input_geometry is not None
+        assert len(data.input_geometry) == 3
+        assert data.input_geometry[0] == Atom(symbol="H", x=1.36499, y=1.69385, z=-0.19748)
+        assert data.input_geometry[1] == Atom(symbol="O", x=2.32877, y=1.56294, z=-0.04168)
+        assert data.input_geometry[2] == Atom(symbol="H", x=2.70244, y=1.31157, z=-0.91665)
+    
+        # Standard Orientation Geometry
+        assert data.final_geometry is not None
+        assert len(data.final_geometry) == 3
+        assert data.final_geometry[0] == Atom(symbol="H", x=1.3649900000, y=1.6938500000, z=-0.1974800000)
+        assert data.final_geometry[1] == Atom(symbol="O", x=2.3287700000, y=1.5629400000, z=-0.0416800000)
+        assert data.final_geometry[2] == Atom(symbol="H", x=2.7024400000, y=1.3115700000, z=-0.9166500000)
+    
+        # --- SCF Checks ---
+        assert data.scf is not None
+        scf: ScfResults = data.scf
+        assert scf.converged is True
+        assert scf.energy == approx(-75.31188446)
+        assert scf.n_iterations == 7
+        assert len(scf.iterations) == 7
+        # assert scf.iterations[0] == ScfIteration(iteration=1, energy=-75.0734525425, diis_error=approx(3.82e-01))
+        assert scf.iterations[0].iteration == 1
+        assert scf.iterations[0].energy == approx(-75.0734525425)
+        assert scf.iterations[0].diis_error == approx(3.82e-01)
+        # assert scf.iterations[-1] == ScfIteration(iteration=7, energy=-75.3118844639, diis_error=approx(5.35e-08))
+        assert scf.iterations[-1].iteration == 7
+        assert scf.iterations[-1].energy == approx(-75.3118844639)
+        assert scf.iterations[-1].diis_error == approx(5.35e-08)
+    
+        # --- Orbital Checks ---
+>       assert data.orbitals is not None
+E       AssertionError: assert None is not None
+E        +  where None = CalculationData(method='wb97x-d3', basis='sto-3g', status='NORMAL').orbitals
+
+tests/parsers/qchem/test_qchem_sp.py:72: AssertionError
+------------------------------ Captured log setup ------------------------------
+INFO     calcflow:core.py:266 Starting Q-Chem Single Point (SP) output parsing.
+INFO     calcflow:core.py:148 Core dispatch: Line 9 ('Q-Chem 6.2, Q-Chem, Inc., Pleasanton, CA (2024)') MATCHED by MetadataParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: MetadataParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 104 ('Q-Chem begins on Sun May  4 14:52:42 2025') MATCHED by MetadataParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: MetadataParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 106 ('Host: login30') MATCHED by MetadataParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: MetadataParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 119 ('$molecule') MATCHED by GeometryParser. Calling .parse().
+INFO     calcflow:geometry.py:139 Parsed input geometry with 3 atoms.
+INFO     calcflow:core.py:155 Core dispatch: GeometryParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 121 ('$rem') MATCHED by RemBlockParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: RemBlockParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 133 ('Standard Nuclear Orientation (Angstroms)') MATCHED by GeometryParser. Calling .parse().
+INFO     calcflow:geometry.py:143 Parsed standard orientation geometry with 3 atoms.
+INFO     calcflow:core.py:155 Core dispatch: GeometryParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 162 ('General SCF calculation program by') MATCHED by ScfParser. Calling .parse().
+INFO     calcflow:scf.py:283 Parsed SCF data. Converged: True, Energy: -75.31188446, Iterations: 7.
+INFO     calcflow:core.py:155 Core dispatch: ScfParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 172 ('Ground-State Mulliken Net Atomic Charges') MATCHED by MullikenChargesParser. Calling .parse().
+INFO     calcflow:charges.py:121 Successfully parsed and stored 3 Mulliken charges.
+INFO     calcflow:core.py:155 Core dispatch: MullikenChargesParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 176 ('Cartesian Multipole Moments') MATCHED by MultipoleParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: MultipoleParser .parse() completed.
+INFO     calcflow:core.py:247 Q-Chem SP parsing finished. Status: NORMAL, Final Energy: -75.31188446
+______________________ test_parse_qchem_sp_output_h2o_smd ______________________
+
+parsed_sp_sto_smd = CalculationData(method='wb97x-d3', basis='sto-3g', status='NORMAL')
+
+    def test_parse_qchem_sp_output_h2o_smd(parsed_sp_sto_smd: CalculationData) -> None:
+        """
+        Integration test for parsing the H2O SP output file with SMD solvation.
+    
+        Verifies that the main fields extracted by parse_qchem_sp_output match
+        the expected values from the data/calculations/examples/qchem/h2o/sp-sto-smd.out file.
+        """
+        data = parsed_sp_sto_smd
+    
+        # --- Top-Level Checks ---
+        assert data.termination_status == "NORMAL"
+        assert data.final_energy == approx(-75.31846024)  # This is G(tot) from SMD output
+        assert data.nuclear_repulsion == approx(8.93764808)
+    
+        # --- Metadata Checks ---
+        assert data.metadata.qchem_version == "6.2"
+        assert data.metadata.host == "login30"
+        # assert data.metadata.run_date == "Sun May  4 14:52:50 2025" # Date is dynamic
+        assert data.metadata.calculation_method == "wb97x-d3"
+        assert data.metadata.basis_set == "sto-3g"
+        assert data.metadata.solvent_method == "smd"
+        assert data.metadata.solvent_name == "water"
+    
+        # --- Geometry Checks ---
+        # Input Geometry ($molecule)
+        assert data.input_geometry is not None
+        assert len(data.input_geometry) == 3
+        assert data.input_geometry[0] == Atom(symbol="H", x=1.36499, y=1.69385, z=-0.19748)
+        assert data.input_geometry[1] == Atom(symbol="O", x=2.32877, y=1.56294, z=-0.04168)
+        assert data.input_geometry[2] == Atom(symbol="H", x=2.70244, y=1.31157, z=-0.91665)
+    
+        # Standard Orientation Geometry
+        assert data.final_geometry is not None
+        assert len(data.final_geometry) == 3
+        assert data.final_geometry[0] == Atom(symbol="H", x=1.3649900000, y=1.6938500000, z=-0.1974800000)
+        assert data.final_geometry[1] == Atom(symbol="O", x=2.3287700000, y=1.5629400000, z=-0.0416800000)
+        assert data.final_geometry[2] == Atom(symbol="H", x=2.7024400000, y=1.3115700000, z=-0.9166500000)
+    
+        # --- SCF Checks ---
+        assert data.scf is not None
+        scf: ScfResults = data.scf
+        assert scf.converged is True
+        # For SMD, the SCF energy reported in the block is E_SCF (including G_PCM)
+        assert scf.energy == approx(-75.32080770)
+        assert scf.n_iterations == 7
+        assert len(scf.iterations) == 7
+        assert scf.iterations[0].iteration == 1
+        assert scf.iterations[0].energy == approx(-75.0734525440)
+        assert scf.iterations[0].diis_error == approx(3.82e-01)
+        assert scf.iterations[-1].iteration == 7
+        assert scf.iterations[-1].energy == approx(-75.3208077035)
+        assert scf.iterations[-1].diis_error == approx(2.17e-08)
+    
+        # --- Orbital Checks ---
+>       assert data.orbitals is not None
+E       AssertionError: assert None is not None
+E        +  where None = CalculationData(method='wb97x-d3', basis='sto-3g', status='NORMAL').orbitals
+
+tests/parsers/qchem/test_qchem_sp.py:396: AssertionError
+------------------------------ Captured log setup ------------------------------
+INFO     calcflow:core.py:266 Starting Q-Chem Single Point (SP) output parsing.
+INFO     calcflow:core.py:148 Core dispatch: Line 9 ('Q-Chem 6.2, Q-Chem, Inc., Pleasanton, CA (2024)') MATCHED by MetadataParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: MetadataParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 104 ('Q-Chem begins on Sun May  4 14:52:50 2025') MATCHED by MetadataParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: MetadataParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 106 ('Host: login30') MATCHED by MetadataParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: MetadataParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 120 ('$molecule') MATCHED by GeometryParser. Calling .parse().
+INFO     calcflow:geometry.py:139 Parsed input geometry with 3 atoms.
+INFO     calcflow:core.py:155 Core dispatch: GeometryParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 122 ('$rem') MATCHED by RemBlockParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: RemBlockParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 124 ('$smx') MATCHED by SmxBlockParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: SmxBlockParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 136 ('Standard Nuclear Orientation (Angstroms)') MATCHED by GeometryParser. Calling .parse().
+INFO     calcflow:geometry.py:143 Parsed standard orientation geometry with 3 atoms.
+INFO     calcflow:core.py:155 Core dispatch: GeometryParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 181 ('General SCF calculation program by') MATCHED by ScfParser. Calling .parse().
+INFO     calcflow:scf.py:283 Parsed SCF data. Converged: True, Energy: -75.32080770, Iterations: 7.
+INFO     calcflow:core.py:155 Core dispatch: ScfParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 191 ('Ground-State Mulliken Net Atomic Charges') MATCHED by MullikenChargesParser. Calling .parse().
+INFO     calcflow:charges.py:121 Successfully parsed and stored 3 Mulliken charges.
+INFO     calcflow:core.py:155 Core dispatch: MullikenChargesParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 195 ('Cartesian Multipole Moments') MATCHED by MultipoleParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: MultipoleParser .parse() completed.
+INFO     calcflow:core.py:247 Q-Chem SP parsing finished. Status: NORMAL, Final Energy: -75.31846024
+__________________ test_parse_qchem_sp_output_h2o_tzvppd_smd ___________________
+
+parsed_sp_tzvppd_smd = CalculationData(method='wb97x-d3', basis='def2-tzvppd', status='NORMAL')
+
+    def test_parse_qchem_sp_output_h2o_tzvppd_smd(parsed_sp_tzvppd_smd: CalculationData) -> None:
+        """
+        Integration test for parsing the H2O SP output file with SMD solvation and def2-tzvppd basis.
+    
+        Verifies that the main fields extracted by parse_qchem_sp_output match
+        the expected values from the data/calculations/examples/qchem/h2o/sp-tzvppd-smd.out file.
+        """
+        data = parsed_sp_tzvppd_smd
+    
+        # --- Top-Level Checks ---
+        assert data.termination_status == "NORMAL"
+        assert data.final_energy == approx(-76.45372896)  # G(tot) from SMD output
+        assert data.nuclear_repulsion == approx(8.93764808)
+    
+        # --- Metadata Checks ---
+        assert data.metadata.qchem_version == "6.2"
+        assert data.metadata.host == "login30"
+        # assert data.metadata.run_date == "Sun May  4 14:52:49 2025" # Date is dynamic
+        assert data.metadata.calculation_method == "wb97x-d3"
+        assert data.metadata.basis_set == "def2-tzvppd"
+        assert data.metadata.solvent_method == "smd"
+        assert data.metadata.solvent_name == "water"
+    
+        # --- Geometry Checks ---
+        assert data.input_geometry is not None
+        assert len(data.input_geometry) == 3
+        assert data.input_geometry[0] == Atom(symbol="H", x=1.36499, y=1.69385, z=-0.19748)
+        assert data.input_geometry[1] == Atom(symbol="O", x=2.32877, y=1.56294, z=-0.04168)
+        assert data.input_geometry[2] == Atom(symbol="H", x=2.70244, y=1.31157, z=-0.91665)
+    
+        assert data.final_geometry is not None
+        assert len(data.final_geometry) == 3
+        assert data.final_geometry[0] == Atom(symbol="H", x=1.3649900000, y=1.6938500000, z=-0.1974800000)
+        assert data.final_geometry[1] == Atom(symbol="O", x=2.3287700000, y=1.5629400000, z=-0.0416800000)
+        assert data.final_geometry[2] == Atom(symbol="H", x=2.7024400000, y=1.3115700000, z=-0.9166500000)
+    
+        # --- SCF Checks ---
+        assert data.scf is not None
+        scf: ScfResults = data.scf
+        assert scf.converged is True
+        assert scf.energy == approx(-76.45607642)  # E_SCF (including G_PCM)
+        assert scf.n_iterations == 7
+        assert len(scf.iterations) == 7
+        assert scf.iterations[0].iteration == 1
+        assert scf.iterations[0].energy == approx(-76.3019247487)
+        assert scf.iterations[0].diis_error == approx(4.14e-02)
+        assert scf.iterations[-1].iteration == 7
+        assert scf.iterations[-1].energy == approx(-76.4560764224)
+        assert scf.iterations[-1].diis_error == approx(5.94e-06)
+    
+        # --- Orbital Checks ---
+>       assert data.orbitals is not None
+E       AssertionError: assert None is not None
+E        +  where None = CalculationData(method='wb97x-d3', basis='def2-tzvppd', status='NORMAL').orbitals
+
+tests/parsers/qchem/test_qchem_sp.py:539: AssertionError
+------------------------------ Captured log setup ------------------------------
+INFO     calcflow:core.py:266 Starting Q-Chem Single Point (SP) output parsing.
+INFO     calcflow:core.py:148 Core dispatch: Line 9 ('Q-Chem 6.2, Q-Chem, Inc., Pleasanton, CA (2024)') MATCHED by MetadataParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: MetadataParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 104 ('Q-Chem begins on Sun May  4 14:52:49 2025') MATCHED by MetadataParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: MetadataParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 106 ('Host: login30') MATCHED by MetadataParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: MetadataParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 120 ('$molecule') MATCHED by GeometryParser. Calling .parse().
+INFO     calcflow:geometry.py:139 Parsed input geometry with 3 atoms.
+INFO     calcflow:core.py:155 Core dispatch: GeometryParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 122 ('$rem') MATCHED by RemBlockParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: RemBlockParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 124 ('$smx') MATCHED by SmxBlockParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: SmxBlockParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 136 ('Standard Nuclear Orientation (Angstroms)') MATCHED by GeometryParser. Calling .parse().
+INFO     calcflow:geometry.py:143 Parsed standard orientation geometry with 3 atoms.
+INFO     calcflow:core.py:155 Core dispatch: GeometryParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 181 ('General SCF calculation program by') MATCHED by ScfParser. Calling .parse().
+INFO     calcflow:scf.py:283 Parsed SCF data. Converged: True, Energy: -76.45607642, Iterations: 7.
+INFO     calcflow:core.py:155 Core dispatch: ScfParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 199 ('Ground-State Mulliken Net Atomic Charges') MATCHED by MullikenChargesParser. Calling .parse().
+INFO     calcflow:charges.py:121 Successfully parsed and stored 3 Mulliken charges.
+INFO     calcflow:core.py:155 Core dispatch: MullikenChargesParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 203 ('Cartesian Multipole Moments') MATCHED by MultipoleParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: MultipoleParser .parse() completed.
+INFO     calcflow:core.py:247 Q-Chem SP parsing finished. Status: NORMAL, Final Energy: -76.45372896
+=========================== short test summary info ============================
+FAILED tests/parsers/qchem/test_qchem_sp.py::test_parse_qchem_sp_output_h2o
+FAILED tests/parsers/qchem/test_qchem_sp.py::test_parse_qchem_sp_output_h2o_smd
+FAILED tests/parsers/qchem/test_qchem_sp.py::test_parse_qchem_sp_output_h2o_tzvppd_smd
+========================= 3 failed, 8 passed in 0.03s ==========================
