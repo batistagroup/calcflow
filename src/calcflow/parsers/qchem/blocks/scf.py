@@ -77,113 +77,88 @@ SCF_PATTERNS = [
         field_name="scf_energy",
         required=True,
         description="Final SCF energy value",
+        versioned_patterns=[
+            (SCF_FINAL_ENERGY_PAT, None, lambda m: float(m.group(1))),
+        ]
     ),
+    
     # Final energy pattern - version dependent
     PatternDefinition(
         field_name="final_energy",
         description="Total energy including corrections",
+        versioned_patterns=[
+            # QChem 6.0+ uses "Total energy"
+            (TOTAL_ENERGY_PAT, "6.0", lambda m: float(m.group(1))),
+            # QChem 5.x uses "Total energy in the final basis set"
+            (TOTAL_ENERGY_FINAL_BASIS_PAT, "5.4", lambda m: float(m.group(1))),
+        ]
     ),
+    
     # SMD patterns
     PatternDefinition(
         field_name="smd_g_pcm_kcal_mol",
         block_type="smd_summary",
         description="SMD polarization energy component",
+        versioned_patterns=[
+            (G_PCM_PAT, None, lambda m: float(m.group(1))),
+        ]
     ),
+    
     PatternDefinition(
         field_name="smd_g_cds_kcal_mol",
         block_type="smd_summary",
         description="SMD non-electrostatic energy component",
+        versioned_patterns=[
+            (G_CDS_PAT, None, lambda m: float(m.group(1))),
+        ]
     ),
+    
     PatternDefinition(
         field_name="smd_g_enp_au",
         block_type="smd_summary",
         description="SCF energy in solvent (E_SCF + G_PCM)",
+        versioned_patterns=[
+            (G_ENP_PAT, None, lambda m: float(m.group(1))),
+        ]
     ),
+    
     PatternDefinition(
         field_name="smd_g_tot_au",
         block_type="smd_summary",
         description="Total free energy in solution (G_ENP + G_CDS)",
+        versioned_patterns=[
+            (G_TOT_PAT, None, lambda m: float(m.group(1))),
+        ]
     ),
+    
     # MOM patterns
     PatternDefinition(
         field_name="mom_active",
         block_type="mom",
         description="MOM is active in this calculation",
+        versioned_patterns=[
+            (MOM_ACTIVE_PAT, None, lambda _: True),
+        ]
     ),
+    
     PatternDefinition(
         field_name="mom_method_type",
         block_type="mom",
         description="IMOM method is being used",
+        versioned_patterns=[
+            (IMOM_METHOD_PAT, None, lambda _: "IMOM"),
+        ]
     ),
+    
     PatternDefinition(
         field_name="mom_overlap",
         block_type="mom",
         description="MOM overlap with current and target orbitals",
+        versioned_patterns=[
+            (MOM_OVERLAP_PAT, None, lambda m: (float(m.group(1)), float(m.group(2)))),
+        ]
     ),
 ]
-
-# Add patterns to the registry with version predicates
-# SCF energy pattern is consistent across versions
-SCF_PATTERNS[0].add_pattern(
-    pattern=SCF_FINAL_ENERGY_PAT,
-    transform=lambda m: float(m.group(1)),
-)
-
-# Final energy pattern varies by version
-# For QChem 6.0+
-SCF_PATTERNS[1].add_pattern(
-    pattern=TOTAL_ENERGY_PAT,
-    version="6.0",
-    transform=lambda m: float(m.group(1)),
-)
-# For QChem 5.x
-SCF_PATTERNS[1].add_pattern(
-    pattern=TOTAL_ENERGY_FINAL_BASIS_PAT,
-    version="5.4",
-    transform=lambda m: float(m.group(1)),
-)
-# Fallback pattern for G_TOT from SMD (needed for test_parse_sample_smd_h2o_sp_sto)
-SCF_PATTERNS[1].add_pattern(
-    pattern=G_TOT_PAT,
-    transform=lambda m: float(m.group(1)),
-)
-
-# SMD patterns
-SCF_PATTERNS[2].add_pattern(
-    pattern=G_PCM_PAT,
-    transform=lambda m: float(m.group(1)),
-)
-
-SCF_PATTERNS[3].add_pattern(
-    pattern=G_CDS_PAT,
-    transform=lambda m: float(m.group(1)),
-)
-
-SCF_PATTERNS[4].add_pattern(
-    pattern=G_ENP_PAT,
-    transform=lambda m: float(m.group(1)),
-)
-
-SCF_PATTERNS[5].add_pattern(
-    pattern=G_TOT_PAT,
-    transform=lambda m: float(m.group(1)),
-)
-
-# MOM patterns
-SCF_PATTERNS[6].add_pattern(
-    pattern=MOM_ACTIVE_PAT,
-    transform=lambda _: True,
-)
-
-SCF_PATTERNS[7].add_pattern(
-    pattern=IMOM_METHOD_PAT,
-    transform=lambda _: "IMOM",
-)
-
-SCF_PATTERNS[8].add_pattern(
-    pattern=MOM_OVERLAP_PAT,
-    transform=lambda m: (float(m.group(1)), float(m.group(2))),
-)
 
 
 class ScfParser(SectionParser):

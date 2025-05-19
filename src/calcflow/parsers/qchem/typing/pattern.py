@@ -64,19 +64,58 @@ class VersionedPattern:
 
 @dataclass
 class PatternDefinition:
-    """Defines a field to extract with version-specific regex patterns."""
-
+    """Defines a field to extract with version-specific regex patterns.
+    
+    This class allows defining multiple patterns for different QChem versions
+    that all map to the same result field.
+    
+    Args:
+        field_name: The name of the field to update in the results
+        required: Whether this field is required for valid parsing
+        block_type: The type of block this pattern belongs to (e.g., "smd_summary")
+        description: Human-readable description of what this pattern extracts
+        versioned_patterns: Optional list of (pattern, version, transform) tuples to add
+    """
+    
     field_name: str  # Result field to update
     patterns: list[VersionedPattern] = field(default_factory=list)
     required: bool = False  # Is this field required?
     block_type: str | None = None  # e.g., "scf_iteration", "smd_summary"
     description: str = ""  # Human-readable description
-
+    
+    def __init__(
+        self,
+        field_name: str,
+        *,
+        required: bool = False,
+        block_type: str | None = None,
+        description: str = "",
+        versioned_patterns: list[tuple[Pattern, VersionSpec, Callable[[re.Match], Any] | None]] | None = None,
+    ) -> None:
+        """Initialize a PatternDefinition with optional versioned patterns."""
+        self.field_name = field_name
+        self.required = required
+        self.block_type = block_type
+        self.description = description
+        self.patterns = []
+        
+        # Add any provided patterns
+        if versioned_patterns:
+            for pattern, version, transform in versioned_patterns:
+                self.add_pattern(pattern, version, transform or (lambda m: m.group(1)))
+    
     def add_pattern(
-        self, pattern: Pattern, version: VersionSpec = None, transform: Callable[[re.Match], Any] = lambda m: m.group(1)
+        self, 
+        pattern: Pattern, 
+        version: VersionSpec = None,
+        transform: Callable[[re.Match], Any] = lambda m: m.group(1)
     ) -> None:
         """Add a new pattern with version to this definition."""
-        self.patterns.append(VersionedPattern(pattern=pattern, version=version, transform=transform))
+        self.patterns.append(VersionedPattern(
+            pattern=pattern,
+            version=version,
+            transform=transform
+        ))
 
     def get_matching_pattern(self, version: str) -> VersionedPattern | None:
         """Get the best matching pattern for the given version.
