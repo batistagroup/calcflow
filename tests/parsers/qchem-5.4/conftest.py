@@ -33,7 +33,7 @@ def parsed_mom_smd_sp_data() -> MomCalculationResult:
     return qchem.parse_qchem_mom_output((ex_folder / "h2o-5.4" / "mom-smd-sp.out").read_text())
 
 
-# @pytest.fixture(scope="module")
-# def parsed_mom_smd_xas_data() -> MomCalculationResult:
-#     """Fixture to parse the MOM XAS output file for H2O."""
-#     return qchem.parse_qchem_mom_output((ex_folder / "h2o" / "mom-smd-xas.out").read_text())
+@pytest.fixture(scope="module")
+def parsed_mom_smd_xas_data() -> MomCalculationResult:
+    """Fixture to parse the MOM XAS output file for H2O."""
+    return qchem.parse_qchem_mom_output((ex_folder / "h2o-5.4" / "mom-smd-xas.out").read_text())
