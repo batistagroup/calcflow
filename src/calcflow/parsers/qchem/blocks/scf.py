@@ -1,15 +1,11 @@
 """SCF Parser module for Q-Chem output files.
 
 This module provides a pattern-based approach to parsing SCF calculation blocks
-in Q-Chem output files. It uses a registry of regex patterns to extract data
-in a flexible, version-independent manner.
+in Q-Chem output files. It uses a version-aware registry of regex patterns to extract data
+in a flexible manner that adapts to different Q-Chem versions.
 """
 
 import re
-from collections.abc import Callable
-from dataclasses import dataclass
-from re import Pattern
-from typing import Any
 
 from calcflow.parsers.qchem.typing import (
     LineIterator,
@@ -18,6 +14,9 @@ from calcflow.parsers.qchem.typing import (
     SectionParser,
     SmdResults,
     _MutableCalculationData,
+)
+from calcflow.parsers.qchem.typing.pattern import (
+    PatternDefinition,
 )
 from calcflow.utils import logger
 
@@ -65,83 +64,126 @@ TDA_HEADER_PAT = re.compile(r"^\s*TDDFT/TDA\s+Excitation\s+Energies\s*$")
 TDDFT_HEADER_PAT = re.compile(r"^\s*TDDFT\s+Excitation\s+Energies\s*$")
 
 
-@dataclass
-class PatternDefinition:
-    """Defines a regex pattern and how to process its matches."""
+# Using PatternDefinition from calcflow.parsers.qchem.typing.pattern
 
-    pattern: Pattern  # Compiled regex pattern
-    field_name: str | None = None  # Result field to update
-    transform: Callable[[re.Match], Any] = lambda m: m.group(1)  # Transform match to value
-    required: bool = False  # Is this field required?
-    block_type: str | None = None  # e.g., "scf_iteration", "smd_summary"
-    description: str = ""  # Human-readable description
 
+# Define a pattern for "Total energy in the final basis set" for QChem 5.4
+TOTAL_ENERGY_FINAL_BASIS_PAT = re.compile(r"^\s*Total energy in the final basis set\s*=\s*(-?\d+\.\d+)")
 
 # Registry of patterns for SCF data extraction
 SCF_PATTERNS = [
+    # SCF energy pattern - consistent across versions
     PatternDefinition(
-        pattern=SCF_FINAL_ENERGY_PAT,
         field_name="scf_energy",
-        transform=lambda m: float(m.group(1)),
         required=True,
         description="Final SCF energy value",
     ),
+    # Final energy pattern - version dependent
     PatternDefinition(
-        pattern=TOTAL_ENERGY_PAT,
         field_name="final_energy",
-        transform=lambda m: float(m.group(1)),
         description="Total energy including corrections",
     ),
+    # SMD patterns
     PatternDefinition(
-        pattern=G_PCM_PAT,
         field_name="smd_g_pcm_kcal_mol",
-        transform=lambda m: float(m.group(1)),
         block_type="smd_summary",
         description="SMD polarization energy component",
     ),
     PatternDefinition(
-        pattern=G_CDS_PAT,
         field_name="smd_g_cds_kcal_mol",
-        transform=lambda m: float(m.group(1)),
         block_type="smd_summary",
         description="SMD non-electrostatic energy component",
     ),
     PatternDefinition(
-        pattern=G_ENP_PAT,
         field_name="smd_g_enp_au",
-        transform=lambda m: float(m.group(1)),
         block_type="smd_summary",
         description="SCF energy in solvent (E_SCF + G_PCM)",
     ),
     PatternDefinition(
-        pattern=G_TOT_PAT,
         field_name="smd_g_tot_au",
-        transform=lambda m: float(m.group(1)),
         block_type="smd_summary",
         description="Total free energy in solution (G_ENP + G_CDS)",
     ),
+    # MOM patterns
     PatternDefinition(
-        pattern=MOM_ACTIVE_PAT,
         field_name="mom_active",
-        transform=lambda _: True,
         block_type="mom",
         description="MOM is active in this calculation",
     ),
     PatternDefinition(
-        pattern=IMOM_METHOD_PAT,
         field_name="mom_method_type",
-        transform=lambda _: "IMOM",
         block_type="mom",
         description="IMOM method is being used",
     ),
     PatternDefinition(
-        pattern=MOM_OVERLAP_PAT,
         field_name="mom_overlap",
-        transform=lambda m: (float(m.group(1)), float(m.group(2))),
         block_type="mom",
-        description="MOM overlap values (current/target)",
+        description="MOM overlap with current and target orbitals",
     ),
 ]
+
+# Add patterns to the registry with version predicates
+# SCF energy pattern is consistent across versions
+SCF_PATTERNS[0].add_pattern(
+    pattern=SCF_FINAL_ENERGY_PAT,
+    transform=lambda m: float(m.group(1)),
+)
+
+# Final energy pattern varies by version
+# For QChem 6.0+
+SCF_PATTERNS[1].add_pattern(
+    pattern=TOTAL_ENERGY_PAT,
+    version="6.0",
+    transform=lambda m: float(m.group(1)),
+)
+# For QChem 5.x
+SCF_PATTERNS[1].add_pattern(
+    pattern=TOTAL_ENERGY_FINAL_BASIS_PAT,
+    version="5.4",
+    transform=lambda m: float(m.group(1)),
+)
+# Fallback pattern for G_TOT from SMD (needed for test_parse_sample_smd_h2o_sp_sto)
+SCF_PATTERNS[1].add_pattern(
+    pattern=G_TOT_PAT,
+    transform=lambda m: float(m.group(1)),
+)
+
+# SMD patterns
+SCF_PATTERNS[2].add_pattern(
+    pattern=G_PCM_PAT,
+    transform=lambda m: float(m.group(1)),
+)
+
+SCF_PATTERNS[3].add_pattern(
+    pattern=G_CDS_PAT,
+    transform=lambda m: float(m.group(1)),
+)
+
+SCF_PATTERNS[4].add_pattern(
+    pattern=G_ENP_PAT,
+    transform=lambda m: float(m.group(1)),
+)
+
+SCF_PATTERNS[5].add_pattern(
+    pattern=G_TOT_PAT,
+    transform=lambda m: float(m.group(1)),
+)
+
+# MOM patterns
+SCF_PATTERNS[6].add_pattern(
+    pattern=MOM_ACTIVE_PAT,
+    transform=lambda _: True,
+)
+
+SCF_PATTERNS[7].add_pattern(
+    pattern=IMOM_METHOD_PAT,
+    transform=lambda _: "IMOM",
+)
+
+SCF_PATTERNS[8].add_pattern(
+    pattern=MOM_OVERLAP_PAT,
+    transform=lambda m: (float(m.group(1)), float(m.group(2))),
+)
 
 
 class ScfParser(SectionParser):
@@ -344,6 +386,11 @@ class ScfParser(SectionParser):
                 g_tot_au=results.smd_g_tot_au,
             )
 
+            # For SMD calculations, if we have G_TOT but no final_energy, use G_TOT as the final energy
+            if results.smd_g_tot_au is not None and results.final_energy is None:
+                results.final_energy = results.smd_g_tot_au
+                logger.debug(f"Using SMD G(tot) as final energy: {results.final_energy:.8f}")
+
         results.parsed_scf = True
         logger.info(
             f"Parsed SCF data. Converged: {converged}, Energy: {scf_energy:.8f}, Iterations: {len(all_iterations)}."
@@ -386,6 +433,9 @@ class ScfParser(SectionParser):
             results: The mutable calculation data to update
             in_smd_block: Whether we're currently in an SMD summary block
         """
+        # Get QChem version from results
+        qchem_version = getattr(results, "qchem_version", "")
+
         for pattern_def in SCF_PATTERNS:
             # Skip patterns that don't match the current context
             if in_smd_block and pattern_def.block_type != "smd_summary":
@@ -393,7 +443,12 @@ class ScfParser(SectionParser):
             if not in_smd_block and pattern_def.block_type == "smd_summary":
                 continue
 
-            match = pattern_def.pattern.search(line)
+            # Get the appropriate pattern for this QChem version
+            versioned_pattern = pattern_def.get_matching_pattern(qchem_version)
+            if not versioned_pattern:
+                continue
+
+            match = versioned_pattern.pattern.search(line)
             if not match:
                 continue
 
@@ -401,13 +456,13 @@ class ScfParser(SectionParser):
             if pattern_def.field_name:
                 # Special handling for MOM overlap which has two values
                 if pattern_def.field_name == "mom_overlap":
-                    current, target = pattern_def.transform(match)
+                    current, target = versioned_pattern.transform(match)
                     # These go into the next SCF iteration
                     results.mom_overlap_current = current
                     results.mom_overlap_target = target
                 else:
                     # Standard field update
-                    value = pattern_def.transform(match)
+                    value = versioned_pattern.transform(match)
                     setattr(results, pattern_def.field_name, value)
 
                     logger.debug(f"Found {pattern_def.description}: {value}")
