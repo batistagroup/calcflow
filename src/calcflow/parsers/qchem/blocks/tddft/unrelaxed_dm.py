@@ -15,7 +15,7 @@ from calcflow.parsers.qchem.typing import (
     LineIterator,
     _MutableCalculationData,
 )
-from calcflow.parsers.qchem.typing.pattern import VersionSpec
+from calcflow.parsers.qchem.typing.pattern import PatternDefinition
 from calcflow.utils import logger
 
 
@@ -27,14 +27,67 @@ class UnrelaxedDmSubSectionType(Enum):
     EXCITON_MAIN_BLOCK = "exciton_main_block"
 
 
-UNRELAXED_DM_RULES = [
-    ("NOs (spin-traced)", "6.2.0", UnrelaxedDmSubSectionType.NOS_SPIN_TRACED_OR_RKS),
-    ("NOs (alpha)", "6.2.0", UnrelaxedDmSubSectionType.NOS_ALPHA_BETA_SKIP),
-    ("NOs (beta)", "6.2.0", UnrelaxedDmSubSectionType.NOS_ALPHA_BETA_SKIP),
-    ("NOs", "6.2.0", UnrelaxedDmSubSectionType.NOS_SPIN_TRACED_OR_RKS),
-    ("Mulliken Population Analysis (State/Difference DM)", "6.2.0", UnrelaxedDmSubSectionType.MULLIKEN),
-    ("Multipole moment analysis of the density matrix", "6.2.0", UnrelaxedDmSubSectionType.MULTIPOLE),
-    ("Exciton analysis of the difference density matrix", "6.2.0", UnrelaxedDmSubSectionType.EXCITON_MAIN_BLOCK),
+# Separate registries for RKS and UKS
+UNRELAXED_DM_SECTION_PATTERNS_RKS = [
+    PatternDefinition(
+        field_name="no_data",
+        description="NOs (RKS)",
+        versioned_patterns=[
+            (re.compile(r"^NOs$"), "6.2.0", None),
+        ],
+    ),
+    PatternDefinition(
+        field_name="mulliken",
+        description="Mulliken Population Analysis (State/Difference DM)",
+        versioned_patterns=[
+            (re.compile(r"^Mulliken Population Analysis \(State/Difference DM\)$"), "6.2.0", None),
+        ],
+    ),
+    PatternDefinition(
+        field_name="multipole",
+        description="Multipole moment analysis of the density matrix",
+        versioned_patterns=[
+            (re.compile(r"^Multipole moment analysis of the density matrix$"), "6.2.0", None),
+        ],
+    ),
+    PatternDefinition(
+        field_name="exciton_difference_dm_analysis",
+        description="Exciton analysis of the difference density matrix",
+        versioned_patterns=[
+            (re.compile(r"^Exciton analysis of the difference density matrix$"), "6.2.0", None),
+        ],
+    ),
+]
+
+UNRELAXED_DM_SECTION_PATTERNS_UKS = [
+    PatternDefinition(
+        field_name="no_data",
+        description="NOs (spin-traced) (UKS)",
+        versioned_patterns=[
+            (re.compile(r"^NOs \(spin-traced\)$"), "6.2.0", None),
+        ],
+    ),
+    PatternDefinition(
+        field_name="mulliken",
+        description="Mulliken Population Analysis (State/Difference DM)",
+        versioned_patterns=[
+            (re.compile(r"^Mulliken Population Analysis \(State/Difference DM\)$"), "6.2.0", None),
+        ],
+    ),
+    PatternDefinition(
+        field_name="multipole",
+        description="Multipole moment analysis of the density matrix",
+        versioned_patterns=[
+            (re.compile(r"^Multipole moment analysis of the density matrix$"), "6.2.0", None),
+        ],
+    ),
+    PatternDefinition(
+        field_name="exciton_difference_dm_analysis",
+        description="Exciton analysis of the difference density matrix",
+        versioned_patterns=[
+            (re.compile(r"^Exciton analysis of the difference density matrix$"), "6.2.0", None),
+        ],
+    ),
 ]
 
 
@@ -625,15 +678,7 @@ class UnrelaxedExcitedStatePropertiesParser:
 
         active_state_props: ExcitedStateDetailedAnalysis | None = None
 
-        # Get Q-Chem version for rule dispatch
         qchem_version = getattr(results, "qchem_version", None)
-        # if qchem_version is None:
-        #     logger.warning("No Q-Chem version found in results; defaulting to 6.2.0 rules.")
-        #     qchem_version = VersionSpec.from_str("6.2.0")
-        # elif isinstance(qchem_version, str):
-        #     qchem_version = VersionSpec.from_str(qchem_version)
-        # else:
-        #     qchem_version = qchem_version
 
         while True:
             try:
@@ -679,88 +724,73 @@ class UnrelaxedExcitedStatePropertiesParser:
                 if active_state_props:
                     is_uks_like_state = "Excited State" in active_state_props.multiplicity
                     matched_action_this_line = False
-                    for pattern, min_version, action in UNRELAXED_DM_RULES:
-                        min_version_spec = (
-                            min_version if isinstance(min_version, VersionSpec) else VersionSpec.from_str(min_version)
-                        )
-                        if qchem_version >= min_version_spec:
-                            if stripped_line == pattern:
-                                if action == UnrelaxedDmSubSectionType.NOS_SPIN_TRACED_OR_RKS:
-                                    if pattern == "NOs (spin-traced)":
-                                        logger.debug(
-                                            f"Parsing target NOs data for state {active_state_props.state_number}, header: '{pattern}'"
-                                        )
-                                        no_data = self._parse_nos_data(iterator, results)
-                                        active_state_props = replace(active_state_props, no_data=no_data)
-                                        matched_action_this_line = True
-                                        break
-                                    elif pattern == "NOs":
-                                        if not is_uks_like_state:
-                                            logger.debug(
-                                                f"Parsing target NOs data for state {active_state_props.state_number}, header: '{pattern}'"
-                                            )
-                                            no_data = self._parse_nos_data(iterator, results)
-                                            active_state_props = replace(active_state_props, no_data=no_data)
-                                            matched_action_this_line = True
-                                            break
-                                        else:
-                                            logger.debug(
-                                                f"Skipping non-target NOs block: '{pattern}' for state {active_state_props.state_number} (UKS)"
-                                            )
-                                            self._skip_current_sub_block(iterator, results)
-                                            matched_action_this_line = True
-                                            break
-                                elif action == UnrelaxedDmSubSectionType.NOS_ALPHA_BETA_SKIP:
-                                    logger.debug(
-                                        f"Skipping non-target NOs block: '{pattern}' for state {active_state_props.state_number}"
+                    # Select the correct registry for the current state
+                    section_patterns = (
+                        UNRELAXED_DM_SECTION_PATTERNS_UKS if is_uks_like_state else UNRELAXED_DM_SECTION_PATTERNS_RKS
+                    )
+                    for pattern_def in section_patterns:
+                        versioned_pattern = pattern_def.get_matching_pattern(qchem_version)
+                        if versioned_pattern and versioned_pattern.pattern.match(stripped_line):
+                            field = pattern_def.field_name
+                            if field == "no_data":
+                                logger.debug(
+                                    f"Parsing target NOs data for state {active_state_props.state_number}, header: '{stripped_line}'"
+                                )
+                                no_data = self._parse_nos_data(iterator, results)
+                                active_state_props = replace(active_state_props, no_data=no_data)
+                                matched_action_this_line = True
+                                break
+                            elif field == "mulliken":
+                                logger.debug(f"Parsing Mulliken for state {active_state_props.state_number}")
+                                mulliken_data = self._parse_mulliken_populations(iterator, results)
+                                active_state_props = replace(active_state_props, mulliken=mulliken_data)
+                                matched_action_this_line = True
+                                break
+                            elif field == "multipole":
+                                logger.debug(f"Parsing Multipole for state {active_state_props.state_number}")
+                                multipole_data = self._parse_multipole_analysis(iterator, results)
+                                active_state_props = replace(active_state_props, multipole=multipole_data)
+                                matched_action_this_line = True
+                                break
+                            elif field == "exciton_difference_dm_analysis":
+                                logger.debug(f"Parsing Exciton for state {active_state_props.state_number}")
+                                next_line_peek = self._get_next_line(iterator, results)
+                                if next_line_peek is None:
+                                    logger.warning("EOF after 'Exciton analysis' header.")
+                                    break
+                                results.buffered_line = next_line_peek
+                                total_exciton_data = None
+                                alpha_exciton_data = None
+                                beta_exciton_data = None
+                                if next_line_peek.strip() == "Total:":
+                                    results.buffered_line = None
+                                    logger.debug("UKS Exciton: Parsing 'Total:' block")
+                                    total_exciton_data = self._parse_exciton_analysis_block(iterator, results)
+                                    alpha_exciton_data = self._parse_optional_spin_block(
+                                        iterator, results, "Alpha spin:", self._parse_exciton_analysis_block
                                     )
-                                    self._skip_current_sub_block(iterator, results)
-                                    matched_action_this_line = True
-                                    break
-                                elif action == UnrelaxedDmSubSectionType.MULLIKEN:
-                                    logger.debug(f"Parsing Mulliken for state {active_state_props.state_number}")
-                                    mulliken_data = self._parse_mulliken_populations(iterator, results)
-                                    active_state_props = replace(active_state_props, mulliken=mulliken_data)
-                                    matched_action_this_line = True
-                                    break
-                                elif action == UnrelaxedDmSubSectionType.MULTIPOLE:
-                                    logger.debug(f"Parsing Multipole for state {active_state_props.state_number}")
-                                    multipole_data = self._parse_multipole_analysis(iterator, results)
-                                    active_state_props = replace(active_state_props, multipole=multipole_data)
-                                    matched_action_this_line = True
-                                    break
-                                elif action == UnrelaxedDmSubSectionType.EXCITON_MAIN_BLOCK:
-                                    logger.debug(f"Parsing Exciton for state {active_state_props.state_number}")
-                                    next_line_peek = self._get_next_line(iterator, results)
-                                    if next_line_peek is None:
-                                        logger.warning("EOF after 'Exciton analysis' header.")
-                                        break
-                                    results.buffered_line = next_line_peek
-                                    total_exciton_data = None
-                                    alpha_exciton_data = None
-                                    beta_exciton_data = None
-                                    if next_line_peek.strip() == "Total:":
-                                        results.buffered_line = None
-                                        logger.debug("UKS Exciton: Parsing 'Total:' block")
-                                        total_exciton_data = self._parse_exciton_analysis_block(iterator, results)
-                                        alpha_exciton_data = self._parse_optional_spin_block(
-                                            iterator, results, "Alpha spin:", self._parse_exciton_analysis_block
-                                        )
-                                        beta_exciton_data = self._parse_optional_spin_block(
-                                            iterator, results, "Beta spin:", self._parse_exciton_analysis_block
-                                        )
-                                    else:
-                                        logger.debug("RKS-like Exciton: Parsing single block")
-                                        total_exciton_data = self._parse_exciton_analysis_block(iterator, results)
-                                    active_state_props = replace(
-                                        active_state_props,
-                                        exciton_difference_dm_analysis=total_exciton_data,
-                                        exciton_difference_dm_analysis_alpha=alpha_exciton_data,
-                                        exciton_difference_dm_analysis_beta=beta_exciton_data,
+                                    beta_exciton_data = self._parse_optional_spin_block(
+                                        iterator, results, "Beta spin:", self._parse_exciton_analysis_block
                                     )
-                                    matched_action_this_line = True
-                                    break
+                                else:
+                                    logger.debug("RKS-like Exciton: Parsing single block")
+                                    total_exciton_data = self._parse_exciton_analysis_block(iterator, results)
+                                active_state_props = replace(
+                                    active_state_props,
+                                    exciton_difference_dm_analysis=total_exciton_data,
+                                    exciton_difference_dm_analysis_alpha=alpha_exciton_data,
+                                    exciton_difference_dm_analysis_beta=beta_exciton_data,
+                                )
+                                matched_action_this_line = True
+                                break
                     if matched_action_this_line:
+                        continue
+                    # Always skip NOs (alpha) and NOs (beta)
+                    if stripped_line in {"NOs (alpha)", "NOs (beta)"}:
+                        logger.debug(
+                            f"Skipping non-target NOs block: '{stripped_line}' for state {active_state_props.state_number} (fallback)"
+                        )
+                        self._skip_current_sub_block(iterator, results)
                         continue
 
                 if not stripped_line or stripped_line.startswith("----"):
