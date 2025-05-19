@@ -247,7 +247,7 @@ class TransitionDensityMatrixParser(SectionParser):
                 try:
                     next_active_line: str | None = next(iterator)
                     active_line = next_active_line
-                except StopIteration:
+                except StopIteration:  # pragma: no cover
                     logger.debug("EOF reached at the end of TDM main parsing loop.")
                     active_line = None
                     request_break_main_loop = True
