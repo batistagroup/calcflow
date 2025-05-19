@@ -448,7 +448,7 @@ class UnrelaxedExcitedStatePropertiesParser:
                 # We primarily care about the components for the dataclass.
                 # The scalar value is not explicitly stored in ExcitedStateMultipole currently.
                 # If it needs to be, the dataclass and this parsing would need adjustment.
-                # total_rms = float(stripped_line.split()[-1])
+                total_rms = float(stripped_line.split()[-1])
                 cart_components = self._parse_cartesian_components_next_line(
                     iterator, results, "Cartesian components [Ang]:"
                 )
@@ -472,7 +472,8 @@ class UnrelaxedExcitedStatePropertiesParser:
             center_electronic_charge_ang=center_elec_chg,
             center_nuclear_charge_ang=center_nucl_chg,
             dipole_moment_debye=dipole,
-            rms_density_size_ang=rms_density_size_cartesian,  # Use the parsed cartesian components
+            rms_density_size_ang=total_rms,
+            rms_density_size_ang_comps=rms_density_size_cartesian,  # Use the parsed cartesian components
         )
 
     def _parse_exciton_analysis_block(

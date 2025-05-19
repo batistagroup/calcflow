@@ -99,7 +99,7 @@ class GroundStateMultipole:
     center_electronic_charge_ang: tuple[float, float, float] | None = None
     center_nuclear_charge_ang: tuple[float, float, float] | None = None
     dipole_moment_debye: DipoleMoment | None = None  # Reusing existing DipoleMoment
-    rms_density_size_ang: tuple[float, float, float] | None = None  # Cartesian components
+    rms_density_size_ang_comps: tuple[float, float, float] | None = None  # Cartesian components
 
 
 @dataclass(frozen=True)
@@ -157,7 +157,8 @@ class ExcitedStateMultipole:
     center_electronic_charge_ang: tuple[float, float, float] | None = None
     center_nuclear_charge_ang: tuple[float, float, float] | None = None
     dipole_moment_debye: DipoleMoment | None = None  # Reusing existing DipoleMoment
-    rms_density_size_ang: tuple[float, float, float] | None = None  # Cartesian components
+    rms_density_size_ang: float | None = None
+    rms_density_size_ang_comps: tuple[float, float, float] | None = None  # Cartesian components
 
 
 @dataclass(frozen=True)

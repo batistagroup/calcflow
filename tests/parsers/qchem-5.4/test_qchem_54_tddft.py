@@ -69,8 +69,8 @@ def test_parse_qchem_54_uks_tddft_state3(parsed_tddft_uks_pc2_data: CalculationD
     assert state3_data.multipole.dipole_moment_debye.x == approx(0.755798)
     assert state3_data.multipole.dipole_moment_debye.y == approx(0.163020)
     assert state3_data.multipole.dipole_moment_debye.z == approx(1.361001)
-    # assert state3_data.multipole.rms_density_size_ang == approx(0.991391) # Scalar value
-    assert state3_data.multipole.rms_density_size_ang == approx([0.658415, 0.465752, 0.576560])  # Components
+    assert state3_data.multipole.rms_density_size_ang == approx(0.991391)  # Scalar value
+    assert state3_data.multipole.rms_density_size_ang_comps == approx([0.658415, 0.465752, 0.576560])  # Components
 
     # Exciton analysis of the difference density matrix
     assert state3_data.exciton_difference_dm_analysis is not None  # Total
@@ -184,8 +184,8 @@ def test_parse_qchem_54_uks_tddft_state7(parsed_tddft_uks_pc2_data: CalculationD
     assert state7_data.multipole.dipole_moment_debye.x == approx(0.921424)
     assert state7_data.multipole.dipole_moment_debye.y == approx(0.200661)
     assert state7_data.multipole.dipole_moment_debye.z == approx(1.668403)
-    # assert state7_data.multipole.rms_density_size_ang == approx(0.978422) # Scalar value
-    assert state7_data.multipole.rms_density_size_ang == approx([0.643398, 0.486988, 0.553345])  # Components
+    assert state7_data.multipole.rms_density_size_ang == approx(0.978422)  # Scalar value
+    assert state7_data.multipole.rms_density_size_ang_comps == approx([0.643398, 0.486988, 0.553345])  # Components
 
     # Exciton analysis of the difference density matrix
     assert state7_data.exciton_difference_dm_analysis is not None  # Total

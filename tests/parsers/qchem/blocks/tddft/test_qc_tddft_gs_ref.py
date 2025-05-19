@@ -86,10 +86,10 @@ def test_gs_ref_multipole_analysis(parsed_tddft_pc2_data):
     assert dipole.y == approx(-0.203503)
     assert dipole.z == approx(-1.740304)
 
-    assert multipole.rms_density_size_ang is not None
-    assert multipole.rms_density_size_ang[0] == approx(0.451777)
-    assert multipole.rms_density_size_ang[1] == approx(0.403206)
-    assert multipole.rms_density_size_ang[2] == approx(0.437437)
+    assert multipole.rms_density_size_ang_comps is not None
+    assert multipole.rms_density_size_ang_comps[0] == approx(0.451777)
+    assert multipole.rms_density_size_ang_comps[1] == approx(0.403206)
+    assert multipole.rms_density_size_ang_comps[2] == approx(0.437437)
 
 
 # --- Tests for Unrestricted (UKS) TDDFT Output ---
@@ -197,7 +197,7 @@ def test_gs_ref_uks_multipole_analysis(parsed_tddft_uks_pc2_data):
     assert dipole.y == approx(-0.203503)
     assert dipole.z == approx(-1.740304)
 
-    assert multipole.rms_density_size_ang is not None
-    assert multipole.rms_density_size_ang[0] == approx(0.451777)
-    assert multipole.rms_density_size_ang[1] == approx(0.403206)
-    assert multipole.rms_density_size_ang[2] == approx(0.437437)
+    assert multipole.rms_density_size_ang_comps is not None
+    assert multipole.rms_density_size_ang_comps[0] == approx(0.451777)
+    assert multipole.rms_density_size_ang_comps[1] == approx(0.403206)
+    assert multipole.rms_density_size_ang_comps[2] == approx(0.437437)
