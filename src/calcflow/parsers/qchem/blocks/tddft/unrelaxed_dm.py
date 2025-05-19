@@ -15,7 +15,7 @@ from calcflow.parsers.qchem.typing import (
     LineIterator,
     _MutableCalculationData,
 )
-from calcflow.parsers.qchem.typing.pattern import PatternDefinition
+from calcflow.parsers.qchem.typing.pattern import PatternDefinition, VersionSpec
 from calcflow.utils import logger
 
 
@@ -687,7 +687,7 @@ class UnrelaxedExcitedStatePropertiesParser:
         active_state_props: ExcitedStateDetailedAnalysis | None = None
 
         qchem_version = getattr(results, "qchem_version", None)
-
+        assert isinstance(qchem_version, VersionSpec)
         while True:
             try:
                 line = self._get_next_line(iterator, results)

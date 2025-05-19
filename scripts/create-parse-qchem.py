@@ -140,5 +140,7 @@ if run["mom-sp-parse-5.4"]:
     mom_pc2 = parse_qchem_mom_output((clc_54_folder / "mom-smd-sp.out").read_text())
     print(mom_pc2.job1)
     print(mom_pc2.job2)
+    assert mom_pc2.job1.scf is not None
+    assert mom_pc2.job2.scf is not None
     ev = (mom_pc2.job2.scf.energy - mom_pc2.job1.scf.energy) * 27.21138602
     print(f"E(H2O) = {ev:.6f} eV")
