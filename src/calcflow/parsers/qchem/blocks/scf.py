@@ -46,6 +46,9 @@ MOM_ACTIVE_PAT = re.compile(r"^\s*Maximum Overlap Method Active")
 IMOM_METHOD_PAT = re.compile(r"^\s*IMOM method")  # Assuming IMOM is the primary method for now
 MOM_OVERLAP_PAT = re.compile(r"^\s*MOM overlap:\s+(-?\d+\.\d+)\s+/\s+(-?\d+\.?\d*)")
 
+# Add the pattern at the top with other patterns
+TOTAL_ENERGY_PAT = re.compile(r"^\s*Total energy\s*=\s*(-?\d+\.\d+)")
+
 
 class ScfParser(SectionParser):
     """Parses the SCF calculation block."""
@@ -297,7 +300,19 @@ class ScfParser(SectionParser):
                     final_scf_energy_from_explicit_line = float(match.group(1))
                     scf_energy_line_found = True
                     logger.debug(f"Found final SCF energy: {final_scf_energy_from_explicit_line}")
-                    break  # Found SCF energy, exit this search loop
+                    # Don't break here anymore, continue to look for total energy
+                    try:
+                        current_search_line = next(iterator)
+                    except StopIteration:
+                        current_search_line = None
+                    continue
+
+                # Check for Total Energy (which should follow SCF energy)
+                match = TOTAL_ENERGY_PAT.search(current_search_line)
+                if match:
+                    results.final_energy = float(match.group(1))
+                    logger.debug(f"Found total energy: {results.final_energy}")
+                    break  # Found both energies, exit this search loop
 
                 # Check safety break conditions for SMD/Final Energy search
                 if SCF_BLOCK_END_HEURISTIC_PAT.search(current_search_line) or NORMAL_TERM_PAT.search(
