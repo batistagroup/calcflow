@@ -81,6 +81,20 @@ def test_version_spec_str_and_repr() -> None:
     assert repr(vs_no_patch) == "VersionSpec(major=6, minor=1, patch=0)"
 
 
+def test_version_spec_comparisons_with_other_types() -> None:
+    """Test VersionSpec comparisons with incompatible types return False."""
+    vs = VersionSpec(1, 0, 0)
+    incompatible_types = [123, None, True, [1, 0, 0], {"major": 1}, object()]
+
+    for other_type in incompatible_types:
+        assert (vs == other_type) is False
+        assert (vs != other_type) is True  # This should be true if == is false
+        assert (vs < other_type) is False
+        assert (vs <= other_type) is False
+        assert (vs > other_type) is False
+        assert (vs >= other_type) is False
+
+
 # Tests for PatternDefinition
 
 
