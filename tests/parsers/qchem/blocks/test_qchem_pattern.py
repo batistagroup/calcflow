@@ -161,7 +161,7 @@ def test_get_matching_pattern_single_no_version() -> None:
     """Test get_matching_pattern with a single pattern having no version."""
     pd = PatternDefinition(field_name="generic_field")
     pattern = re.compile(r"generic: (.*)")
-    pd.add_pattern(pattern)  # No version specified
+    pd.add_pattern(pattern, None)  # No version specified
 
     retrieved_pattern = pd.get_matching_pattern(VersionSpec(1, 0, 0))
     assert retrieved_pattern is not None
