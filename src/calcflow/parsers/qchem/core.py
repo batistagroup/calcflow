@@ -36,8 +36,6 @@ from calcflow.utils import logger
 # --- Regex Patterns (Compile patterns for efficiency) ---
 # Energy/Structure Patterns
 NUCLEAR_REPULSION_PAT = re.compile(r"^ Nuclear Repulsion Energy =\s+(-?\d+\.\d+)")
-# Use 'Total energy =' after SCF as the final SP energy
-FINAL_ENERGY_PAT = re.compile(r"^ Total energy =\s+(-?\d+\.\d+)")
 
 # --- Job Splitter Pattern for MOM --- #
 # Matches lines like "Running Job 2 of 2 some_input_file.in"
@@ -211,19 +209,6 @@ def _parse_qchem_generic_output(output: str, parser_registry: Sequence[SectionPa
                     logger.debug(f"Found Nuclear Repulsion Energy: {results.nuclear_repulsion}")
                 except (ValueError, IndexError):  # pragma: no cover
                     logger.warning(f"Could not parse Nuclear Repulsion from line: {line.strip()}")  # pragma: no cover
-                continue
-
-            match_final_energy = FINAL_ENERGY_PAT.search(line)
-            if match_final_energy:
-                try:
-                    # Overwrite if found multiple times, the last one after SCF is desired
-                    results.final_energy = float(match_final_energy.group(1))
-                    logger.debug(f"Found Potential Final Energy: {results.final_energy}")
-                except (ValueError, IndexError) as e:  # pragma: no cover
-                    logger.error(
-                        f"Could not parse final energy value from line: {line.strip()}", exc_info=True
-                    )  # pragma: no cover
-                    raise ParsingError("Failed to parse final energy value.") from e  # pragma: no cover
                 continue
 
             # --- Add other standalone pattern checks here if needed ---

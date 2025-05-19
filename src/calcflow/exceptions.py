@@ -32,3 +32,9 @@ class ParsingError(CalcflowError):
     """Exception raised for errors during file parsing."""
 
     pass
+
+
+class InternalCodeError(CalcflowError):
+    """Exception raised for errors in the internal code."""
+
+    pass

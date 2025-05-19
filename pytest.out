@@ -1,0 +1,1092 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.12.10, pytest-8.3.5, pluggy-1.5.0 -- /Users/morgunov/Developer/batista/calcflow/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /Users/morgunov/Developer/batista/calcflow
+configfile: pyproject.toml
+plugins: cov-6.1.1
+collecting ... collected 542 items
+
+tests/basis_sets/test_custom_basis.py::TestCustomBasisSet::test_initialization_success PASSED [  0%]
+tests/basis_sets/test_custom_basis.py::TestCustomBasisSet::test_initialization_empty_program_raises_error PASSED [  0%]
+tests/basis_sets/test_custom_basis.py::TestCustomBasisSet::test_initialization_empty_name_raises_error PASSED [  0%]
+tests/basis_sets/test_custom_basis.py::TestCustomBasisSet::test_initialization_empty_definitions_raises_error PASSED [  0%]
+tests/basis_sets/test_custom_basis.py::TestCustomBasisSet::test_post_init_normalizes_program_and_name_case PASSED [  0%]
+tests/basis_sets/test_custom_basis.py::TestCustomBasisSet::test_getitem_success PASSED [  1%]
+tests/basis_sets/test_custom_basis.py::TestCustomBasisSet::test_getitem_not_found_raises_keyerror PASSED [  1%]
+tests/basis_sets/test_custom_basis.py::TestCustomBasisSet::test_contains_success PASSED [  1%]
+tests/basis_sets/test_custom_basis.py::TestCustomBasisSet::test_supported_elements_property PASSED [  1%]
+tests/basis_sets/test_registry.py::TestRegisterBasisSet::test_register_single_program_success PASSED [  1%]
+tests/basis_sets/test_registry.py::TestRegisterBasisSet::test_register_multiple_programs_success PASSED [  2%]
+tests/basis_sets/test_registry.py::TestRegisterBasisSet::test_register_same_name_different_program_success PASSED [  2%]
+tests/basis_sets/test_registry.py::TestRegisterBasisSet::test_register_duplicate_name_same_program_raises_error PASSED [  2%]
+tests/basis_sets/test_registry.py::TestRegisterBasisSet::test_register_incorrect_type_raises_error PASSED [  2%]
+tests/basis_sets/test_registry.py::TestRegisterBasisSet::test_register_invalid_basis_set_raises_error PASSED [  2%]
+tests/basis_sets/test_registry.py::TestProgramBasisRegistry::test_init_success PASSED [  2%]
+tests/basis_sets/test_registry.py::TestProgramBasisRegistry::test_init_program_not_found_raises_error PASSED [  3%]
+tests/basis_sets/test_registry.py::TestProgramBasisRegistry::test_getitem_success PASSED [  3%]
+tests/basis_sets/test_registry.py::TestProgramBasisRegistry::test_getitem_not_found_raises_keyerror PASSED [  3%]
+tests/basis_sets/test_registry.py::TestProgramBasisRegistry::test_contains_success PASSED [  3%]
+tests/basis_sets/test_registry.py::TestProgramBasisRegistry::test_program_property PASSED [  3%]
+tests/geometries/test_static.py::test_parse_xyz_valid_file PASSED        [  4%]
+tests/geometries/test_static.py::test_parse_xyz_file_not_found PASSED    [  4%]
+tests/geometries/test_static.py::test_parse_xyz_invalid_atom_count_format PASSED [  4%]
+tests/geometries/test_static.py::test_parse_xyz_insufficient_lines PASSED [  4%]
+tests/geometries/test_static.py::test_parse_xyz_mismatched_atom_count PASSED [  4%]
+tests/geometries/test_static.py::test_parse_xyz_invalid_coordinate_format PASSED [  4%]
+tests/geometries/test_static.py::test_parse_xyz_invalid_line_format PASSED [  5%]
+tests/geometries/test_static.py::test_parse_xyz_handles_extra_empty_lines PASSED [  5%]
+tests/geometries/test_static.py::test_geometry_from_xyz_file PASSED      [  5%]
+tests/geometries/test_static.py::test_geometry_str_representation PASSED [  5%]
+tests/geometries/test_static.py::test_geometry_get_coordinate_block PASSED [  5%]
+tests/geometries/test_static.py::test_geometry_to_xyz_file PASSED        [  6%]
+tests/geometries/test_trajectory.py::test_from_xyz_trj_file_valid_multi_frame PASSED [  6%]
+tests/geometries/test_trajectory.py::test_from_xyz_trj_file_valid_single_frame PASSED [  6%]
+tests/geometries/test_trajectory.py::test_from_xyz_trj_file_valid_with_empty_lines PASSED [  6%]
+tests/geometries/test_trajectory.py::test_from_xyz_trj_file_not_found PASSED [  6%]
+tests/geometries/test_trajectory.py::test_from_xyz_trj_file_empty_file PASSED [  7%]
+tests/geometries/test_trajectory.py::test_from_xyz_trj_file_invalid_format[invalid_count_format] PASSED [  7%]
+tests/geometries/test_trajectory.py::test_from_xyz_trj_file_invalid_format[zero_count] PASSED [  7%]
+tests/geometries/test_trajectory.py::test_from_xyz_trj_file_invalid_format[negative_count] PASSED [  7%]
+tests/geometries/test_trajectory.py::test_from_xyz_trj_file_invalid_format[eof_after_count] PASSED [  7%]
+tests/geometries/test_trajectory.py::test_from_xyz_trj_file_invalid_format[eof_after_comment] PASSED [  7%]
+tests/geometries/test_trajectory.py::test_from_xyz_trj_file_invalid_format[mismatched_count_less] PASSED [  8%]
+tests/geometries/test_trajectory.py::test_from_xyz_trj_file_invalid_format[mismatched_count_more] PASSED [  8%]
+tests/geometries/test_trajectory.py::test_from_xyz_trj_file_invalid_format[invalid_coord_format] PASSED [  8%]
+tests/geometries/test_trajectory.py::test_from_xyz_trj_file_mismatched_count_explicit_check PASSED [  8%]
+tests/geometries/test_trajectory.py::test_from_xyz_trj_file_inconsistent_atoms_across_frames PASSED [  8%]
+tests/geometries/test_trajectory.py::test_trajectory_len PASSED          [  9%]
+tests/geometries/test_trajectory.py::test_trajectory_getitem PASSED      [  9%]
+tests/geometries/test_trajectory.py::test_trajectory_iter PASSED         [  9%]
+tests/geometries/test_trajectory.py::test_trajectory_repr_empty PASSED   [  9%]
+tests/geometries/test_trajectory.py::test_trajectory_repr_with_frames PASSED [  9%]
+tests/inputs/qchem/test_input_qchem_blocks.py::test_get_molecule_block PASSED [  9%]
+tests/inputs/qchem/test_input_qchem_blocks.py::test_get_rem_block_minimal PASSED [ 10%]
+tests/inputs/qchem/test_input_qchem_blocks.py::test_get_rem_block_opt_dft_unrestricted PASSED [ 10%]
+tests/inputs/qchem/test_input_qchem_blocks.py::test_get_rem_block_tddft PASSED [ 10%]
+tests/inputs/qchem/test_input_qchem_blocks.py::test_get_rem_block_tddft_rpa PASSED [ 10%]
+tests/inputs/qchem/test_input_qchem_blocks.py::test_get_rem_block_solvation PASSED [ 10%]
+tests/inputs/qchem/test_input_qchem_blocks.py::test_get_rem_block_dict_basis PASSED [ 11%]
+tests/inputs/qchem/test_input_qchem_blocks.py::test_get_rem_block_invalid_task PASSED [ 11%]
+tests/inputs/qchem/test_input_qchem_blocks.py::test_get_rem_block_invalid_method PASSED [ 11%]
+tests/inputs/qchem/test_input_qchem_blocks.py::test_get_basis_block_dict PASSED [ 11%]
+tests/inputs/qchem/test_input_qchem_blocks.py::test_get_basis_block_string PASSED [ 11%]
+tests/inputs/qchem/test_input_qchem_blocks.py::test_get_solvent_block_pcm PASSED [ 11%]
+tests/inputs/qchem/test_input_qchem_blocks.py::test_get_solvent_block_non_pcm PASSED [ 12%]
+tests/inputs/qchem/test_input_qchem_blocks.py::test_get_smx_block_smd PASSED [ 12%]
+tests/inputs/qchem/test_input_qchem_blocks.py::test_get_smx_block_non_smd PASSED [ 12%]
+tests/inputs/qchem/test_input_qchem_export.py::test_export_input_file_minimal PASSED [ 12%]
+tests/inputs/qchem/test_input_qchem_export.py::test_export_input_file_opt_dft_pcm PASSED [ 12%]
+tests/inputs/qchem/test_input_qchem_export.py::test_export_input_file_tddft_smd PASSED [ 13%]
+tests/inputs/qchem/test_input_qchem_export.py::test_export_input_file_dict_basis PASSED [ 13%]
+tests/inputs/qchem/test_input_qchem_export.py::test_export_input_file_from_geometry PASSED [ 13%]
+tests/inputs/qchem/test_input_qchem_export.py::test_export_input_file_from_geometry_dict_basis_validation PASSED [ 13%]
+tests/inputs/qchem/test_input_qchem_export.py::test_export_input_file_from_geometry_dict_basis_valid PASSED [ 13%]
+tests/inputs/qchem/test_input_qchem_export.py::test_export_input_file_custom_mixed_basis PASSED [ 14%]
+tests/inputs/qchem/test_input_qchem_export.py::test_export_input_file_mom_dict_basis PASSED [ 14%]
+tests/inputs/qchem/test_input_qchem_init.py::test_qchem_input_post_init_valid_defaults PASSED [ 14%]
+tests/inputs/qchem/test_input_qchem_init.py::test_qchem_input_post_init_negative_cores PASSED [ 14%]
+tests/inputs/qchem/test_input_qchem_init.py::test_qchem_input_post_init_tddft_missing_nroots PASSED [ 14%]
+tests/inputs/qchem/test_input_qchem_init.py::test_qchem_input_post_init_tddft_invalid_nroots PASSED [ 14%]
+tests/inputs/qchem/test_input_qchem_init.py::test_qchem_input_post_init_tddft_no_states PASSED [ 15%]
+tests/inputs/qchem/test_input_qchem_init.py::test_qchem_input_post_init_valid_tddft PASSED [ 15%]
+tests/inputs/qchem/test_input_qchem_init.py::test_qchem_input_post_init_trnss_without_tddft PASSED [ 15%]
+tests/inputs/qchem/test_input_qchem_init.py::test_qchem_input_post_init_trnss_invalid_solute_orbitals[solute_orbitals0-The solute_orbitals list cannot be empty for reduced excitation space.] PASSED [ 15%]
+tests/inputs/qchem/test_input_qchem_init.py::test_qchem_input_post_init_trnss_invalid_solute_orbitals[solute_orbitals1-All solute_orbitals must be positive integers.] PASSED [ 15%]
+tests/inputs/qchem/test_input_qchem_init.py::test_qchem_input_post_init_trnss_invalid_solute_orbitals[solute_orbitals2-All solute_orbitals must be positive integers.] PASSED [ 16%]
+tests/inputs/qchem/test_input_qchem_init.py::test_qchem_input_post_init_trnss_invalid_solute_orbitals[solute_orbitals3-All solute_orbitals must be positive integers.] PASSED [ 16%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_enable_mom_valid PASSED [ 16%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_enable_mom_invalid_method PASSED [ 16%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_set_mom_occupation_valid PASSED [ 16%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_set_mom_occupation_before_enable PASSED [ 16%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_set_mom_occupation_invalid_format[1:a-alpha] PASSED [ 17%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_set_mom_occupation_invalid_format[1: 5-alpha] PASSED [ 17%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_set_mom_occupation_invalid_format[1-5-alpha] PASSED [ 17%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_set_mom_occupation_invalid_format[1:4:5-alpha] PASSED [ 17%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_set_mom_occupation_invalid_format[1 5:b-beta] PASSED [ 17%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_set_mom_transition_valid PASSED [ 18%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_set_mom_transition_before_enable PASSED [ 18%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_set_mom_transition_invalid_format[HOMO->-Invalid target orbital: ''] PASSED [ 18%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_set_mom_transition_invalid_format[->LUMO-Invalid source orbital: ''] PASSED [ 18%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_set_mom_transition_invalid_format[HOMOLUMO-Invalid transition format] PASSED [ 18%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_set_mom_transition_invalid_format[HOMO + 1 -> LUMO-Invalid source orbital: 'HOMO + 1'. Must be HOMO[-n], LUMO[+n], or positive integer.] PASSED [ 19%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_set_mom_transition_invalid_format[HOMO->LUMO-1-Invalid target orbital: 'LUMO-1'] PASSED [ 19%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_set_mom_transition_invalid_format[HOMO+1->LUMO-Invalid source orbital: 'HOMO+1'] PASSED [ 19%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_set_mom_transition_invalid_format[LU -> MO-Invalid source orbital: 'LU'] PASSED [ 19%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_set_mom_transition_invalid_format[5->0-Invalid target orbital: '0'. Must be HOMO[-n], LUMO[+n], or positive integer.] PASSED [ 19%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_set_mom_transition_invalid_format[0->6-Invalid source orbital: '0'. Must be HOMO[-n], LUMO[+n], or positive integer.] PASSED [ 19%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_set_mom_transition_invalid_format[-1->6-Invalid source orbital: '-1'. Must be HOMO[-n], LUMO[+n], or positive integer.] PASSED [ 20%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_generate_occupied_block_not_mom PASSED [ 20%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_generate_occupied_block_not_unrestricted PASSED [ 20%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_generate_occupied_block_non_singlet PASSED [ 20%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_generate_occupied_block_no_occupation_set PASSED [ 20%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_generate_occupied_block_direct_occupation PASSED [ 21%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_generate_occupied_block_homo_lumo_transition PASSED [ 21%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_generate_occupied_block_offset_transition PASSED [ 21%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_generate_occupied_block_integer_transition PASSED [ 21%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_export_input_file_mom_direct_occupation PASSED [ 21%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_export_input_file_mom_transition PASSED [ 21%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_export_input_file_mom_opt_then_sp PASSED [ 22%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_export_input_file_mom_with_solvation PASSED [ 22%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_convert_transition_to_occupations_valid[10-HOMO->LUMO-1:4 6-1:5] PASSED [ 22%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_convert_transition_to_occupations_valid[10-homo->lumo-1:4 6-1:5] PASSED [ 22%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_convert_transition_to_occupations_valid[10- HOMO -> LUMO -1:4 6-1:5] PASSED [ 22%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_convert_transition_to_occupations_valid[10-HOMO-1->LUMO-1:3 5:6-1:5] PASSED [ 23%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_convert_transition_to_occupations_valid[10-HOMO->LUMO+1-1:4 7-1:5] PASSED [ 23%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_convert_transition_to_occupations_valid[10-HOMO-2->LUMO+2-1:2 4:5 8-1:5] PASSED [ 23%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_convert_transition_to_occupations_valid[156-HOMO->LUMO-1:77 79-1:78] PASSED [ 23%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_convert_transition_to_occupations_valid[156-HOMO-5->LUMO-1:72 74:79-1:78] PASSED [ 23%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_convert_transition_to_occupations_valid[156-HOMO->LUMO+10-1:77 89-1:78] PASSED [ 23%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_convert_transition_to_occupations_valid[2-HOMO->LUMO-2-1] PASSED [ 24%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_convert_transition_to_occupations_valid[156-6->LUMO-1:5 7:79-1:78] PASSED [ 24%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_convert_transition_to_occupations_valid[156-6 -> 79-1:5 7:79-1:78] PASSED [ 24%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_convert_transition_to_occupations_valid[156-HOMO->79-1:77 79-1:78] PASSED [ 24%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_convert_transition_to_occupations_valid[156-78->LUMO-1:77 79-1:78] PASSED [ 24%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_convert_transition_to_occupations_odd_electrons PASSED [ 25%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_convert_transition_to_occupations_invalid_transitions[156-HOMO->HOMO-Target orbital must be unoccupied] PASSED [ 25%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_convert_transition_to_occupations_invalid_transitions[156-HOMO->78-Target orbital must be unoccupied] PASSED [ 25%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_convert_transition_to_occupations_invalid_transitions[156-6->HOMO-Target orbital must be unoccupied] PASSED [ 25%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_convert_transition_to_occupations_invalid_transitions[156-6->77-Target orbital must be unoccupied] PASSED [ 25%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_convert_transition_to_occupations_invalid_transitions[156-LUMO->LUMO+1-Source orbital must be occupied] PASSED [ 26%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_convert_transition_to_occupations_invalid_transitions[156-LUMO->80-Source orbital must be occupied] PASSED [ 26%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_convert_transition_to_occupations_invalid_transitions[156-79->LUMO+1-Source orbital must be occupied] PASSED [ 26%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_convert_transition_to_occupations_invalid_transitions[156-80->81-Source orbital must be occupied] PASSED [ 26%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_convert_transition_to_occupations_invalid_transitions[10-HOMO-5 -> LUMO-Calculated source orbital index must be positive, got 0] PASSED [ 26%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_convert_transition_to_occupations_invalid_transitions[10-5 -> 0-Target orbital index must be positive, got '0'] PASSED [ 26%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_convert_transition_to_occupations_invalid_transitions[10-0 -> 6-Source orbital index must be positive, got '0'] PASSED [ 27%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_set_mom_ground_state_success PASSED [ 27%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_set_mom_ground_state_before_enable PASSED [ 27%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_generate_occupied_block_mom_ground_state[geometry_elements_coords0-0-1-1:5-1:5-None-None] PASSED [ 27%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_generate_occupied_block_mom_ground_state[geometry_elements_coords1-0-1-1-1-None-None] PASSED [ 27%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_generate_occupied_block_mom_ground_state[geometry_elements_coords2-1-1-None-None-NotSupportedError-MOM occupation determination currently only supports closed-shell singlet reference states] PASSED [ 28%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_generate_occupied_block_mom_ground_state[geometry_elements_coords3-0-3-None-None-NotSupportedError-MOM occupation determination currently only supports closed-shell singlet reference states] PASSED [ 28%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_generate_occupied_block_mom_ground_state[geometry_elements_coords4-0-1-None-None-ConfigurationError-Expected an even number of total electrons] PASSED [ 28%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_generate_occupied_block_mom_ground_state[geometry_elements_coords5-1-1-None-None-NotSupportedError-MOM occupation determination currently only supports closed-shell singlet reference states] PASSED [ 28%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_generate_occupied_block_mom_ground_state[geometry_elements_coords6-0-1-None-None-ConfigurationError-System with 0 electrons .* insufficient occupied orbitals for 'GROUND_STATE' MOM] PASSED [ 28%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_generate_occupied_block_mom_ground_state[geometry_elements_coords7-0-1-None-None-ConfigurationError-Expected an even number of total electrons] PASSED [ 28%]
+tests/inputs/qchem/test_input_qchem_mom.py::test_export_input_file_mom_ground_state PASSED [ 29%]
+tests/inputs/qchem/test_input_qchem_setters.py::test_set_solvation_valid PASSED [ 29%]
+tests/inputs/qchem/test_input_qchem_setters.py::test_set_solvation_disable PASSED [ 29%]
+tests/inputs/qchem/test_input_qchem_setters.py::test_set_solvation_invalid_model PASSED [ 29%]
+tests/inputs/qchem/test_input_qchem_setters.py::test_set_solvation_inconsistent_args PASSED [ 29%]
+tests/inputs/qchem/test_input_qchem_setters.py::test_set_tddft_valid PASSED [ 30%]
+tests/inputs/qchem/test_input_qchem_setters.py::test_set_tddft_invalid_nroots PASSED [ 30%]
+tests/inputs/qchem/test_input_qchem_setters.py::test_set_tddft_no_states PASSED [ 30%]
+tests/inputs/qchem/test_input_qchem_setters.py::test_set_rpa PASSED      [ 30%]
+tests/inputs/qchem/test_input_qchem_setters.py::test_set_basis_string PASSED [ 30%]
+tests/inputs/qchem/test_input_qchem_setters.py::test_set_basis_dict PASSED [ 30%]
+tests/inputs/qchem/test_input_qchem_setters.py::test_set_reduced_excitation_space[solute_orbitals0-expected_orbitals0-None] PASSED [ 31%]
+tests/inputs/qchem/test_input_qchem_setters.py::test_set_reduced_excitation_space[solute_orbitals1-None-ValidationError] PASSED [ 31%]
+tests/inputs/qchem/test_input_qchem_setters.py::test_set_reduced_excitation_space[solute_orbitals2-None-ValidationError] PASSED [ 31%]
+tests/inputs/qchem/test_input_qchem_xas.py::test_set_reduced_excitation_space_valid PASSED [ 31%]
+tests/inputs/qchem/test_input_qchem_xas.py::test_set_reduced_excitation_space_tddft_not_enabled PASSED [ 31%]
+tests/inputs/qchem/test_input_qchem_xas.py::test_set_reduced_excitation_space_empty_orbitals PASSED [ 32%]
+tests/inputs/qchem/test_input_qchem_xas.py::test_set_reduced_excitation_space_invalid_orbital_values[invalid_orbitals0-All solute_orbitals must be positive integers.] PASSED [ 32%]
+tests/inputs/qchem/test_input_qchem_xas.py::test_set_reduced_excitation_space_invalid_orbital_values[invalid_orbitals1-All solute_orbitals must be positive integers.] PASSED [ 32%]
+tests/inputs/qchem/test_input_qchem_xas.py::test_set_reduced_excitation_space_invalid_orbital_values[invalid_orbitals2-All solute_orbitals must be positive integers.] PASSED [ 32%]
+tests/inputs/qchem/test_input_qchem_xas.py::test_set_reduced_excitation_space_invalid_orbital_values[invalid_orbitals3-All solute_orbitals must be positive integers.] PASSED [ 32%]
+tests/inputs/qchem/test_input_qchem_xas.py::test_get_rem_block_tddft_reduced_excitation PASSED [ 33%]
+tests/inputs/qchem/test_input_qchem_xas.py::test_get_solute_block_active PASSED [ 33%]
+tests/inputs/qchem/test_input_qchem_xas.py::test_get_solute_block_inactive PASSED [ 33%]
+tests/inputs/qchem/test_input_qchem_xas.py::test_export_input_file_tddft_reduced_excitation PASSED [ 33%]
+tests/inputs/qchem/test_input_qchem_xas.py::test_export_input_file_mom_tddft_reduced_excitation PASSED [ 33%]
+tests/inputs/test_orca.py::TestOrcaInputInitValidation::test_minimal_initialization PASSED [ 33%]
+tests/inputs/test_orca.py::TestOrcaInputInitValidation::test_override_defaults PASSED [ 34%]
+tests/inputs/test_orca.py::TestOrcaInputInitValidation::test_ri_requires_aux_basis_validation PASSED [ 34%]
+tests/inputs/test_orca.py::TestOrcaInputInitValidation::test_aux_basis_without_ri_warning PASSED [ 34%]
+tests/inputs/test_orca.py::TestOrcaInputInitValidation::test_negative_cores_validation PASSED [ 34%]
+tests/inputs/test_orca.py::TestOrcaInputInitValidation::test_dict_basis_set_not_supported_validation PASSED [ 34%]
+tests/inputs/test_orca.py::TestOrcaInputInitValidation::test_unsupported_solvation_model_validation PASSED [ 35%]
+tests/inputs/test_orca.py::TestOrcaInputInitValidation::test_tddft_requires_nroots_or_iroot_validation PASSED [ 35%]
+tests/inputs/test_orca.py::TestOrcaInputInitValidation::test_tddft_nroots_and_iroot_exclusive_validation PASSED [ 35%]
+tests/inputs/test_orca.py::TestOrcaInputInitValidation::test_tddft_invalid_nroots_validation[0] PASSED [ 35%]
+tests/inputs/test_orca.py::TestOrcaInputInitValidation::test_tddft_invalid_nroots_validation[-1] PASSED [ 35%]
+tests/inputs/test_orca.py::TestOrcaInputInitValidation::test_tddft_invalid_iroot_validation[0] PASSED [ 35%]
+tests/inputs/test_orca.py::TestOrcaInputInitValidation::test_tddft_invalid_iroot_validation[-1] PASSED [ 36%]
+tests/inputs/test_orca.py::TestOrcaInputInitValidation::test_geometry_def2svp_warning PASSED [ 36%]
+tests/inputs/test_orca.py::TestOrcaInputInitValidation::test_init_requires_solvent_with_model PASSED [ 36%]
+tests/inputs/test_orca.py::TestOrcaInputInitValidation::test_init_requires_model_with_solvent PASSED [ 36%]
+tests/inputs/test_orca.py::TestOrcaInputInitValidation::test_init_valid_orca_solvation_models PASSED [ 36%]
+tests/inputs/test_orca.py::TestOrcaInputInitValidation::test_init_unsupported_base_solvation_model_error PASSED [ 37%]
+tests/inputs/test_orca.py::TestOrcaInputMethods::test_enable_ri PASSED   [ 37%]
+tests/inputs/test_orca.py::TestOrcaInputMethods::test_enable_print_mos PASSED [ 37%]
+tests/inputs/test_orca.py::TestOrcaInputMethods::test_set_tddft_defaults PASSED [ 37%]
+tests/inputs/test_orca.py::TestOrcaInputMethods::test_set_tddft_with_nroots PASSED [ 37%]
+tests/inputs/test_orca.py::TestOrcaInputMethods::test_set_tddft_with_iroot PASSED [ 38%]
+tests/inputs/test_orca.py::TestOrcaInputMethods::test_set_tddft_overwrites_previous PASSED [ 38%]
+tests/inputs/test_orca.py::TestOrcaInputSetSolvation::test_set_solvation_add_valid[cpcm-water-cpcm-water] PASSED [ 38%]
+tests/inputs/test_orca.py::TestOrcaInputSetSolvation::test_set_solvation_add_valid[smd-ethanol-smd-ethanol] PASSED [ 38%]
+tests/inputs/test_orca.py::TestOrcaInputSetSolvation::test_set_solvation_add_valid[CPCM-WATER-cpcm-water] PASSED [ 38%]
+tests/inputs/test_orca.py::TestOrcaInputSetSolvation::test_set_solvation_add_valid[SmD-eThAnOl-smd-ethanol] PASSED [ 38%]
+tests/inputs/test_orca.py::TestOrcaInputSetSolvation::test_set_solvation_remove PASSED [ 39%]
+tests/inputs/test_orca.py::TestOrcaInputSetSolvation::test_set_solvation_requires_both_or_neither PASSED [ 39%]
+tests/inputs/test_orca.py::TestOrcaInputSetSolvation::test_set_solvation_unsupported_model_error PASSED [ 39%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_minimal_energy PASSED [ 39%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_geometry_optimization PASSED [ 39%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_level_of_theory_variants[hf-False-! RHF sto-3g SP] PASSED [ 40%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_level_of_theory_variants[hf-True-! UHF sto-3g SP] PASSED [ 40%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_level_of_theory_variants[rhf-False-! RHF sto-3g SP] PASSED [ 40%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_level_of_theory_variants[uhf-True-! UHF sto-3g SP] PASSED [ 40%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_level_of_theory_variants[b3lyp-False-! RKS b3lyp sto-3g SP] PASSED [ 40%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_level_of_theory_variants[b3lyp-True-! UKS b3lyp sto-3g SP] PASSED [ 40%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_level_of_theory_variants[pbe0-False-! RKS pbe0 sto-3g SP] PASSED [ 41%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_level_of_theory_variants[mp2-False-! MP2 sto-3g SP] PASSED [ 41%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_level_of_theory_variants[mp2-True-! UMP2 sto-3g SP] PASSED [ 41%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_level_of_theory_variants[ri-mp2-False-! RI-MP2 sto-3g SP] PASSED [ 41%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_level_of_theory_variants[ri-mp2-True-! RI-UMP2 sto-3g SP] PASSED [ 41%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_level_of_theory_variants[ccsd(t)-True-! CCSD(T) sto-3g SP] PASSED [ 42%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_level_of_theory_variants[ccsd-False-! CCSD sto-3g SP] PASSED [ 42%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_level_of_theory_warnings[uhf-False-Requested method UHF but unrestricted was not set to True] PASSED [ 42%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_level_of_theory_warnings[ump2-False-Requested method UMP2 but unrestricted was not set to True] PASSED [ 42%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_level_of_theory_warnings[ccsd(t)-False-Requested method CCSD(T) but unrestricted was not set to True] PASSED [ 42%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_invalid_level_of_theory[rhf-True-Requested method RHF but unrestricted was set to True] PASSED [ 42%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_invalid_level_of_theory[rks-False-specify a functional as the level_of_theory] PASSED [ 43%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_invalid_level_of_theory[uks-True-specify a functional as the level_of_theory] PASSED [ 43%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_invalid_level_of_theory[bad_method-False-Unsupported or unrecognized level_of_theory:.*bad_method] PASSED [ 43%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_ccsd_unrestricted_error PASSED [ 43%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_with_ri PASSED [ 43%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_with_procs_and_mem PASSED [ 44%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_with_cpcm_solvation PASSED [ 44%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_with_smd_solvation PASSED [ 44%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_smd_missing_solvent_error PASSED [ 44%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_with_tddft_nroots PASSED [ 44%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_with_tddft_iroot PASSED [ 45%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_with_print_mos PASSED [ 45%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_full_example PASSED [ 45%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_dict_basis_error PASSED [ 45%]
+tests/inputs/test_orca.py::TestOrcaInputExport::test_export_tddft_validation_error_in_block PASSED [ 45%]
+tests/inputs/test_slurm.py::test_slurmargs_initialization_minimal PASSED [ 45%]
+tests/inputs/test_slurm.py::test_slurmargs_initialization_full PASSED    [ 46%]
+tests/inputs/test_slurm.py::test_slurmargs_immutability PASSED           [ 46%]
+tests/inputs/test_slurm.py::test_set_software_valid PASSED               [ 46%]
+tests/inputs/test_slurm.py::test_set_software_invalid PASSED             [ 46%]
+tests/inputs/test_slurm.py::test_set_time PASSED                         [ 46%]
+tests/inputs/test_slurm.py::test_set_memory PASSED                       [ 47%]
+tests/inputs/test_slurm.py::test_set_partition PASSED                    [ 47%]
+tests/inputs/test_slurm.py::test_set_constraint PASSED                   [ 47%]
+tests/inputs/test_slurm.py::test_set_queue PASSED                        [ 47%]
+tests/inputs/test_slurm.py::test_set_parallelism_valid PASSED            [ 47%]
+tests/inputs/test_slurm.py::test_set_parallelism_invalid PASSED          [ 47%]
+tests/inputs/test_slurm.py::test_add_modules PASSED                      [ 48%]
+tests/inputs/test_slurm.py::test_get_temp_variables PASSED               [ 48%]
+tests/inputs/test_slurm.py::test_get_modules_string_generation PASSED    [ 48%]
+tests/inputs/test_slurm.py::test_get_launch_cmd_valid_configs PASSED     [ 48%]
+tests/inputs/test_slurm.py::test_pre_submit_check_ok PASSED              [ 48%]
+tests/inputs/test_slurm.py::test_pre_submit_check_no_software PASSED     [ 49%]
+tests/inputs/test_slurm.py::test_pre_submit_check_invalid_software PASSED [ 49%]
+tests/inputs/test_slurm.py::test_create_submit_script_minimal_orca PASSED [ 49%]
+tests/inputs/test_slurm.py::test_create_submit_script_minimal_qchem_default PASSED [ 49%]
+tests/inputs/test_slurm.py::test_create_submit_script_qchem_openmp PASSED [ 49%]
+tests/inputs/test_slurm.py::test_create_submit_script_qchem_mpi PASSED   [ 50%]
+tests/inputs/test_slurm.py::test_create_submit_script_full_options PASSED [ 50%]
+tests/inputs/test_slurm.py::test_create_submit_script_pre_submit_check_fail PASSED [ 50%]
+tests/parsers/orca/blocks/test_orca_charges.py::test_atomic_charges PASSED [ 50%]
+tests/parsers/orca/blocks/test_orca_charges.py::test_atomic_charges_integration PASSED [ 50%]
+tests/parsers/orca/blocks/test_orca_charges.py::test_charges_parser_matches[Mulliken-MULLIKEN ATOMIC CHARGES-MULLIKEN ATOMIC CHARGES-True] PASSED [ 50%]
+tests/parsers/orca/blocks/test_orca_charges.py::test_charges_parser_matches[Loewdin-LOEWDIN ATOMIC CHARGES-LOEWDIN ATOMIC CHARGES-True] PASSED [ 51%]
+tests/parsers/orca/blocks/test_orca_charges.py::test_charges_parser_matches[Mulliken-MULLIKEN ATOMIC CHARGES-Some other line-False] PASSED [ 51%]
+tests/parsers/orca/blocks/test_orca_charges.py::test_charges_parser_matches[Loewdin-LOEWDIN ATOMIC CHARGES-  MULLIKEN ATOMIC CHARGES (something else)-False] PASSED [ 51%]
+tests/parsers/orca/blocks/test_orca_charges.py::test_charges_parser_parse_success[Mulliken-MULLIKEN ATOMIC CHARGES] PASSED [ 51%]
+tests/parsers/orca/blocks/test_orca_charges.py::test_charges_parser_parse_success[Loewdin-LOEWDIN ATOMIC CHARGES] PASSED [ 51%]
+tests/parsers/orca/blocks/test_orca_charges.py::test_charges_parser_parse_empty_block PASSED [ 52%]
+tests/parsers/orca/blocks/test_orca_charges.py::test_charges_parser_parse_malformed_line PASSED [ 52%]
+tests/parsers/orca/blocks/test_orca_charges.py::test_charges_parser_parse_unexpected_end PASSED [ 52%]
+tests/parsers/orca/blocks/test_orca_charges.py::test_charges_parser_handles_unexpected_exception PASSED [ 52%]
+tests/parsers/orca/blocks/test_orca_dipole.py::test_dipole_moment PASSED [ 52%]
+tests/parsers/orca/blocks/test_orca_dipole.py::test_dipole_parser_matches_correct_line PASSED [ 52%]
+tests/parsers/orca/blocks/test_orca_dipole.py::test_dipole_parser_does_not_match_if_already_parsed PASSED [ 53%]
+tests/parsers/orca/blocks/test_orca_dipole.py::test_dipole_parser_does_not_match_other_lines PASSED [ 53%]
+tests/parsers/orca/blocks/test_orca_dipole.py::test_dipole_parser_successful_parse PASSED [ 53%]
+tests/parsers/orca/blocks/test_orca_dipole.py::test_dipole_parser_malformed_components PASSED [ 53%]
+tests/parsers/orca/blocks/test_orca_dipole.py::test_dipole_parser_malformed_magnitude_au PASSED [ 53%]
+tests/parsers/orca/blocks/test_orca_dipole.py::test_dipole_parser_malformed_magnitude_debye PASSED [ 54%]
+tests/parsers/orca/blocks/test_orca_dipole.py::test_dipole_parser_premature_termination_with_terminator PASSED [ 54%]
+tests/parsers/orca/blocks/test_orca_dipole.py::test_dipole_parser_incomplete_block_eof PASSED [ 54%]
+tests/parsers/orca/blocks/test_orca_dipole.py::test_dipole_parser_unexpected_exception PASSED [ 54%]
+tests/parsers/orca/blocks/test_orca_dispersion.py::test_integration_dispersion_correction PASSED [ 54%]
+tests/parsers/orca/blocks/test_orca_dispersion.py::test_matches_positive PASSED [ 54%]
+tests/parsers/orca/blocks/test_orca_dispersion.py::test_matches_negative_already_parsed PASSED [ 55%]
+tests/parsers/orca/blocks/test_orca_dispersion.py::test_matches_negative_incorrect_line PASSED [ 55%]
+tests/parsers/orca/blocks/test_orca_dispersion.py::test_parse_success[block_lines0-DFTD3 V3.0 Correction--0.01234567] PASSED [ 55%]
+tests/parsers/orca/blocks/test_orca_dispersion.py::test_parse_success[block_lines1-DFTD4 V1.0 Rev 2 Correction-0.00987654] PASSED [ 55%]
+tests/parsers/orca/blocks/test_orca_dispersion.py::test_parse_failure[block_lines0-Method] PASSED [ 55%]
+tests/parsers/orca/blocks/test_orca_dispersion.py::test_parse_failure[block_lines1-Energy] PASSED [ 56%]
+tests/parsers/orca/blocks/test_orca_dispersion.py::test_parse_failure[block_lines2-Could not parse dispersion energy] PASSED [ 56%]
+tests/parsers/orca/blocks/test_orca_dispersion.py::test_parse_failure[block_lines3-Energy] PASSED [ 56%]
+tests/parsers/orca/blocks/test_orca_dispersion.py::test_parse_failure[block_lines4-Energy] PASSED [ 56%]
+tests/parsers/orca/blocks/test_orca_dispersion.py::test_parse_failure[block_lines5-Energy] PASSED [ 56%]
+tests/parsers/orca/blocks/test_orca_dispersion.py::test_parse_failure[block_lines6-Method, Energy] PASSED [ 57%]
+tests/parsers/orca/blocks/test_orca_geometry.py::test_input_geometry PASSED [ 57%]
+tests/parsers/orca/blocks/test_orca_geometry.py::test_geometry_parser_matches_start_line PASSED [ 57%]
+tests/parsers/orca/blocks/test_orca_geometry.py::test_geometry_parser_matches_returns_false_if_already_parsed PASSED [ 57%]
+tests/parsers/orca/blocks/test_orca_geometry.py::test_geometry_parser_matches_returns_false_for_other_lines PASSED [ 57%]
+tests/parsers/orca/blocks/test_orca_geometry.py::test_geometry_parser_parses_correctly PASSED [ 57%]
+tests/parsers/orca/blocks/test_orca_geometry.py::test_geometry_parser_handles_empty_block PASSED [ 58%]
+tests/parsers/orca/blocks/test_orca_geometry.py::test_geometry_parser_handles_malformed_line PASSED [ 58%]
+tests/parsers/orca/blocks/test_orca_geometry.py::test_geometry_parser_handles_abrupt_end PASSED [ 58%]
+tests/parsers/orca/blocks/test_orca_geometry.py::test_geometry_parser_no_atoms_found_raises_error PASSED [ 58%]
+tests/parsers/orca/blocks/test_orca_gradient.py::test_parse_raises_parsing_error_on_eof_after_header PASSED [ 58%]
+tests/parsers/orca/blocks/test_orca_gradient.py::test_parse_raises_parsing_error_when_no_gradient_lines_present PASSED [ 59%]
+tests/parsers/orca/blocks/test_orca_orbitals.py::test_orbital_data_presence PASSED [ 59%]
+tests/parsers/orca/blocks/test_orca_orbitals.py::test_orbital_energies PASSED [ 59%]
+tests/parsers/orca/blocks/test_orca_orbitals.py::test_parse_empty_block PASSED [ 59%]
+tests/parsers/orca/blocks/test_orca_orbitals.py::test_parse_malformed_line_stops_parsing PASSED [ 59%]
+tests/parsers/orca/blocks/test_orca_orbitals.py::test_parse_no_occupied_orbitals PASSED [ 59%]
+tests/parsers/orca/blocks/test_orca_orbitals.py::test_parse_all_occupied_orbitals PASSED [ 60%]
+tests/parsers/orca/blocks/test_orca_orbitals.py::test_parse_lumo_index_mismatch_warning PASSED [ 60%]
+tests/parsers/orca/blocks/test_orca_orbitals.py::test_parse_virtual_orbitals_printed_stops_parsing PASSED [ 60%]
+tests/parsers/orca/blocks/test_orca_orbitals.py::test_matches_method PASSED [ 60%]
+tests/parsers/orca/blocks/test_orca_orbitals.py::test_unexpected_exception_during_loop PASSED [ 60%]
+tests/parsers/orca/blocks/test_orca_orbitals.py::test_unexpected_exception_post_loop PASSED [ 61%]
+tests/parsers/orca/blocks/test_orca_relaxation.py::test_matches_returns_true_for_start_line PASSED [ 61%]
+tests/parsers/orca/blocks/test_orca_relaxation.py::test_matches_returns_false_for_other_lines PASSED [ 61%]
+tests/parsers/orca/blocks/test_orca_relaxation.py::test_parse_valid_block PASSED [ 61%]
+tests/parsers/orca/blocks/test_orca_relaxation.py::test_parse_block_with_convergence_message PASSED [ 61%]
+tests/parsers/orca/blocks/test_orca_relaxation.py::test_parse_block_without_trust_radius PASSED [ 61%]
+tests/parsers/orca/blocks/test_orca_relaxation.py::test_parse_eof_in_header PASSED [ 62%]
+tests/parsers/orca/blocks/test_orca_relaxation.py::test_parse_eof_during_table_parsing PASSED [ 62%]
+tests/parsers/orca/blocks/test_orca_relaxation.py::test_parse_called_without_cycle_data PASSED [ 62%]
+tests/parsers/orca/blocks/test_orca_scf.py::test_scf_data_presence PASSED [ 62%]
+tests/parsers/orca/blocks/test_orca_scf.py::test_scf_convergence PASSED  [ 62%]
+tests/parsers/orca/blocks/test_orca_scf.py::test_scf_energy PASSED       [ 63%]
+tests/parsers/orca/blocks/test_orca_scf.py::test_scf_energy_components PASSED [ 63%]
+tests/parsers/orca/blocks/test_orca_scf.py::test_scf_iterations PASSED   [ 63%]
+tests/parsers/orca/blocks/test_orca_scf.py::test_scf_matches_already_parsed PASSED [ 63%]
+tests/parsers/orca/blocks/test_orca_scf.py::test_scf_matches_trigger_lines PASSED [ 63%]
+tests/parsers/orca/blocks/test_orca_scf.py::test_scf_parse_invalid_iteration_lines PASSED [ 64%]
+tests/parsers/orca/blocks/test_orca_scf.py::test_scf_iteration_table_termination_blank PASSED [ 64%]
+tests/parsers/orca/blocks/test_orca_scf.py::test_scf_iteration_table_termination_eof PASSED [ 64%]
+tests/parsers/orca/blocks/test_orca_scf.py::test_scf_parse_no_xc_energy PASSED [ 64%]
+tests/parsers/orca/blocks/test_orca_scf.py::test_scf_component_termination_keyword PASSED [ 64%]
+tests/parsers/orca/blocks/test_orca_scf.py::test_scf_component_termination_eof PASSED [ 64%]
+tests/parsers/orca/blocks/test_orca_scf.py::test_scf_no_convergence_line PASSED [ 65%]
+tests/parsers/orca/blocks/test_orca_scf.py::test_scf_missing_history_warning PASSED [ 65%]
+tests/parsers/orca/blocks/test_orca_scf.py::test_scf_iteration_mismatch_warning PASSED [ 65%]
+tests/parsers/orca/blocks/test_orca_scf.py::test_scf_components_missing_no_scf_run_warning PASSED [ 65%]
+tests/parsers/orca/blocks/test_orca_scf.py::test_scf_components_missing_after_scf_error PASSED [ 65%]
+tests/parsers/orca/blocks/test_orca_scf.py::test_scf_final_energy_ambiguous_error PASSED [ 66%]
+tests/parsers/orca/blocks/test_orca_scf.py::test_scf_components_section_not_found_warning PASSED [ 66%]
+tests/parsers/orca/blocks/test_orca_scf.py::test_scf_parse_exception_handling PASSED [ 66%]
+tests/parsers/orca/blocks/test_orca_scf.py::test_scf_realistic_non_converged PASSED [ 66%]
+tests/parsers/orca/blocks/test_orca_scf.py::test_scf_late_convergence_line PASSED [ 66%]
+tests/parsers/orca/blocks/test_orca_scf.py::test_scf_termination_before_components PASSED [ 66%]
+tests/parsers/orca/test_orca_opt.py::test_convergence_status PASSED      [ 67%]
+tests/parsers/orca/test_orca_opt.py::test_number_of_cycles PASSED        [ 67%]
+tests/parsers/orca/test_orca_opt.py::test_input_geometry_coordinates PASSED [ 67%]
+tests/parsers/orca/test_orca_opt.py::test_input_geometry_symbols PASSED  [ 67%]
+tests/parsers/orca/test_orca_opt.py::test_cycle_1_energy PASSED          [ 67%]
+tests/parsers/orca/test_orca_opt.py::test_cycle_2_energy PASSED          [ 68%]
+tests/parsers/orca/test_orca_opt.py::test_final_energy PASSED            [ 68%]
+tests/parsers/orca/test_orca_opt.py::test_final_geometry_coordinates PASSED [ 68%]
+tests/parsers/orca/test_orca_opt.py::test_final_geometry_symbols PASSED  [ 68%]
+tests/parsers/orca/test_orca_opt.py::test_dipole_moment PASSED           [ 68%]
+tests/parsers/orca/test_orca_sp.py::test_parsing_success PASSED          [ 69%]
+tests/parsers/orca/test_orca_sp.py::test_termination_status PASSED       [ 69%]
+tests/parsers/orca/test_orca_sp.py::test_final_energy PASSED             [ 69%]
+tests/parsers/orca/test_orca_sp.py::test_calculation_data_repr_minimal PASSED [ 69%]
+tests/parsers/orca/test_orca_sp.py::test_calculation_data_repr_with_optional_fields PASSED [ 69%]
+tests/parsers/qchem/blocks/tddft/test_qc_tddft_exc.py::test_tddft_uks_pc2_state_2_properties PASSED [ 69%]
+tests/parsers/qchem/blocks/tddft/test_qc_tddft_exc.py::test_tddft_uks_pc2_state_4_properties PASSED [ 70%]
+tests/parsers/qchem/blocks/tddft/test_qc_tddft_gs_ref.py::test_ground_state_reference_analysis_exists PASSED [ 70%]
+tests/parsers/qchem/blocks/tddft/test_qc_tddft_gs_ref.py::test_gs_ref_no_data PASSED [ 70%]
+tests/parsers/qchem/blocks/tddft/test_qc_tddft_gs_ref.py::test_gs_ref_mulliken_analysis PASSED [ 70%]
+tests/parsers/qchem/blocks/tddft/test_qc_tddft_gs_ref.py::test_gs_ref_multipole_analysis PASSED [ 70%]
+tests/parsers/qchem/blocks/tddft/test_qc_tddft_gs_ref.py::test_gs_ref_uks_no_data PASSED [ 71%]
+tests/parsers/qchem/blocks/tddft/test_qc_tddft_gs_ref.py::test_gs_ref_uks_mulliken_analysis PASSED [ 71%]
+tests/parsers/qchem/blocks/tddft/test_qc_tddft_gs_ref.py::test_gs_ref_uks_multipole_analysis PASSED [ 71%]
+tests/parsers/qchem/blocks/tddft/test_qc_tddft_nto.py::test_sa_nto_decomposition_singlet_2 PASSED [ 71%]
+tests/parsers/qchem/blocks/tddft/test_qc_tddft_nto.py::test_sa_nto_decomposition_singlet_8 PASSED [ 71%]
+tests/parsers/qchem/blocks/tddft/test_qc_tddft_nto.py::test_sa_nto_decomposition_singlet_10 PASSED [ 71%]
+tests/parsers/qchem/blocks/tddft/test_qc_tddft_nto.py::test_sa_nto_decomposition_uks_excited_state_8 PASSED [ 72%]
+tests/parsers/qchem/blocks/tddft/test_qc_tddft_nto.py::test_sa_nto_decomposition_uks_excited_state_9 PASSED [ 72%]
+tests/parsers/qchem/blocks/tddft/test_qc_tddft_trans_dm.py::test_tddft_transition_dm_analysis_singlet_3 PASSED [ 72%]
+tests/parsers/qchem/blocks/tddft/test_qc_tddft_trans_dm.py::test_tddft_transition_dm_analysis_singlet_7 PASSED [ 72%]
+tests/parsers/qchem/blocks/tddft/test_qc_tddft_trans_dm.py::test_tddft_uks_transition_dm_analysis_exc_state_6 PASSED [ 72%]
+tests/parsers/qchem/blocks/tddft/test_qc_tddft_unrel_dm.py::test_unrelaxed_dm_singlet_4 PASSED [ 73%]
+tests/parsers/qchem/blocks/tddft/test_qc_tddft_unrel_dm.py::test_unrelaxed_dm_singlet_8 PASSED [ 73%]
+tests/parsers/qchem/blocks/tddft/test_qc_tddft_unrel_dm.py::test_unrelaxed_dm_uks_excited_state_1 PASSED [ 73%]
+tests/parsers/qchem/blocks/test_qchem_charges.py::test_charges_matches_start_line PASSED [ 73%]
+tests/parsers/qchem/blocks/test_qchem_charges.py::test_charges_does_not_match_other_lines PASSED [ 73%]
+tests/parsers/qchem/blocks/test_qchem_charges.py::test_charges_does_not_match_if_already_parsed PASSED [ 73%]
+tests/parsers/qchem/blocks/test_qchem_charges.py::test_parse_valid_mulliken_block PASSED [ 74%]
+tests/parsers/qchem/blocks/test_qchem_charges.py::test_parse_unterminated_mulliken_block PASSED [ 74%]
+tests/parsers/qchem/blocks/test_qchem_charges.py::test_parse_empty_mulliken_block PASSED [ 74%]
+tests/parsers/qchem/blocks/test_qchem_charges.py::test_parse_malformed_line_mulliken_block PASSED [ 74%]
+tests/parsers/qchem/blocks/test_qchem_geometry.py::test_geom_matches_input_start PASSED [ 74%]
+tests/parsers/qchem/blocks/test_qchem_geometry.py::test_geom_matches_standard_start PASSED [ 75%]
+tests/parsers/qchem/blocks/test_qchem_geometry.py::test_geom_does_not_match_other_lines PASSED [ 75%]
+tests/parsers/qchem/blocks/test_qchem_geometry.py::test_geom_does_not_match_if_input_parsed PASSED [ 75%]
+tests/parsers/qchem/blocks/test_qchem_geometry.py::test_geom_does_not_match_if_standard_parsed PASSED [ 75%]
+tests/parsers/qchem/blocks/test_qchem_geometry.py::test_geom_matches_standard_if_input_parsed PASSED [ 75%]
+tests/parsers/qchem/blocks/test_qchem_geometry.py::test_geom_matches_input_if_standard_parsed PASSED [ 76%]
+tests/parsers/qchem/blocks/test_qchem_geometry.py::test_parse_input_geometry_valid PASSED [ 76%]
+tests/parsers/qchem/blocks/test_qchem_geometry.py::test_parse_standard_geometry_valid PASSED [ 76%]
+tests/parsers/qchem/blocks/test_qchem_geometry.py::test_parse_input_geom_unterminated PASSED [ 76%]
+tests/parsers/qchem/blocks/test_qchem_geometry.py::test_parse_standard_geom_unterminated PASSED [ 76%]
+tests/parsers/qchem/blocks/test_qchem_geometry.py::test_parse_input_geom_no_atoms PASSED [ 76%]
+tests/parsers/qchem/blocks/test_qchem_geometry.py::test_parse_standard_geom_no_atoms PASSED [ 77%]
+tests/parsers/qchem/blocks/test_qchem_geometry.py::test_parse_input_geom_unexpected_line PASSED [ 77%]
+tests/parsers/qchem/blocks/test_qchem_geometry.py::test_parse_standard_geom_unexpected_line PASSED [ 77%]
+tests/parsers/qchem/blocks/test_qchem_metadata.py::test_metadata_matches[ Q-Chem 6.2.1, Q-Chem, Inc., Pleasanton, CA (2024)-True] PASSED [ 77%]
+tests/parsers/qchem/blocks/test_qchem_metadata.py::test_metadata_matches[ Host: login30-True] PASSED [ 77%]
+tests/parsers/qchem/blocks/test_qchem_metadata.py::test_metadata_matches[ Q-Chem begins on Sun May  4 14:52:42 2025  -True] PASSED [ 78%]
+tests/parsers/qchem/blocks/test_qchem_metadata.py::test_metadata_matches[This line contains no metadata.-False] PASSED [ 78%]
+tests/parsers/qchem/blocks/test_qchem_metadata.py::test_metadata_matches_returns_false_if_already_parsed PASSED [ 78%]
+tests/parsers/qchem/blocks/test_qchem_metadata.py::test_metadata_parse_qchem_version PASSED [ 78%]
+tests/parsers/qchem/blocks/test_qchem_metadata.py::test_metadata_parse_host PASSED [ 78%]
+tests/parsers/qchem/blocks/test_qchem_metadata.py::test_metadata_parse_run_date PASSED [ 78%]
+tests/parsers/qchem/blocks/test_qchem_metadata.py::test_metadata_parse_does_not_advance_iterator PASSED [ 79%]
+tests/parsers/qchem/blocks/test_qchem_metadata.py::test_metadata_parse_skips_already_parsed PASSED [ 79%]
+tests/parsers/qchem/blocks/test_qchem_multipole.py::test_multipole_matches_start PASSED [ 79%]
+tests/parsers/qchem/blocks/test_qchem_multipole.py::test_multipole_matches_already_parsed PASSED [ 79%]
+tests/parsers/qchem/blocks/test_qchem_multipole.py::test_multipole_matches_no_match PASSED [ 79%]
+tests/parsers/qchem/blocks/test_qchem_multipole.py::test_multipole_parse_full_section PASSED [ 80%]
+tests/parsers/qchem/blocks/test_qchem_multipole.py::test_multipole_parse_missing_hexadecapole PASSED [ 80%]
+tests/parsers/qchem/blocks/test_qchem_multipole.py::test_multipole_parse_invalid_value PASSED [ 80%]
+tests/parsers/qchem/blocks/test_qchem_multipole.py::test_multipole_parse_stop_iteration PASSED [ 80%]
+tests/parsers/qchem/blocks/test_qchem_multipole.py::test_multipole_parse_charge_only PASSED [ 80%]
+tests/parsers/qchem/blocks/test_qchem_multipole.py::test_multipole_parse_no_data_found PASSED [ 80%]
+tests/parsers/qchem/blocks/test_qchem_orbitals.py::test_orbitals_matches_start_line PASSED [ 81%]
+tests/parsers/qchem/blocks/test_qchem_orbitals.py::test_orbitals_does_not_match_other_lines PASSED [ 81%]
+tests/parsers/qchem/blocks/test_qchem_orbitals.py::test_orbitals_does_not_match_if_already_parsed PASSED [ 81%]
+tests/parsers/qchem/blocks/test_qchem_orbitals.py::test_parse_valid_restricted_orbitals PASSED [ 81%]
+tests/parsers/qchem/blocks/test_qchem_orbitals.py::test_parse_valid_unrestricted_orbitals PASSED [ 81%]
+tests/parsers/qchem/blocks/test_qchem_orbitals.py::test_parse_unterminated_orbitals PASSED [ 82%]
+tests/parsers/qchem/blocks/test_qchem_orbitals.py::test_parse_no_orbitals_found PASSED [ 82%]
+tests/parsers/qchem/blocks/test_qchem_orbitals.py::test_parse_malformed_energy_line PASSED [ 82%]
+tests/parsers/qchem/blocks/test_qchem_orbitals.py::test_parse_beta_orbitals_from_uks_tddft_output PASSED [ 82%]
+tests/parsers/qchem/blocks/test_qchem_pattern.py::test_version_spec_from_str PASSED [ 82%]
+tests/parsers/qchem/blocks/test_qchem_pattern.py::test_version_spec_equality PASSED [ 83%]
+tests/parsers/qchem/blocks/test_qchem_pattern.py::test_version_spec_less_than PASSED [ 83%]
+tests/parsers/qchem/blocks/test_qchem_pattern.py::test_version_spec_less_than_or_equal PASSED [ 83%]
+tests/parsers/qchem/blocks/test_qchem_pattern.py::test_version_spec_greater_than PASSED [ 83%]
+tests/parsers/qchem/blocks/test_qchem_pattern.py::test_version_spec_greater_than_or_equal PASSED [ 83%]
+tests/parsers/qchem/blocks/test_qchem_pattern.py::test_version_spec_str_and_repr PASSED [ 83%]
+tests/parsers/qchem/blocks/test_qchem_pattern.py::test_pattern_definition_initialization_empty PASSED [ 84%]
+tests/parsers/qchem/blocks/test_qchem_pattern.py::test_pattern_definition_add_pattern PASSED [ 84%]
+tests/parsers/qchem/blocks/test_qchem_pattern.py::test_pattern_definition_initialization_with_patterns PASSED [ 84%]
+tests/parsers/qchem/blocks/test_qchem_pattern.py::test_get_matching_pattern_no_patterns PASSED [ 84%]
+tests/parsers/qchem/blocks/test_qchem_pattern.py::test_get_matching_pattern_single_no_version PASSED [ 84%]
+tests/parsers/qchem/blocks/test_qchem_pattern.py::test_get_matching_pattern_selects_correct_version PASSED [ 85%]
+tests/parsers/qchem/blocks/test_qchem_pattern.py::test_get_matching_pattern_no_suitable_version_found PASSED [ 85%]
+tests/parsers/qchem/blocks/test_qchem_pattern.py::test_pattern_definition_transform_usage PASSED [ 85%]
+tests/parsers/qchem/blocks/test_qchem_pattern.py::test_pattern_definition_default_transform_if_none_provided_in_init PASSED [ 85%]
+tests/parsers/qchem/blocks/test_qchem_rem.py::test_rem_matches_start_line PASSED [ 85%]
+tests/parsers/qchem/blocks/test_qchem_rem.py::test_rem_matches_start_line_case_insensitive PASSED [ 85%]
+tests/parsers/qchem/blocks/test_qchem_rem.py::test_rem_does_not_match_other_line PASSED [ 86%]
+tests/parsers/qchem/blocks/test_qchem_rem.py::test_rem_matches_returns_false_if_already_parsed PASSED [ 86%]
+tests/parsers/qchem/blocks/test_qchem_rem.py::test_rem_matches_returns_true_if_basis_missing PASSED [ 86%]
+tests/parsers/qchem/blocks/test_qchem_rem.py::test_rem_matches_returns_true_if_method_missing PASSED [ 86%]
+tests/parsers/qchem/blocks/test_qchem_rem.py::test_rem_matches_returns_true_if_solvent_method_missing PASSED [ 86%]
+tests/parsers/qchem/blocks/test_qchem_rem.py::test_rem_parse_simple PASSED [ 87%]
+tests/parsers/qchem/blocks/test_qchem_rem.py::test_rem_parse_case_insensitive PASSED [ 87%]
+tests/parsers/qchem/blocks/test_qchem_rem.py::test_rem_parse_missing_basis PASSED [ 87%]
+tests/parsers/qchem/blocks/test_qchem_rem.py::test_rem_parse_missing_method PASSED [ 87%]
+tests/parsers/qchem/blocks/test_qchem_rem.py::test_rem_parse_empty_block PASSED [ 87%]
+tests/parsers/qchem/blocks/test_qchem_rem.py::test_rem_parse_unterminated_block PASSED [ 88%]
+tests/parsers/qchem/blocks/test_qchem_rem.py::test_rem_parse_with_solvent_method PASSED [ 88%]
+tests/parsers/qchem/blocks/test_qchem_rem.py::test_rem_parse_solvent_method_case_insensitive PASSED [ 88%]
+tests/parsers/qchem/blocks/test_qchem_rem.py::test_rem_parse_missing_solvent_method PASSED [ 88%]
+tests/parsers/qchem/blocks/test_qchem_scf.py::test_parse_converged_scf PASSED [ 88%]
+tests/parsers/qchem/blocks/test_qchem_scf.py::test_parse_unconverged_scf PASSED [ 88%]
+tests/parsers/qchem/blocks/test_qchem_scf.py::test_parse_scf_with_smd_summary PASSED [ 89%]
+tests/parsers/qchem/blocks/test_qchem_scf.py::test_parse_smd_summary_mismatched_genp PASSED [ 89%]
+tests/parsers/qchem/blocks/test_qchem_scf.py::test_parse_smd_partial_summary PASSED [ 89%]
+tests/parsers/qchem/blocks/test_qchem_scf.py::test_parse_smd_malformed_summary PASSED [ 89%]
+tests/parsers/qchem/blocks/test_qchem_scf.py::test_parse_smd_summary_no_explicit_scf_energy PASSED [ 89%]
+tests/parsers/qchem/blocks/test_qchem_scf.py::test_parse_multiple_scf_segments PASSED [ 90%]
+tests/parsers/qchem/blocks/test_qchem_scf.py::test_parse_sample_smd_h2o_sp_sto PASSED [ 90%]
+tests/parsers/qchem/blocks/test_qchem_smx.py::test_smx_matches_start_line PASSED [ 90%]
+tests/parsers/qchem/blocks/test_qchem_smx.py::test_smx_matches_start_line_case_insensitive PASSED [ 90%]
+tests/parsers/qchem/blocks/test_qchem_smx.py::test_smx_does_not_match_other_line PASSED [ 90%]
+tests/parsers/qchem/blocks/test_qchem_smx.py::test_smx_matches_returns_false_if_already_parsed PASSED [ 90%]
+tests/parsers/qchem/blocks/test_qchem_smx.py::test_smx_matches_returns_true_if_not_yet_parsed PASSED [ 91%]
+tests/parsers/qchem/blocks/test_qchem_smx.py::test_smx_parse_valid_blocks[block_lines0-$smx-water-Some other line] PASSED [ 91%]
+tests/parsers/qchem/blocks/test_qchem_smx.py::test_smx_parse_valid_blocks[block_lines1-$SmX-methanol-Another line] PASSED [ 91%]
+tests/parsers/qchem/blocks/test_qchem_smx.py::test_smx_parse_valid_blocks[block_lines2-$smx-toluene-None] PASSED [ 91%]
+tests/parsers/qchem/blocks/test_qchem_smx.py::test_smx_parse_valid_blocks[block_lines3-$smx-dmso-None] PASSED [ 91%]
+tests/parsers/qchem/blocks/test_qchem_smx.py::test_smx_parse_empty_block PASSED [ 92%]
+tests/parsers/qchem/blocks/test_qchem_smx.py::test_smx_parse_no_solvent_keyword PASSED [ 92%]
+tests/parsers/qchem/blocks/test_qchem_smx.py::test_smx_parse_unterminated_block PASSED [ 92%]
+tests/parsers/qchem/test_qchem_mom_sp.py::test_mom_job_splitting_and_raw_output PASSED [ 92%]
+tests/parsers/qchem/test_qchem_mom_sp.py::test_mom_initial_scf_job_results PASSED [ 92%]
+tests/parsers/qchem/test_qchem_mom_sp.py::test_mom_driven_scf_job_results PASSED [ 92%]
+tests/parsers/qchem/test_qchem_mom_sp.py::test_mom_details_in_job2_scf_cycles PASSED [ 93%]
+tests/parsers/qchem/test_qchem_mom_sp.py::test_specific_mom_scf_iterations_job2 PASSED [ 93%]
+tests/parsers/qchem/test_qchem_mom_sp.py::test_mom_smd_job2_iterations_and_smd_energies PASSED [ 93%]
+tests/parsers/qchem/test_qchem_mom_xas.py::test_mom_xas_job_splitting_and_raw_output PASSED [ 93%]
+tests/parsers/qchem/test_qchem_mom_xas.py::test_mom_xas_job1_scf_results PASSED [ 93%]
+tests/parsers/qchem/test_qchem_mom_xas.py::test_mom_xas_job2_scf_results PASSED [ 94%]
+tests/parsers/qchem/test_qchem_mom_xas.py::test_mom_xas_job2_scf_iterations PASSED [ 94%]
+tests/parsers/qchem/test_qchem_mom_xas.py::test_mom_xas_job2_tddft_tda_states PASSED [ 94%]
+tests/parsers/qchem/test_qchem_mom_xas.py::test_mom_xas_job2_excited_state_analysis PASSED [ 94%]
+tests/parsers/qchem/test_qchem_mom_xas.py::test_mom_xas_job2_transition_density_matrix_analysis PASSED [ 94%]
+tests/parsers/qchem/test_qchem_mom_xas.py::test_mom_xas_job2_nto_analysis PASSED [ 95%]
+tests/parsers/qchem/test_qchem_sp.py::test_parse_qchem_sp_output_h2o FAILED [ 95%]
+tests/parsers/qchem/test_qchem_sp.py::test_malformed_final_energy PASSED [ 95%]
+tests/parsers/qchem/test_qchem_sp.py::test_malformed_nuclear_repulsion PASSED [ 95%]
+tests/parsers/qchem/test_qchem_sp.py::test_explicit_error_termination PASSED [ 95%]
+tests/parsers/qchem/test_qchem_sp.py::test_missing_normal_termination PASSED [ 95%]
+tests/parsers/qchem/test_qchem_sp.py::test_missing_input_geometry PASSED [ 96%]
+tests/parsers/qchem/test_qchem_sp.py::test_premature_end_during_block_parsing PASSED [ 96%]
+tests/parsers/qchem/test_qchem_sp.py::test_empty_input PASSED            [ 96%]
+tests/parsers/qchem/test_qchem_sp.py::test_minimal_header_input PASSED   [ 96%]
+tests/parsers/qchem/test_qchem_sp.py::test_parse_qchem_sp_output_h2o_smd PASSED [ 96%]
+tests/parsers/qchem/test_qchem_sp.py::test_parse_qchem_sp_output_h2o_tzvppd_smd PASSED [ 97%]
+tests/parsers/qchem/test_qchem_tddft.py::test_parse_qchem_tddft_output_h2o FAILED [ 97%]
+tests/parsers/qchem-5.4/test_qchem_54_sp.py::test_parse_qchem54_sp_smd_output FAILED [ 97%]
+tests/parsers/qchem-5.4/test_qchem_54_sp.py::test_parse_full_qchem54_sp_smd_file ERROR [ 97%]
+tests/test_core.py::test_simple_input_valid_creation PASSED              [ 97%]
+tests/test_core.py::test_creation_invalid_spin_multiplicity[-1] PASSED   [ 97%]
+tests/test_core.py::test_creation_invalid_spin_multiplicity[0] PASSED    [ 98%]
+tests/test_core.py::test_creation_invalid_charge_type[0] PASSED          [ 98%]
+tests/test_core.py::test_creation_invalid_charge_type[1.5] PASSED        [ 98%]
+tests/test_core.py::test_creation_invalid_charge_type[invalid] PASSED    [ 98%]
+tests/test_core.py::test_creation_invalid_charge_type[-1] PASSED         [ 98%]
+tests/test_core.py::test_creation_invalid_charge_type[+1] PASSED         [ 99%]
+tests/test_core.py::test_set_memory PASSED                               [ 99%]
+tests/test_core.py::test_set_memory_per_core PASSED                      [ 99%]
+tests/test_core.py::test_post_init_warnings PASSED                       [ 99%]
+tests/test_core.py::test_set_charge PASSED                               [ 99%]
+tests/test_core.py::test_export_input_file PASSED                        [100%]
+
+==================================== ERRORS ====================================
+____________ ERROR at setup of test_parse_full_qchem54_sp_smd_file _____________
+
+output = '\nRunning Job 1 of 1 sp-smd-sto.in\nqchem sp-smd-sto.in_920625.0 /vast/palmer/scratch/batista/am3939/qchem-scratch/qc...                                        *\n        *************************************************************\n\n\n'
+parser_registry = [<calcflow.parsers.qchem.blocks.metadata.MetadataParser object at 0x104ec03e0>, <calcflow.parsers.qchem.blocks.rem.Rem...cf.ScfParser object at 0x104ec0140>, <calcflow.parsers.qchem.blocks.orbitals.OrbitalParser object at 0x104f4a7b0>, ...]
+
+    def _parse_qchem_generic_output(output: str, parser_registry: Sequence[SectionParser]) -> CalculationData:
+        """
+        Parses the text output of a Q-Chem calculation using a given parser registry.
+    
+        Args:
+            output: The string content of the Q-Chem output file.
+            parser_registry: A sequence of SectionParser instances to use.
+    
+        Returns:
+            A CalculationData object containing the parsed results.
+    
+        Raises:
+            ParsingError: If essential components cannot be parsed or critical errors occur.
+        """
+        lines = output.splitlines()
+        line_iterator: LineIterator = iter(lines)
+        results = _MutableCalculationData(raw_output=output)
+    
+        current_line_num = 0
+        try:
+            while True:
+                try:
+                    if results.buffered_line is not None:
+                        line = results.buffered_line
+                        results.buffered_line = None  # Consume the buffered line
+                    else:
+                        line = next(line_iterator)
+                        current_line_num += 1
+                except StopIteration:
+                    if results.buffered_line is not None:  # Should not happen if logic is correct # pragma: no cover
+                        logger.error(
+                            "StopIteration reached with a buffered line pending. This is a bug."
+                        )  # pragma: no cover
+                        line = results.buffered_line  # pragma: no cover
+                        results.buffered_line = None  # pragma: no cover
+                        # Continue to process this last buffered line
+                    else:  # pragma: no cover
+                        logger.debug("Core main loop: Reached end of input.")  # pragma: no cover
+                        break  # pragma: no cover
+    
+                # --- Handle Block Parsing --- #
+                parser_found = False
+                # Keep track of which parser matched for logging after the loop
+                # and for error messages if parse() fails.
+                successful_parser_name_for_block = "None"
+                match_line_num = -1  # Line number where a parser matched
+    
+                for parser in parser_registry:  # Use the passed parser_registry
+                    current_parser_being_tried = type(parser).__name__
+                    try:
+                        if parser.matches(line, results):
+                            match_line_num = current_line_num  # Capture line number of the match
+                            successful_parser_name_for_block = current_parser_being_tried
+    
+                            logger.info(
+                                f"Core dispatch: Line {match_line_num} ('{line.strip()}')"
+                                f" MATCHED by {successful_parser_name_for_block}. Calling .parse()."
+                            )
+    
+>                           parser.parse(line_iterator, line, results)
+
+src/calcflow/parsers/qchem/core.py:153: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/calcflow/parsers/qchem/blocks/scf.py:275: in parse
+    self._process_patterns(line, results, in_smd_summary_block)
+src/calcflow/parsers/qchem/blocks/scf.py:420: in _process_patterns
+    versioned_pattern = pattern_def.get_matching_pattern(qchem_version)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PatternDefinition(field_name='final_energy', patterns=[VersionedPattern(pattern=re.compile('^\\s*Total energy\\s*=\\s*...function <lambda> at 0x104f52980>)], required=False, block_type=None, description='Total energy including corrections')
+version = VersionSpec(major=5, minor=4, patch=0)
+
+    def get_matching_pattern(self, version: VersionSpec) -> VersionedPattern | None:
+        """Get the best matching pattern for the given version.
+    
+        If only one pattern exists and it has no version, it's used for all versions.
+        If multiple patterns exist, use the one from the latest version that's <= current version.
+        If no patterns match the version criteria, return None.
+        """
+        if version is None:
+            raise ValueError("Version is required")
+        if not self.patterns:
+            raise ValueError("No patterns defined for this definition")
+    
+        # If only one pattern with no version, use it for all versions
+        if len(self.patterns) == 1:
+            return self.patterns[0]
+    
+        # Find the latest version <= current version
+        best_pattern = None
+        for pattern in self.patterns:
+            if pattern.version <= version:
+                best_pattern = pattern
+            else:
+                break
+        if best_pattern is None:
+>           raise ValueError(f"No pattern found for version {version}")
+E           ValueError: No pattern found for version 5.4.0
+
+src/calcflow/parsers/qchem/typing/pattern.py:164: ValueError
+
+The above exception was the direct cause of the following exception:
+
+    @pytest.fixture(scope="module")
+    def parsed_sp_sto_smd() -> CalculationData:
+        """Fixture to parse the standard single point output file."""
+>       return qchem.parse_qchem_sp_output((ex_folder / "h2o-5.4" / "sp-sto-smd.out").read_text())
+
+tests/parsers/qchem-5.4/conftest.py:21: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/calcflow/parsers/qchem/core.py:267: in parse_qchem_sp_output
+    return _parse_qchem_generic_output(output, PARSER_REGISTRY_SP)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+output = '\nRunning Job 1 of 1 sp-smd-sto.in\nqchem sp-smd-sto.in_920625.0 /vast/palmer/scratch/batista/am3939/qchem-scratch/qc...                                        *\n        *************************************************************\n\n\n'
+parser_registry = [<calcflow.parsers.qchem.blocks.metadata.MetadataParser object at 0x104ec03e0>, <calcflow.parsers.qchem.blocks.rem.Rem...cf.ScfParser object at 0x104ec0140>, <calcflow.parsers.qchem.blocks.orbitals.OrbitalParser object at 0x104f4a7b0>, ...]
+
+    def _parse_qchem_generic_output(output: str, parser_registry: Sequence[SectionParser]) -> CalculationData:
+        """
+        Parses the text output of a Q-Chem calculation using a given parser registry.
+    
+        Args:
+            output: The string content of the Q-Chem output file.
+            parser_registry: A sequence of SectionParser instances to use.
+    
+        Returns:
+            A CalculationData object containing the parsed results.
+    
+        Raises:
+            ParsingError: If essential components cannot be parsed or critical errors occur.
+        """
+        lines = output.splitlines()
+        line_iterator: LineIterator = iter(lines)
+        results = _MutableCalculationData(raw_output=output)
+    
+        current_line_num = 0
+        try:
+            while True:
+                try:
+                    if results.buffered_line is not None:
+                        line = results.buffered_line
+                        results.buffered_line = None  # Consume the buffered line
+                    else:
+                        line = next(line_iterator)
+                        current_line_num += 1
+                except StopIteration:
+                    if results.buffered_line is not None:  # Should not happen if logic is correct # pragma: no cover
+                        logger.error(
+                            "StopIteration reached with a buffered line pending. This is a bug."
+                        )  # pragma: no cover
+                        line = results.buffered_line  # pragma: no cover
+                        results.buffered_line = None  # pragma: no cover
+                        # Continue to process this last buffered line
+                    else:  # pragma: no cover
+                        logger.debug("Core main loop: Reached end of input.")  # pragma: no cover
+                        break  # pragma: no cover
+    
+                # --- Handle Block Parsing --- #
+                parser_found = False
+                # Keep track of which parser matched for logging after the loop
+                # and for error messages if parse() fails.
+                successful_parser_name_for_block = "None"
+                match_line_num = -1  # Line number where a parser matched
+    
+                for parser in parser_registry:  # Use the passed parser_registry
+                    current_parser_being_tried = type(parser).__name__
+                    try:
+                        if parser.matches(line, results):
+                            match_line_num = current_line_num  # Capture line number of the match
+                            successful_parser_name_for_block = current_parser_being_tried
+    
+                            logger.info(
+                                f"Core dispatch: Line {match_line_num} ('{line.strip()}')"
+                                f" MATCHED by {successful_parser_name_for_block}. Calling .parse()."
+                            )
+    
+                            parser.parse(line_iterator, line, results)
+    
+                            logger.info(f"Core dispatch: {successful_parser_name_for_block} .parse() completed.")
+                            parser_found = True
+                            break  # Only one parser should handle the start of a block
+                    except ParsingError as e:  # pragma: no cover
+                        err_line_ref = match_line_num if match_line_num != -1 else current_line_num  # pragma: no cover
+                        logger.error(
+                            f"Parser {current_parser_being_tried} failed critically near line {err_line_ref}: {e}",
+                            exc_info=True,
+                        )  # pragma: no cover
+                        raise  # pragma: no cover
+                    except StopIteration as e:  # pragma: no cover
+                        err_line_ref = match_line_num if match_line_num != -1 else current_line_num  # pragma: no cover
+                        logger.error(
+                            f"Parser {current_parser_being_tried} unexpectedly consumed end of iterator near line {err_line_ref}.",
+                            exc_info=True,
+                        )  # pragma: no cover
+                        raise ParsingError(
+                            f"File ended unexpectedly during {current_parser_being_tried} parsing."
+                        ) from e  # pragma: no cover
+                    except Exception as e:  # pragma: no cover
+                        err_line_ref = match_line_num if match_line_num != -1 else current_line_num  # pragma: no cover
+                        logger.error(
+                            f"Unexpected error in {current_parser_being_tried} near line {err_line_ref}: {e}", exc_info=True
+                        )  # pragma: no cover
+                        results.parsing_errors.append(
+                            f"Error in {current_parser_being_tried} near line {err_line_ref}: {e}"
+                        )  # pragma: no cover
+>                       raise ParsingError(
+                            f"Unexpected error in {current_parser_being_tried} near line {err_line_ref}: {e}"
+                        ) from e  # pragma: no cover
+E                       calcflow.exceptions.ParsingError: Unexpected error in ScfParser near line 169: No pattern found for version 5.4.0
+
+src/calcflow/parsers/qchem/core.py:182: ParsingError
+---------------------------- Captured stdout setup -----------------------------
+2025-05-19 11:45:32 [INFO] calcflow: Starting Q-Chem Single Point (SP) output parsing.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 9 ('Q-Chem 5.4, Q-Chem, Inc., Pleasanton, CA (2021)') MATCHED by MetadataParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: MetadataParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 92 ('Q-Chem begins on Sun May 18 17:41:08 2025') MATCHED by MetadataParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: MetadataParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 108 ('$molecule') MATCHED by GeometryParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Parsed input geometry with 3 atoms.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: GeometryParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 110 ('$rem') MATCHED by RemBlockParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: RemBlockParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 112 ('$smx') MATCHED by SmxBlockParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: SmxBlockParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 123 ('Standard Nuclear Orientation (Angstroms)') MATCHED by GeometryParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Parsed standard orientation geometry with 3 atoms.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: GeometryParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 169 ('General SCF calculation program by') MATCHED by ScfParser. Calling .parse().
+2025-05-19 11:45:32 [ERROR] calcflow: Unexpected error in ScfParser near line 169: No pattern found for version 5.4.0
+Traceback (most recent call last):
+  File "/Users/morgunov/Developer/batista/calcflow/src/calcflow/parsers/qchem/core.py", line 153, in _parse_qchem_generic_output
+    parser.parse(line_iterator, line, results)
+  File "/Users/morgunov/Developer/batista/calcflow/src/calcflow/parsers/qchem/blocks/scf.py", line 275, in parse
+    self._process_patterns(line, results, in_smd_summary_block)
+  File "/Users/morgunov/Developer/batista/calcflow/src/calcflow/parsers/qchem/blocks/scf.py", line 420, in _process_patterns
+    versioned_pattern = pattern_def.get_matching_pattern(qchem_version)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/morgunov/Developer/batista/calcflow/src/calcflow/parsers/qchem/typing/pattern.py", line 164, in get_matching_pattern
+    raise ValueError(f"No pattern found for version {version}")
+ValueError: No pattern found for version 5.4.0
+------------------------------ Captured log setup ------------------------------
+INFO     calcflow:core.py:266 Starting Q-Chem Single Point (SP) output parsing.
+INFO     calcflow:core.py:148 Core dispatch: Line 9 ('Q-Chem 5.4, Q-Chem, Inc., Pleasanton, CA (2021)') MATCHED by MetadataParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: MetadataParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 92 ('Q-Chem begins on Sun May 18 17:41:08 2025') MATCHED by MetadataParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: MetadataParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 108 ('$molecule') MATCHED by GeometryParser. Calling .parse().
+INFO     calcflow:geometry.py:139 Parsed input geometry with 3 atoms.
+INFO     calcflow:core.py:155 Core dispatch: GeometryParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 110 ('$rem') MATCHED by RemBlockParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: RemBlockParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 112 ('$smx') MATCHED by SmxBlockParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: SmxBlockParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 123 ('Standard Nuclear Orientation (Angstroms)') MATCHED by GeometryParser. Calling .parse().
+INFO     calcflow:geometry.py:143 Parsed standard orientation geometry with 3 atoms.
+INFO     calcflow:core.py:155 Core dispatch: GeometryParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 169 ('General SCF calculation program by') MATCHED by ScfParser. Calling .parse().
+ERROR    calcflow:core.py:176 Unexpected error in ScfParser near line 169: No pattern found for version 5.4.0
+Traceback (most recent call last):
+  File "/Users/morgunov/Developer/batista/calcflow/src/calcflow/parsers/qchem/core.py", line 153, in _parse_qchem_generic_output
+    parser.parse(line_iterator, line, results)
+  File "/Users/morgunov/Developer/batista/calcflow/src/calcflow/parsers/qchem/blocks/scf.py", line 275, in parse
+    self._process_patterns(line, results, in_smd_summary_block)
+  File "/Users/morgunov/Developer/batista/calcflow/src/calcflow/parsers/qchem/blocks/scf.py", line 420, in _process_patterns
+    versioned_pattern = pattern_def.get_matching_pattern(qchem_version)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/morgunov/Developer/batista/calcflow/src/calcflow/parsers/qchem/typing/pattern.py", line 164, in get_matching_pattern
+    raise ValueError(f"No pattern found for version {version}")
+ValueError: No pattern found for version 5.4.0
+=================================== FAILURES ===================================
+________________________ test_parse_qchem_sp_output_h2o ________________________
+
+parsed_sp_sto_data = CalculationData(method='wb97x-d3', basis='sto-3g', status='NORMAL')
+
+    def test_parse_qchem_sp_output_h2o(parsed_sp_sto_data: CalculationData) -> None:
+        """
+        Integration test for parsing the standard H2O SP output file.
+    
+        Verifies that the main fields extracted by parse_qchem_sp_output match
+        the expected values from the data/calculations/examples/qchem/h2o/sp.out file.
+        """
+        data = parsed_sp_sto_data
+    
+        # --- Top-Level Checks ---
+        assert data.termination_status == "NORMAL"
+        # --- Metadata Checks ---
+        assert data.metadata.qchem_version == "6.2"
+>       assert data.final_energy == approx(-75.31188446)
+E       assert None == -75.31188446 ± 7.5e-05
+E         
+E         comparison failed
+E         Obtained: None
+E         Expected: -75.31188446 ± 7.5e-05
+
+tests/parsers/qchem/test_qchem_sp.py:32: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+2025-05-19 11:45:32 [INFO] calcflow: Starting Q-Chem Single Point (SP) output parsing.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 9 ('Q-Chem 6.2, Q-Chem, Inc., Pleasanton, CA (2024)') MATCHED by MetadataParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: MetadataParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 104 ('Q-Chem begins on Sun May  4 14:52:42 2025') MATCHED by MetadataParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: MetadataParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 106 ('Host: login30') MATCHED by MetadataParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: MetadataParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 119 ('$molecule') MATCHED by GeometryParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Parsed input geometry with 3 atoms.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: GeometryParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 121 ('$rem') MATCHED by RemBlockParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: RemBlockParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 133 ('Standard Nuclear Orientation (Angstroms)') MATCHED by GeometryParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Parsed standard orientation geometry with 3 atoms.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: GeometryParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 162 ('General SCF calculation program by') MATCHED by ScfParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Parsed SCF data. Converged: True, Energy: -75.31188446, Iterations: 7.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: ScfParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 162 ('Orbital Energies (a.u.)') MATCHED by OrbitalParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: OrbitalParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 164 ('Ground-State Mulliken Net Atomic Charges') MATCHED by MullikenChargesParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Successfully parsed and stored 3 Mulliken charges.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: MullikenChargesParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 168 ('Cartesian Multipole Moments') MATCHED by MultipoleParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: MultipoleParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Q-Chem SP parsing finished. Status: NORMAL, Final Energy: None
+------------------------------ Captured log setup ------------------------------
+INFO     calcflow:core.py:266 Starting Q-Chem Single Point (SP) output parsing.
+INFO     calcflow:core.py:148 Core dispatch: Line 9 ('Q-Chem 6.2, Q-Chem, Inc., Pleasanton, CA (2024)') MATCHED by MetadataParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: MetadataParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 104 ('Q-Chem begins on Sun May  4 14:52:42 2025') MATCHED by MetadataParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: MetadataParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 106 ('Host: login30') MATCHED by MetadataParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: MetadataParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 119 ('$molecule') MATCHED by GeometryParser. Calling .parse().
+INFO     calcflow:geometry.py:139 Parsed input geometry with 3 atoms.
+INFO     calcflow:core.py:155 Core dispatch: GeometryParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 121 ('$rem') MATCHED by RemBlockParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: RemBlockParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 133 ('Standard Nuclear Orientation (Angstroms)') MATCHED by GeometryParser. Calling .parse().
+INFO     calcflow:geometry.py:143 Parsed standard orientation geometry with 3 atoms.
+INFO     calcflow:core.py:155 Core dispatch: GeometryParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 162 ('General SCF calculation program by') MATCHED by ScfParser. Calling .parse().
+INFO     calcflow:scf.py:365 Parsed SCF data. Converged: True, Energy: -75.31188446, Iterations: 7.
+INFO     calcflow:core.py:155 Core dispatch: ScfParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 162 ('Orbital Energies (a.u.)') MATCHED by OrbitalParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: OrbitalParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 164 ('Ground-State Mulliken Net Atomic Charges') MATCHED by MullikenChargesParser. Calling .parse().
+INFO     calcflow:charges.py:121 Successfully parsed and stored 3 Mulliken charges.
+INFO     calcflow:core.py:155 Core dispatch: MullikenChargesParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 168 ('Cartesian Multipole Moments') MATCHED by MultipoleParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: MultipoleParser .parse() completed.
+INFO     calcflow:core.py:247 Q-Chem SP parsing finished. Status: NORMAL, Final Energy: None
+______________________ test_parse_qchem_tddft_output_h2o _______________________
+
+parsed_tddft_pc2_data = CalculationData(method='wb97x-d3', basis='pc-2', status='NORMAL')
+
+    def test_parse_qchem_tddft_output_h2o(parsed_tddft_pc2_data: CalculationData) -> None:
+        """
+        Integration test for parsing the H2O TDDFT output file (tddft-rks-pc2.out).
+    
+        Verifies that the main fields extracted by parse_qchem_sp_output match
+        the expected values.
+        """
+        data = parsed_tddft_pc2_data
+    
+        # --- Top-Level Checks ---
+        assert data.termination_status == "NORMAL"
+        # The final_energy should be the ground state SCF energy
+>       assert data.final_energy == approx(-76.44125314)
+E       assert None == -76.44125314 ± 7.6e-05
+E         
+E         comparison failed
+E         Obtained: None
+E         Expected: -76.44125314 ± 7.6e-05
+
+tests/parsers/qchem/test_qchem_tddft.py:28: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+2025-05-19 11:45:32 [INFO] calcflow: Starting Q-Chem TDDFT output parsing.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 9 ('Q-Chem 6.2, Q-Chem, Inc., Pleasanton, CA (2024)') MATCHED by MetadataParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: MetadataParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 104 ('Q-Chem begins on Sun May  4 12:07:16 2025') MATCHED by MetadataParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: MetadataParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 106 ('Host: login12') MATCHED by MetadataParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: MetadataParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 119 ('$molecule') MATCHED by GeometryParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Parsed input geometry with 3 atoms.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: GeometryParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 121 ('$rem') MATCHED by RemBlockParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: RemBlockParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 133 ('Standard Nuclear Orientation (Angstroms)') MATCHED by GeometryParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Parsed standard orientation geometry with 3 atoms.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: GeometryParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 162 ('General SCF calculation program by') MATCHED by ScfParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Parsed SCF data. Converged: True, Energy: -76.44125314, Iterations: 10.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: ScfParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 162 ('TDDFT/TDA Excitation Energies') MATCHED by TDAExcitationEnergiesParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Successfully parsed 10 states from TDA block.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: TDAExcitationEnergiesParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 185 ('TDDFT Excitation Energies') MATCHED by TDDFTExcitationEnergiesParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Successfully parsed 10 states from TDDFT block.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: TDDFTExcitationEnergiesParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 195 ('Ground State (Reference) :') MATCHED by GroundStateReferenceParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Stored Ground State Reference analysis data.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: GroundStateReferenceParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 195 ('Analysis of Unrelaxed Density Matrices') MATCHED by UnrelaxedExcitedStatePropertiesParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Parsing section: Analysis of Unrelaxed Density Matrices
+2025-05-19 11:45:32 [INFO] calcflow: Found 'Transition Density Matrix Analysis'. Stopping parser.
+2025-05-19 11:45:32 [INFO] calcflow: Successfully parsed 10 states from 'Analysis of Unrelaxed Density Matrices'.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: UnrelaxedExcitedStatePropertiesParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 195 ('Transition Density Matrix Analysis') MATCHED by TransitionDensityMatrixParser. Calling .parse().
+2025-05-19 11:45:32 [WARNING] calcflow: Unrecognized line in exciton data block, stopping parsing for this block: '----------------------------------------------------------------------------'
+2025-05-19 11:45:32 [INFO] calcflow: Finished parsing TDM Analysis. Found 10 states.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: TransitionDensityMatrixParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 195 ('SA-NTO Decomposition') MATCHED by NTODecompositionParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: NTODecompositionParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 199 ('Orbital Energies (a.u.)') MATCHED by OrbitalParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: OrbitalParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: Line 202 ('Cartesian Multipole Moments') MATCHED by MultipoleParser. Calling .parse().
+2025-05-19 11:45:32 [INFO] calcflow: Core dispatch: MultipoleParser .parse() completed.
+2025-05-19 11:45:32 [INFO] calcflow: Q-Chem SP parsing finished. Status: NORMAL, Final Energy: None
+------------------------------ Captured log setup ------------------------------
+INFO     calcflow:core.py:281 Starting Q-Chem TDDFT output parsing.
+INFO     calcflow:core.py:148 Core dispatch: Line 9 ('Q-Chem 6.2, Q-Chem, Inc., Pleasanton, CA (2024)') MATCHED by MetadataParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: MetadataParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 104 ('Q-Chem begins on Sun May  4 12:07:16 2025') MATCHED by MetadataParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: MetadataParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 106 ('Host: login12') MATCHED by MetadataParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: MetadataParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 119 ('$molecule') MATCHED by GeometryParser. Calling .parse().
+INFO     calcflow:geometry.py:139 Parsed input geometry with 3 atoms.
+INFO     calcflow:core.py:155 Core dispatch: GeometryParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 121 ('$rem') MATCHED by RemBlockParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: RemBlockParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 133 ('Standard Nuclear Orientation (Angstroms)') MATCHED by GeometryParser. Calling .parse().
+INFO     calcflow:geometry.py:143 Parsed standard orientation geometry with 3 atoms.
+INFO     calcflow:core.py:155 Core dispatch: GeometryParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 162 ('General SCF calculation program by') MATCHED by ScfParser. Calling .parse().
+INFO     calcflow:scf.py:365 Parsed SCF data. Converged: True, Energy: -76.44125314, Iterations: 10.
+INFO     calcflow:core.py:155 Core dispatch: ScfParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 162 ('TDDFT/TDA Excitation Energies') MATCHED by TDAExcitationEnergiesParser. Calling .parse().
+INFO     calcflow:excitations.py:268 Successfully parsed 10 states from TDA block.
+INFO     calcflow:core.py:155 Core dispatch: TDAExcitationEnergiesParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 185 ('TDDFT Excitation Energies') MATCHED by TDDFTExcitationEnergiesParser. Calling .parse().
+INFO     calcflow:excitations.py:311 Successfully parsed 10 states from TDDFT block.
+INFO     calcflow:core.py:155 Core dispatch: TDDFTExcitationEnergiesParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 195 ('Ground State (Reference) :') MATCHED by GroundStateReferenceParser. Calling .parse().
+INFO     calcflow:gs_reference.py:200 Stored Ground State Reference analysis data.
+INFO     calcflow:core.py:155 Core dispatch: GroundStateReferenceParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 195 ('Analysis of Unrelaxed Density Matrices') MATCHED by UnrelaxedExcitedStatePropertiesParser. Calling .parse().
+INFO     calcflow:unrelaxed_dm.py:584 Parsing section: Analysis of Unrelaxed Density Matrices
+INFO     calcflow:unrelaxed_dm.py:626 Found 'Transition Density Matrix Analysis'. Stopping parser.
+INFO     calcflow:unrelaxed_dm.py:755 Successfully parsed 10 states from 'Analysis of Unrelaxed Density Matrices'.
+INFO     calcflow:core.py:155 Core dispatch: UnrelaxedExcitedStatePropertiesParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 195 ('Transition Density Matrix Analysis') MATCHED by TransitionDensityMatrixParser. Calling .parse().
+WARNING  calcflow:density.py:531 Unrecognized line in exciton data block, stopping parsing for this block: '----------------------------------------------------------------------------'
+INFO     calcflow:density.py:207 Finished parsing TDM Analysis. Found 10 states.
+INFO     calcflow:core.py:155 Core dispatch: TransitionDensityMatrixParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 195 ('SA-NTO Decomposition') MATCHED by NTODecompositionParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: NTODecompositionParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 199 ('Orbital Energies (a.u.)') MATCHED by OrbitalParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: OrbitalParser .parse() completed.
+INFO     calcflow:core.py:148 Core dispatch: Line 202 ('Cartesian Multipole Moments') MATCHED by MultipoleParser. Calling .parse().
+INFO     calcflow:core.py:155 Core dispatch: MultipoleParser .parse() completed.
+INFO     calcflow:core.py:247 Q-Chem SP parsing finished. Status: NORMAL, Final Energy: None
+_______________________ test_parse_qchem54_sp_smd_output _______________________
+
+parser = <calcflow.parsers.qchem.blocks.scf.ScfParser object at 0x1063ae9c0>
+sample_qchem54_sp_smd_output = [' -----------------------------------------------------------------------', '  General SCF calculation program by', '...------------------------------------------------------------------', ' Exchange:     PBE0', ' Correlation:  None', ...]
+initial_data_qchem54 = _MutableCalculationData(raw_output='', termination_status='UNKNOWN', qchem_version=VersionSpec(major=5, minor=4, patch...lse, parsed_tddft_excitations=False, parsed_sa_nto_decomposition=False, gs_reference_analysis=None, buffered_line=None)
+caplog = <_pytest.logging.LogCaptureFixture object at 0x1063af080>
+
+    def test_parse_qchem54_sp_smd_output(
+        parser: ScfParser,
+        sample_qchem54_sp_smd_output: list[str],
+        initial_data_qchem54: _MutableCalculationData,
+        caplog,
+    ) -> None:
+        """Test parsing a Q-Chem 5.4 SP SMD output block focusing on SCF and related energies."""
+        scf_start_line_content = ""
+        scf_start_line_index = -1
+    
+        for i, line in enumerate(sample_qchem54_sp_smd_output):
+            if parser.matches(line, initial_data_qchem54):
+                scf_start_line_content = line
+                scf_start_line_index = i
+                break
+    
+        assert scf_start_line_index != -1, "SCF start pattern not found in sample output"
+    
+        line_iter_for_parse = iter(sample_qchem54_sp_smd_output[scf_start_line_index + 1 :])
+        results = initial_data_qchem54
+>       parser.parse(line_iter_for_parse, scf_start_line_content, results)
+
+tests/parsers/qchem-5.4/test_qchem_54_sp.py:88: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/calcflow/parsers/qchem/blocks/scf.py:275: in parse
+    self._process_patterns(line, results, in_smd_summary_block)
+src/calcflow/parsers/qchem/blocks/scf.py:420: in _process_patterns
+    versioned_pattern = pattern_def.get_matching_pattern(qchem_version)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PatternDefinition(field_name='final_energy', patterns=[VersionedPattern(pattern=re.compile('^\\s*Total energy\\s*=\\s*...function <lambda> at 0x104f52980>)], required=False, block_type=None, description='Total energy including corrections')
+version = VersionSpec(major=5, minor=4, patch=0)
+
+    def get_matching_pattern(self, version: VersionSpec) -> VersionedPattern | None:
+        """Get the best matching pattern for the given version.
+    
+        If only one pattern exists and it has no version, it's used for all versions.
+        If multiple patterns exist, use the one from the latest version that's <= current version.
+        If no patterns match the version criteria, return None.
+        """
+        if version is None:
+            raise ValueError("Version is required")
+        if not self.patterns:
+            raise ValueError("No patterns defined for this definition")
+    
+        # If only one pattern with no version, use it for all versions
+        if len(self.patterns) == 1:
+            return self.patterns[0]
+    
+        # Find the latest version <= current version
+        best_pattern = None
+        for pattern in self.patterns:
+            if pattern.version <= version:
+                best_pattern = pattern
+            else:
+                break
+        if best_pattern is None:
+>           raise ValueError(f"No pattern found for version {version}")
+E           ValueError: No pattern found for version 5.4.0
+
+src/calcflow/parsers/qchem/typing/pattern.py:164: ValueError
+=========================== short test summary info ============================
+FAILED tests/parsers/qchem/test_qchem_sp.py::test_parse_qchem_sp_output_h2o
+FAILED tests/parsers/qchem/test_qchem_tddft.py::test_parse_qchem_tddft_output_h2o
+FAILED tests/parsers/qchem-5.4/test_qchem_54_sp.py::test_parse_qchem54_sp_smd_output
+ERROR tests/parsers/qchem-5.4/test_qchem_54_sp.py::test_parse_full_qchem54_sp_smd_file
+==================== 3 failed, 538 passed, 1 error in 0.32s ====================

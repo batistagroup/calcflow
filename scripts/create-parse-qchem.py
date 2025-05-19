@@ -18,6 +18,7 @@ xyz_1h2o = Geometry.from_xyz_file(data_path / "geometries" / "1h2o.xyz")
 
 
 clc_folder = calcs_path / "examples" / "qchem" / "h2o"
+clc_54_folder = calcs_path / "examples" / "qchem" / "h2o-5.4"
 clc_folder.mkdir(parents=True, exist_ok=True)
 
 # fmt:off
@@ -36,7 +37,8 @@ run = {
     "tddft-create": False,
     "tddft-parse": False,
     "mom-parse": False,
-    "mom-xas-parse": True,
+    "mom-xas-parse": False,
+    "sp-parse-5.4": True,
 }
 
 if run["sp-create"]:
@@ -119,4 +121,10 @@ if run["mom-xas-parse"]:
     print(mom_pc2.job2)
     print(mom_pc2.job2.scf)
     print(mom_pc2.job2.tddft)
-    breakpoint()
+
+if run["sp-parse-5.4"]:
+    sp_sto = parse_qchem_sp_output((clc_54_folder / "sp-sto-smd.out").read_text())
+    print(sp_sto)
+    print(sp_sto.metadata)
+    print(sp_sto.final_energy)
+    print(sp_sto.smd)

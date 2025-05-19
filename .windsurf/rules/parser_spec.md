@@ -1,0 +1,62 @@
+---
+trigger: model_decision
+description: 
+globs: 
+---
+# Parser Design Specification
+
+The core philosophy for parsing output files is: **Every parser is a specialist. It knows its own section, and as soon as it sees something that's not its business, it stops, puts the line back, and lets the next specialist take a look.** No heroics, no guessing.
+
+All parsers must adhere to the following structure and behavior for their primary methods:
+
+## 1. `matches(self, line: str, current_data: _MutableCalculationData) -> bool` Method
+
+This method is responsible for identifying if a given line marks the beginning of the section this parser is designed to handle.
+
+*   **Read-Only Operation:** This method **must not** advance any shared iterator (e.g., the main line iterator for the file). It should only inspect the `line` argument.
+*   **Conditions for `True`:** It returns `True` if and only if:
+    *   The `line` is a definitive, unique starting marker for the section this parser handles.
+    *   The corresponding `parsed_this_section_flag` (e.g., `current_data.parsed_my_section_flag`) in `current_data` is `False`. This prevents re-parsing the same section if encountered again (though ideally, the main parsing loop should also prevent this).
+*   **No Side Effects:** This method should have no other side effects on `current_data` or any other global state.
+
+## 2. `parse(self, iterator: LineIterator, first_line: str, results: _MutableCalculationData) -> None` Method
+
+This method is responsible for consuming and interpreting all lines belonging to its designated section.
+
+*   **`first_line` Argument:** The `first_line` argument is the exact line that the `matches()` method identified as the start of the section. This line is considered consumed by the act of calling `parse` (i.e., the `iterator` is already positioned *after* this `first_line` when `parse` begins, or `parse` should consume it if it was passed in directly).
+*   **Internal Loop:** The method should typically enter a loop to process subsequent lines from the `iterator`.
+*   **Line Fetching:** Inside the loop, fetch the next line using a `try-except` block to handle `StopIteration`:
+    ```python
+    try:
+        line = next(iterator)
+    except StopIteration:
+        # Handle end of file: log, set flag, return
+        results.parsed_this_section_flag = True
+        logger.warning("File ended unexpectedly while parsing MySection.")
+        return
+    ```
+*   **Termination Conditions (Order of Precedence):**
+
+    1.  **Explicit End-Marker for Current Section:**
+        *   If `line` matches a known, unambiguous end-marker for *this specific parser's section*.
+        *   Action: Consume the `line` if the end-marker itself is part of the section or needs to be accounted for. Set `results.parsed_this_section_flag = True`. `return` from the `parse` method.
+
+    2.  **Start-Marker for Another Major Section:**
+        *   If `line` matches a known starting marker for *another major, unrelated section* that this parser should definitely not handle. This often requires a registry or knowledge of other top-level section headers.
+        *   Action: **Push the line back** onto the iterator (e.g., `iterator = iter([line] + list(iterator))`). Set `results.parsed_this_section_flag = True`. `return` from the `parse` method.
+
+    3.  **Unrecognized Line (Implicit End of Section):**
+        *   If `line` is not an explicit end-marker (Condition 1), not a known next-section header (Condition 2), and not recognized as valid content for the current section (including expected blank lines or separators that are explicitly handled).
+        *   Action: This indicates an unexpected format or the implicit end of the current section. Log a warning detailing the unrecognized line. **Push the line back** (`iterator = iter([line] + list(iterator))`). Set `results.parsed_this_section_flag = True`. `return` from the `parse` method.
+
+*   **Content Processing:**
+    *   If `line` is recognized as part of the current section's content (and not a termination condition), process it (extract data, update `results`).
+    *   `continue` the loop to fetch the next line.
+
+*   **Error Handling:**
+    *   Implement robust error handling for data conversion (e.g., `float()`, `int()`) and unexpected structures within the section. Log errors and potentially add them to `results.parsing_errors`.
+    *   If a non-recoverable error occurs within the section, it might be appropriate to log, set the `parsed_this_section_flag` (to indicate an attempt was made), and return, rather than letting the exception propagate and halt all parsing.
+
+*   **Post-Loop:** After the loop terminates (either by `return` or `StopIteration`), ensure the `parsed_this_section_flag` in `results` is set to `True`.
+
+This disciplined "stop and give back" strategy ensures that each parser only consumes what it's absolutely sure about. Any line not explicitly handled by a parser's defined section content or its known end-markers will be available for subsequent parsers, ensuring that all parts of the output file get a chance to be processed by the correct specialist.

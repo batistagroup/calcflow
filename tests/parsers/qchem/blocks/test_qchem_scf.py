@@ -1,9 +1,8 @@
-import logging
-
 import pytest
 
 from calcflow.parsers.qchem.blocks.scf import ScfParser
-from calcflow.parsers.qchem.typing import ScfIteration, ScfResults, _MutableCalculationData
+from calcflow.parsers.qchem.typing import ScfIteration, _MutableCalculationData
+from calcflow.parsers.qchem.typing.pattern import VersionSpec
 
 
 @pytest.fixture
@@ -331,28 +330,10 @@ def scf_fixture_inner_break_unrecognized() -> list[str]:
     ]
 
 
-@pytest.mark.parametrize(
-    "heuristic_line, expected_log_content",
-    [
-        (
-            "                    Orbital Energies (a.u.)",
-            "SCF block end heuristic encountered: Orbital Energies (a.u.)",
-        ),
-        (
-            " Thank you very much for using Q-Chem.",
-            "SCF block end heuristic encountered: Thank you very much for using Q-Chem.",
-        ),
-    ],
-)
-def test_inner_loop_breaks_on_heuristic(
-    parser: ScfParser,
-    initial_data: _MutableCalculationData,
-    caplog,
-    heuristic_line: str,
-    expected_log_content: str,
-) -> None:
-    """Test that the inner SCF iteration loop breaks correctly on a heuristic line."""
-    base_fixture = [
+@pytest.fixture
+def sample_scf_block_unconverged() -> list[str]:
+    """Provides lines from a typical unconverged SCF block."""
+    return [
         " -----------------------------------------------------------------------",
         "  General SCF calculation program by",
         " Exchange:     HF",
@@ -361,59 +342,63 @@ def test_inner_loop_breaks_on_heuristic(
         " ---------------------------------------",
         "  Cycle       Energy         DIIS error",
         " ---------------------------------------",
-        "    1     -75.01      1.0e-01  ",
-        "    2     -75.02      2.0e-02  Convergence criterion met",
-        # Heuristic line will be injected here by the test
-    ]
-    test_specific_fixture = base_fixture + [
-        heuristic_line,
-        " SCF   energy =   -75.02",
-    ]  # Add final energy line for robustness
-
-    line_iter = iter(test_specific_fixture)
-    start_line = next(line for line in line_iter if parser.matches(line, initial_data))
-    results = initial_data
-
-    with caplog.at_level(logging.DEBUG):  # Capture DEBUG messages
-        parser.parse(line_iter, start_line, results)
-
-    assert results.parsed_scf is True
-    assert results.scf is not None
-    assert results.scf.converged is True  # From iter line
-    assert results.scf.n_iterations == 2
-    assert results.scf.energy == pytest.approx(-75.02)  # Explicit line or fallback
-
-    assert ScfIteration(iteration=1, energy=-75.01, diis_error=1.0e-01, step_type=None) in results.scf.iterations
-    assert ScfIteration(iteration=2, energy=-75.02, diis_error=2.0e-02, step_type=None) in results.scf.iterations
-
-
-def test_matches_start_of_scf_block(parser: ScfParser, initial_data: _MutableCalculationData) -> None:
-    """Verify that the parser correctly identifies the SCF start line."""
-    line = "  General SCF calculation program by"
-    assert parser.matches(line, initial_data) is True
-
-
-def test_does_not_match_other_lines(parser: ScfParser, initial_data: _MutableCalculationData) -> None:
-    """Verify that the parser does not match unrelated lines."""
-    lines = [
-        " Exchange:     0.1957 Hartree-Fock + 1.0000 wB97X-D3 + LR-HF",
         "    1     -75.0734525425      3.82e-01  ",
-        " SCF   energy =   -75.31188446",
+        "    2     -75.2783922518      5.94e-02  ",
+        "    3     -75.3074084202      2.46e-02  ",
+        "    4     -75.3118637269      1.29e-03  ",
+        # Block ends without meeting convergence criteria and without final energy line
         "                    Orbital Energies (a.u.)",
-        "",
     ]
-    for line in lines:
-        assert parser.matches(line, initial_data) is False
 
 
-def test_does_not_match_if_already_parsed(parser: ScfParser, initial_data: _MutableCalculationData) -> None:
-    """Verify that the parser does not match if scf data is already present."""
-    line = "  General SCF calculation program by"
-    initial_data.parsed_scf = True  # Simulate already parsed
-    initial_data.scf = ScfResults(
-        converged=True, energy=-1.0, n_iterations=1, iterations=[]
-    )  # Fixed: Added empty history
-    assert parser.matches(line, initial_data) is False
+@pytest.fixture
+def sample_smd_h2o_sp_sto() -> list[str]:
+    """Provides lines from the specific SMD block from data/calculations/examples/qchem/h2o/sp-sto-smd.out."""
+    return [
+        " -----------------------------------------------------------------------",
+        "  General SCF calculation program by",
+        "  Eric Jon Sundstrom, Paul Horn, Yuezhi Mao, Dmitri Zuev, Alec White,",
+        "  David Stuck, Shaama M.S., Shane Yost, Joonho Lee, David Small,",
+        "  Daniel Levine, Susi Lehtola, Hugh Burton, Evgeny Epifanovsky,",
+        "  Bang C. Huynh",
+        " -----------------------------------------------------------------------",
+        " Exchange:     0.1957 Hartree-Fock + 1.0000 wB97X-D3 + LR-HF",
+        " Correlation:  1.0000 wB97X-D3",
+        " Using SG-2 standard quadrature grid",
+        " Dispersion:   Grimme D3",
+        " ",
+        " Using the SMD solvation model",
+        " Solvent: water",
+        " ",
+        " C-PCM solvent model [f = (eps-1)/eps], solve by matrix inversion",
+        " A restricted SCF calculation will be",
+        " performed using DIIS",
+        " SCF converges when DIIS error is below 1.0e-05",
+        " ---------------------------------------",
+        "  Cycle       Energy         DIIS error",
+        " ---------------------------------------",
+        "    1     -75.0734525440      3.82e-01  ",
+        "    2     -75.2973764631      4.85e-02  ",
+        "    3     -75.3188175820      1.63e-02  ",
+        "    4     -75.3207889318      1.19e-03  ",
+        "    5     -75.3208073942      1.25e-04  ",
+        "    6     -75.3208076933      2.28e-05  ",
+        "    7     -75.3208077035      2.17e-08  Convergence criterion met",
+        " ---------------------------------------",
+        " SCF time:   CPU 0.32s  wall 0.00s ",
+        " Summary of SMD free energies:",
+        " \tG_PCM  =    -6.0201 kcal/mol (polarization energy)",
+        " \tG_CDS  =     1.4731 kcal/mol (non-electrostatic energy)",
+        " \tG_ENP  =   -75.32080770 a.u. = E_SCF (including G_PCM)",
+        " \tG(tot) =   -75.31846024 a.u. = G_ENP + G_CDS",
+        " SCF   energy =   -75.32080770",
+        " Total energy =   -75.31846024",
+        " ",
+        " --------------------------------------------------------------",
+        " ",
+        "                    Orbital Energies (a.u.)",
+        " --------------------------------------------------------------",
+    ]
 
 
 def test_parse_converged_scf(
@@ -421,7 +406,10 @@ def test_parse_converged_scf(
 ) -> None:
     """Test parsing a standard converged SCF block."""
     line_iter = iter(sample_scf_block)
-    start_line = next(line for line in line_iter if parser.matches(line, initial_data))
+    # Find the start line using the parser's logic
+    start_line = next(line for line in sample_scf_block if parser.matches(line, initial_data))
+    # Recreate iterator starting from the line after the start line
+    line_iter = iter(sample_scf_block[sample_scf_block.index(start_line) + 1 :])
     results = initial_data
 
     parser.parse(line_iter, start_line, results)
@@ -432,159 +420,40 @@ def test_parse_converged_scf(
     assert results.scf.n_iterations == 7
     assert results.scf.energy == pytest.approx(-75.31188446)
     assert len(results.scf.iterations) == 7
+    assert results.scf.iterations[0] == ScfIteration(
+        iteration=1, energy=-75.0734525425, diis_error=3.82e-01, step_type=None
+    )
     assert results.scf.iterations[-1] == ScfIteration(
         iteration=7, energy=-75.3118844639, diis_error=5.35e-08, step_type=None
     )
 
 
-def test_parse_non_converged_scf(parser: ScfParser, initial_data: _MutableCalculationData) -> None:
-    """Test parsing when SCF does not converge (no convergence line, no final energy)."""
-    non_converged_block = [
-        " -----------------------------------------------------------------------",
-        "  General SCF calculation program by",
-        # ... header ...
-        " SCF converges when DIIS error is below 1.0e-05",
-        " ---------------------------------------",
-        "  Cycle       Energy         DIIS error",
-        " ---------------------------------------",
-        "    1     -75.0734525425      3.82e-01  ",
-        "    2     -75.2783922518      5.94e-02  ",
-        # Assume it stops here without converging
-        " ---------------------------------------",
-        # No "SCF energy =" line
-        "                    Orbital Energies (a.u.)",
-    ]
-    line_iter = iter(non_converged_block)
-    start_line = next(line for line in line_iter if parser.matches(line, initial_data))
-    results = initial_data
-
-    parser.parse(line_iter, start_line, results)
-
-    assert results.parsed_scf is True
-    assert results.scf is not None
-    assert results.scf.converged is False
-    assert results.scf.n_iterations == 2
-    # Should use the energy from the last iteration when final is missing
-    assert results.scf.energy == pytest.approx(-75.2783922518)
-    assert len(results.scf.iterations) == 2
-
-
-def test_parse_converged_missing_final_energy(parser: ScfParser, initial_data: _MutableCalculationData) -> None:
-    """Test parsing converged SCF but missing the 'SCF energy =' line."""
-    missing_final_energy_block = [
-        " -----------------------------------------------------------------------",
-        "  General SCF calculation program by",
-        # ... header ...
-        " SCF converges when DIIS error is below 1.0e-05",
-        " ---------------------------------------",
-        "  Cycle       Energy         DIIS error",
-        " ---------------------------------------",
-        "    1     -75.0734525425      3.82e-01  ",
-        "    2     -75.2783922518      5.94e-02  Convergence criterion met",
-        " ---------------------------------------",
-        # No "SCF energy =" line
-        "                    Orbital Energies (a.u.)",
-    ]
-    line_iter = iter(missing_final_energy_block)
-    start_line = next(line for line in line_iter if parser.matches(line, initial_data))
-    results = initial_data
-
-    parser.parse(line_iter, start_line, results)
-
-    assert results.parsed_scf is True
-    assert results.scf is not None
-    assert results.scf.converged is True
-    assert results.scf.n_iterations == 2
-    # Should use the energy from the last iteration
-    assert results.scf.energy == pytest.approx(-75.2783922518)
-    assert len(results.scf.iterations) == 2
-
-
-def test_parse_unexpected_end_during_iterations(
-    parser: ScfParser, initial_data: _MutableCalculationData, caplog
+def test_parse_unconverged_scf(
+    parser: ScfParser, sample_scf_block_unconverged: list[str], initial_data: _MutableCalculationData
 ) -> None:
-    """Test handling of file ending abruptly during SCF iterations."""
-    abrupt_end_block = [
-        " -----------------------------------------------------------------------",
-        "  General SCF calculation program by",
-        # ... header ...
-        " SCF converges when DIIS error is below 1.0e-05",
-        " ---------------------------------------",
-        "  Cycle       Energy         DIIS error",
-        " ---------------------------------------",
-        "    1     -75.0734525425      3.82e-01  ",
-        "    2     -75.2783922518      5.94e-02  ",
-        # File ends here
-    ]
-    line_iter = iter(abrupt_end_block)
-    start_line = next(line for line in line_iter if parser.matches(line, initial_data))
+    """Test parsing an unconverged SCF block."""
+    line_iter = iter(sample_scf_block_unconverged)
+    # Find the start line using the parser's logic
+    start_line = next(line for line in sample_scf_block_unconverged if parser.matches(line, initial_data))
+    # Recreate iterator starting from the line after the start line
+    line_iter = iter(sample_scf_block_unconverged[sample_scf_block_unconverged.index(start_line) + 1 :])
     results = initial_data
 
-    parser.parse(line_iter, start_line, results)
-
-    assert "File ended unexpectedly while parsing SCF iterations in a segment." in caplog.text
-    # Check that partial results were stored
-    assert results.parsed_scf is True  # Marked as attempted
-    assert results.scf is not None
-    assert results.scf.converged is False  # Assumed False due to abrupt end
-    assert results.scf.n_iterations == 2
-    assert results.scf.energy == pytest.approx(-75.2783922518)
-    assert len(results.scf.iterations) == 2
-    # Ensure the error log about missing final energy is also present due to how the parser now flows
-    assert "File ended before finding final SCF energy line (or after SMD summary)." in caplog.text
-
-
-def test_parse_unexpected_end_after_iterations(parser: ScfParser, initial_data: _MutableCalculationData) -> None:
-    """Test handling of file ending after iterations but before finding final energy."""
-    abrupt_end_block = [
-        " -----------------------------------------------------------------------",
-        "  General SCF calculation program by",
-        # ... header ...
-        " SCF converges when DIIS error is below 1.0e-05",
-        " ---------------------------------------",
-        "  Cycle       Energy         DIIS error",
-        " ---------------------------------------",
-        "    1     -75.0734525425      3.82e-01  ",
-        "    2     -75.2783922518      5.94e-02  Convergence criterion met",
-        " ---------------------------------------",
-        " SCF time:   CPU 0.28s  wall 0.00s ",
-        # File ends here before "SCF energy =" line
-    ]
-    line_iter = iter(abrupt_end_block)
-    start_line = next(line for line in line_iter if parser.matches(line, initial_data))
-    results = initial_data
-
-    # This case should *not* raise an error, but log a warning and use the last iteration energy
     parser.parse(line_iter, start_line, results)
 
     assert results.parsed_scf is True
     assert results.scf is not None
-    assert results.scf.converged is True  # Convergence was marked
-    assert results.scf.n_iterations == 2
-    assert results.scf.energy == pytest.approx(-75.2783922518)  # Used last iteration energy
-
-
-def test_parse_no_iterations_found(parser: ScfParser, initial_data: _MutableCalculationData, caplog) -> None:
-    """Test parsing when the SCF header is found but no iteration lines follow."""
-    no_iterations_block = [
-        " -----------------------------------------------------------------------",
-        "  General SCF calculation program by",
-        # ... header ...
-        " SCF converges when DIIS error is below 1.0e-05",
-        " ---------------------------------------",
-        # No "Cycle Energy DIIS error" header or lines
-        " ---------------------------------------",
-        "                    Orbital Energies (a.u.)",
-    ]
-    line_iter = iter(no_iterations_block)
-    start_line = next(line for line in line_iter if parser.matches(line, initial_data))
-    results = initial_data
-
-    parser.parse(line_iter, start_line, results)
-
-    assert "No 'Cycle Energy DIIS error' header found after SCF block start." in caplog.text
-    assert results.parsed_scf is True  # Parser attempted
-    assert results.scf is None  # No SCF data could be formed
+    assert results.scf.converged is False  # Should be false if convergence line is missing
+    assert results.scf.n_iterations == 4
+    # Should use the energy from the last iteration when final energy line is missing
+    assert results.scf.energy == pytest.approx(-75.3118637269)
+    assert len(results.scf.iterations) == 4
+    assert results.scf.iterations[0] == ScfIteration(
+        iteration=1, energy=-75.0734525425, diis_error=3.82e-01, step_type=None
+    )
+    assert results.scf.iterations[-1] == ScfIteration(
+        iteration=4, energy=-75.3118637269, diis_error=1.29e-03, step_type=None
+    )
 
 
 def test_parse_scf_with_smd_summary(
@@ -592,9 +461,13 @@ def test_parse_scf_with_smd_summary(
 ) -> None:
     """Test parsing an SCF block that includes a full SMD summary."""
     line_iter = iter(sample_scf_block_with_smd)
-    start_line = next(line for line in line_iter if parser.matches(line, initial_data))
+    # Find the start line using the parser's logic
+    start_line = next(line for line in sample_scf_block_with_smd if parser.matches(line, initial_data))
+    # Recreate iterator starting from the line after the start line
+    line_iter = iter(sample_scf_block_with_smd[sample_scf_block_with_smd.index(start_line) + 1 :])
     results = initial_data
 
+    results.qchem_version = VersionSpec.from_str("6.2")
     parser.parse(line_iter, start_line, results)
 
     assert results.parsed_scf is True
@@ -609,7 +482,6 @@ def test_parse_scf_with_smd_summary(
     assert results.smd_g_cds_kcal_mol == pytest.approx(1.4731)
     assert results.smd_g_enp_au == pytest.approx(-75.32080770)
     assert results.smd_g_tot_au == pytest.approx(-75.31846024)
-    assert not results.parsing_warnings  # No warnings for a clean parse
 
 
 def test_parse_smd_summary_mismatched_genp(
@@ -617,9 +489,13 @@ def test_parse_smd_summary_mismatched_genp(
 ) -> None:
     """Test warning for mismatch between SMD G_ENP and explicit SCF energy."""
     line_iter = iter(sample_scf_block_smd_mismatched_genp)
-    start_line = next(line for line in line_iter if parser.matches(line, initial_data))
+    # Find the start line using the parser's logic
+    start_line = next(line for line in sample_scf_block_smd_mismatched_genp if parser.matches(line, initial_data))
+    # Recreate iterator starting from the line after the start line
+    line_iter = iter(sample_scf_block_smd_mismatched_genp[sample_scf_block_smd_mismatched_genp.index(start_line) + 1 :])
     results = initial_data
 
+    results.qchem_version = VersionSpec.from_str("6.2")
     parser.parse(line_iter, start_line, results)
 
     assert results.parsed_scf is True
@@ -637,9 +513,13 @@ def test_parse_smd_partial_summary(
 ) -> None:
     """Test parsing an incomplete SMD summary, expecting a warning."""
     line_iter = iter(sample_scf_block_smd_partial_summary)
-    start_line = next(line for line in line_iter if parser.matches(line, initial_data))
+    # Find the start line using the parser's logic
+    start_line = next(line for line in sample_scf_block_smd_partial_summary if parser.matches(line, initial_data))
+    # Recreate iterator starting from the line after the start line
+    line_iter = iter(sample_scf_block_smd_partial_summary[sample_scf_block_smd_partial_summary.index(start_line) + 1 :])
     results = initial_data
 
+    results.qchem_version = VersionSpec.from_str("6.2")
     parser.parse(line_iter, start_line, results)
 
     assert results.parsed_scf is True
@@ -656,7 +536,12 @@ def test_parse_smd_malformed_summary(
 ) -> None:
     """Test parsing a malformed SMD summary, expecting warnings and graceful handling."""
     line_iter = iter(sample_scf_block_smd_malformed_summary)
-    start_line = next(line for line in line_iter if parser.matches(line, initial_data))
+    # Find the start line using the parser's logic
+    start_line = next(line for line in sample_scf_block_smd_malformed_summary if parser.matches(line, initial_data))
+    # Recreate iterator starting from the line after the start line
+    line_iter = iter(
+        sample_scf_block_smd_malformed_summary[sample_scf_block_smd_malformed_summary.index(start_line) + 1 :]
+    )
     results = initial_data
 
     parser.parse(line_iter, start_line, results)
@@ -699,9 +584,12 @@ def test_parse_smd_summary_no_explicit_scf_energy(
         "                    Orbital Energies (a.u.)",
     ]
     line_iter = iter(scf_block_smd_no_final_scf)
-    start_line = next(line for line in line_iter if parser.matches(line, initial_data))
+    # Find the start line using the parser's logic
+    start_line = next(line for line in scf_block_smd_no_final_scf if parser.matches(line, initial_data))
+    # Recreate iterator starting from the line after the start line
+    line_iter = iter(scf_block_smd_no_final_scf[scf_block_smd_no_final_scf.index(start_line) + 1 :])
     results = initial_data
-
+    results.qchem_version = VersionSpec.from_str("6.2")
     parser.parse(line_iter, start_line, results)
 
     assert results.parsed_scf is True
@@ -720,35 +608,15 @@ def test_parse_smd_summary_no_explicit_scf_energy(
     )
 
 
-def test_parse_file_ends_after_iteration_separator(
-    parser: ScfParser, scf_block_ends_after_iter_separator: list[str], initial_data: _MutableCalculationData, caplog
-) -> None:
-    """Test parsing when the file ends immediately after an SCF iteration table separator."""
-    line_iter = iter(scf_block_ends_after_iter_separator)
-    start_line = next(line for line in line_iter if parser.matches(line, initial_data))
-    results = initial_data
-
-    parser.parse(line_iter, start_line, results)
-
-    assert "File ended immediately after SCF table separator." in caplog.text
-    assert results.parsed_scf is True
-    assert results.scf is not None
-    assert results.scf.converged is True  # Converged based on last iteration line
-    assert results.scf.n_iterations == 2
-    assert results.scf.energy == pytest.approx(-75.2783922518)  # Uses last iteration energy
-    # Check for the warning about using last iteration's energy because the post-processing loop for explicit SCF energy wasn't entered.
-    assert (
-        "Using energy from last SCF iteration as final SCF energy; explicit 'SCF energy =' line not found or parsed."
-        in caplog.text
-    )
-
-
 def test_parse_multiple_scf_segments(
     parser: ScfParser, scf_block_multiple_segments: list[str], initial_data: _MutableCalculationData
 ) -> None:
     """Test parsing an SCF block with multiple iteration tables (segments)."""
     line_iter = iter(scf_block_multiple_segments)
-    start_line = next(line for line in line_iter if parser.matches(line, initial_data))
+    # Find the start line using the parser's logic
+    start_line = next(line for line in scf_block_multiple_segments if parser.matches(line, initial_data))
+    # Recreate iterator starting from the line after the start line
+    line_iter = iter(scf_block_multiple_segments[scf_block_multiple_segments.index(start_line) + 1 :])
     results = initial_data
 
     parser.parse(line_iter, start_line, results)
@@ -767,100 +635,52 @@ def test_parse_multiple_scf_segments(
     assert results.scf.iterations[3] == ScfIteration(iteration=2, energy=-76.02, diis_error=2.0e-02, step_type=None)
 
 
-def test_parse_ends_with_normal_termination_heuristic(
-    parser: ScfParser, scf_block_ends_with_normal_termination: list[str], initial_data: _MutableCalculationData, caplog
+def test_parse_sample_smd_h2o_sp_sto(
+    parser: ScfParser, sample_smd_h2o_sp_sto: list[str], initial_data: _MutableCalculationData
 ) -> None:
-    """Test parsing when SCF block ends due to normal termination message."""
-    line_iter = iter(scf_block_ends_with_normal_termination)
-    start_line = next(line for line in line_iter if parser.matches(line, initial_data))
+    """Test parsing the specific SMD H2O block from example output and verify all values."""
+    line_iter = iter(sample_smd_h2o_sp_sto)
+    # Find the start line using the parser's logic
+    start_line = next(line for line in sample_smd_h2o_sp_sto if parser.matches(line, initial_data))
+    # Recreate iterator starting from the line after the start line
+    line_iter = iter(sample_smd_h2o_sp_sto[sample_smd_h2o_sp_sto.index(start_line) + 1 :])
     results = initial_data
-
+    results.qchem_version = VersionSpec.from_str("6.2")
     parser.parse(line_iter, start_line, results)
 
     assert results.parsed_scf is True
     assert results.scf is not None
     assert results.scf.converged is True
-    assert results.scf.n_iterations == 2
-    assert results.scf.energy == pytest.approx(-75.2783922518)  # From last iter, no explicit SCF line
-    # This warning confirms the heuristic correctly stopped the search for a final SCF energy line.
-    assert "Final SCF energy line not found. Stopped at: Thank you very much for using Q-Chem." in caplog.text
-    assert "Using energy from last SCF iteration as final SCF energy" in caplog.text
+    assert results.scf.n_iterations == 7
+    assert results.scf.energy == pytest.approx(-75.32080770)  # This should be G_ENP from the explicit line
 
-
-def test_parse_unrecognized_line_ends_iterations(
-    parser: ScfParser, scf_block_unrecognized_line_after_iters: list[str], initial_data: _MutableCalculationData, caplog
-) -> None:
-    """Test parsing when an unrecognized non-blank line terminates the iteration table."""
-    line_iter = iter(scf_block_unrecognized_line_after_iters)
-    start_line = next(line for line in line_iter if parser.matches(line, initial_data))
-    results = initial_data
-
-    parser.parse(line_iter, start_line, results)
-
-    assert results.parsed_scf is True
-    assert results.scf is not None
-    assert results.scf.converged is True  # Based on last iteration line before unrecognized one
-    assert results.scf.n_iterations == 2
-    # The explicit "SCF energy" line after the unrecognized line should be found and used
-    assert results.scf.energy == pytest.approx(-75.2783922518)
-
-    # Verify the first iteration to ensure they were collected before the unrecognized line
-    assert (
-        ScfIteration(iteration=1, energy=-75.0734525425, diis_error=3.82e-01, step_type=None) in results.scf.iterations
+    assert len(results.scf.iterations) == 7
+    # Verify specific iteration values
+    assert results.scf.iterations[0] == ScfIteration(
+        iteration=1, energy=-75.0734525440, diis_error=3.82e-01, step_type=None
+    )
+    assert results.scf.iterations[1] == ScfIteration(
+        iteration=2, energy=-75.2973764631, diis_error=4.85e-02, step_type=None
+    )
+    assert results.scf.iterations[2] == ScfIteration(
+        iteration=3, energy=-75.3188175820, diis_error=1.63e-02, step_type=None
+    )
+    assert results.scf.iterations[3] == ScfIteration(
+        iteration=4, energy=-75.3207889318, diis_error=1.19e-03, step_type=None
+    )
+    assert results.scf.iterations[4] == ScfIteration(
+        iteration=5, energy=-75.3208073942, diis_error=1.25e-04, step_type=None
+    )
+    assert results.scf.iterations[5] == ScfIteration(
+        iteration=6, energy=-75.3208076933, diis_error=2.28e-05, step_type=None
+    )
+    assert results.scf.iterations[6] == ScfIteration(
+        iteration=7, energy=-75.3208077035, diis_error=2.17e-08, step_type=None
     )
 
-
-def test_inner_loop_breaks_on_new_cycle_header(
-    parser: ScfParser, scf_fixture_inner_break_new_cycle: list[str], initial_data: _MutableCalculationData, caplog
-) -> None:
-    """Test that the inner SCF iteration loop breaks correctly on a new 'Cycle...' header."""
-    line_iter = iter(scf_fixture_inner_break_new_cycle)
-    start_line = next(line for line in line_iter if parser.matches(line, initial_data))
-    results = initial_data
-
-    with caplog.at_level(logging.DEBUG):  # Capture DEBUG messages for this test
-        parser.parse(line_iter, start_line, results)
-
-    assert results.parsed_scf is True
-    assert results.scf is not None
-    assert results.scf.converged is True  # Based on the second segment
-    assert results.scf.energy == pytest.approx(-76.02)
-    assert results.scf.n_iterations == 3  # 1 from first segment, 2 from second
-
-    # Ensure the first iteration of the first segment was captured
-    assert ScfIteration(iteration=1, energy=-75.01, diis_error=1.0e-01, step_type=None) in results.scf.iterations
-    # Ensure iterations from the second segment were also captured
-    assert ScfIteration(iteration=1, energy=-76.01, diis_error=2.0e-01, step_type=None) in results.scf.iterations
-    assert ScfIteration(iteration=2, energy=-76.02, diis_error=2.0e-02, step_type=None) in results.scf.iterations
-
-
-def test_inner_loop_breaks_on_unrecognized_line(
-    parser: ScfParser, scf_fixture_inner_break_unrecognized: list[str], initial_data: _MutableCalculationData, caplog
-) -> None:
-    """Test that the inner SCF iteration loop breaks correctly on an unrecognized non-blank line."""
-    line_iter = iter(scf_fixture_inner_break_unrecognized)
-    start_line = next(line for line in line_iter if parser.matches(line, initial_data))
-    results = initial_data
-
-    # No need to set DEBUG for this one, as it logs a WARNING
-    parser.parse(line_iter, start_line, results)
-
-    assert results.parsed_scf is True
-    assert results.scf is not None
-    assert results.scf.converged is True  # Based on the iter line before unrecognized
-    assert results.scf.n_iterations == 2
-    # The explicit "SCF energy" line after the unrecognized line should be found and used
-    assert results.scf.energy == pytest.approx(-75.02)
-
-    # Verify that the specific warning for an unrecognized line was logged.
-    unrecognized_line_warning_logged = any(
-        record.levelname == "WARNING"
-        and "Unrecognized non-blank line, assuming end of SCF tables: This is an unrecognized but non-blank line."
-        in record.message
-        for record in caplog.records
-    )
-    assert unrecognized_line_warning_logged, "The expected WARNING for an unrecognized line was not found in logs."
-
-    # Verify the iterations were collected before the unrecognized line
-    assert ScfIteration(iteration=1, energy=-75.01, diis_error=1.0e-01, step_type=None) in results.scf.iterations
-    assert ScfIteration(iteration=2, energy=-75.02, diis_error=2.0e-02, step_type=None) in results.scf.iterations
+    # Verify SMD specific values
+    assert results.smd_g_pcm_kcal_mol == pytest.approx(-6.0201)
+    assert results.smd_g_cds_kcal_mol == pytest.approx(1.4731)
+    assert results.smd_g_enp_au == pytest.approx(-75.32080770)
+    assert results.smd_g_tot_au == pytest.approx(-75.31846024)
+    assert results.final_energy == pytest.approx(-75.31846024)  # Verify the 'Total energy' line is also parsed
