@@ -38,7 +38,8 @@ run = {
     "tddft-parse": False,
     "mom-parse": False,
     "mom-xas-parse": False,
-    "sp-parse-5.4": True,
+    "sp-parse-5.4": False,
+    "tddft-uks-parse-5.4": True,
 }
 
 if run["sp-create"]:
@@ -128,3 +129,8 @@ if run["sp-parse-5.4"]:
     print(sp_sto.metadata)
     print(sp_sto.final_energy)
     print(sp_sto.smd)
+
+if run["tddft-uks-parse-5.4"]:
+    tddft_pc2 = parse_qchem_tddft_output((clc_54_folder / "tddft-uks-pc2.out").read_text())
+    print(tddft_pc2)
+    print(tddft_pc2.tddft)
