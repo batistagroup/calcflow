@@ -48,7 +48,7 @@ def extract_float_triplet(text: str) -> tuple[float, float, float] | None:
             return (float(match.group(1)), float(match.group(2)), float(match.group(3)))
         except ValueError:  # pragma: no cover
             return None  # pragma: no cover
-    return None
+    return None  # pragma: no cover
 
 
 # --- End Helper functions --- #

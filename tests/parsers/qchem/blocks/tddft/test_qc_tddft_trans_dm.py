@@ -214,3 +214,41 @@ def test_tddft_uks_transition_dm_analysis_exc_state_6(parsed_tddft_uks_pc2_data:
     assert exciton_beta.transition_dipole_moment_components == pytest.approx([-0.417908, -0.084802, -0.727688])
     assert exciton_beta.hole_position_ang == pytest.approx([2.359689, 1.569308, 0.012609])
     assert exciton_beta.electron_position_ang == pytest.approx([1.988725, 1.494574, -0.630774])
+
+
+def test_safe_float_valid() -> None:
+    from calcflow.parsers.qchem.blocks.tddft.density import safe_float
+    assert safe_float("1.23") == 1.23
+    assert safe_float("-4.56") == -4.56
+    assert safe_float("7.89e2") == 789.0
+    assert safe_float("+0.0") == 0.0
+    assert safe_float(None) is None
+
+
+def test_safe_float_invalid() -> None:
+    from calcflow.parsers.qchem.blocks.tddft.density import safe_float
+    assert safe_float("") is None
+    assert safe_float("not_a_number") is None
+    assert safe_float([]) is None  # type: ignore
+    assert safe_float({}) is None  # type: ignore
+
+
+def test_extract_float_triplet_valid() -> None:
+    from calcflow.parsers.qchem.blocks.tddft.density import extract_float_triplet
+    assert extract_float_triplet("1.0 2.0 3.0") == (1.0, 2.0, 3.0)
+    assert extract_float_triplet("[1.0, 2.0, 3.0]") == (1.0, 2.0, 3.0)
+    assert extract_float_triplet("(1.0,2.0,3.0)") == (1.0, 2.0, 3.0)
+    assert extract_float_triplet(" 1.0 , 2.0 , 3.0 ") == (1.0, 2.0, 3.0)
+    assert extract_float_triplet("-1.0 +2.0 -3.0") == (-1.0, 2.0, -3.0)
+    assert extract_float_triplet("1e1 2e2 3e3") == (10.0, 200.0, 3000.0)
+
+
+def test_extract_float_triplet_invalid() -> None:
+    from calcflow.parsers.qchem.blocks.tddft.density import extract_float_triplet
+    assert extract_float_triplet(None) is None  # type: ignore
+    assert extract_float_triplet("") is None
+    assert extract_float_triplet("1.0 2.0") is None
+    assert extract_float_triplet("foo bar baz") is None
+    assert extract_float_triplet("[1.0, 2.0]") is None
+    assert extract_float_triplet([]) is None  # type: ignore
+    assert extract_float_triplet({}) is None  # type: ignore
