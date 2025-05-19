@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from calcflow.parsers import qchem
-from calcflow.parsers.qchem.typing import CalculationData
+from calcflow.parsers.qchem.typing import CalculationData, MomCalculationResult
 
 # Load the example output file content once
 ex_folder = Path(__file__).resolve().parents[3] / "data" / "calculations" / "examples" / "qchem"
@@ -21,37 +21,19 @@ def parsed_sp_sto_smd() -> CalculationData:
     return qchem.parse_qchem_sp_output((ex_folder / "h2o-5.4" / "sp-sto-smd.out").read_text())
 
 
-# @pytest.fixture(scope="module")
-# def parsed_sp_tzvppd_smd() -> CalculationData:
-#     """Fixture to parse the standard single point output file."""
-#     return qchem.parse_qchem_sp_output((ex_folder / "h2o" / "sp-tzvppd-smd.out").read_text())
+@pytest.fixture(scope="module")
+def parsed_tddft_uks_pc2_data() -> CalculationData:
+    """Fixture to parse the UKS TDDFT output file for H2O (pc2)."""
+    return qchem.parse_qchem_tddft_output((ex_folder / "h2o-5.4" / "tddft-uks-pc2.out").read_text())
 
 
-# @pytest.fixture(scope="module")
-# def parsed_tddft_pc2_data() -> CalculationData:
-#     """Fixture to parse the standard single point output file."""
-#     return qchem.parse_qchem_tddft_output((ex_folder / "h2o" / "tddft-rks-pc2.out").read_text())
+@pytest.fixture(scope="module")
+def parsed_mom_smd_sp_data() -> MomCalculationResult:
+    """Fixture to parse the MOM output file for H2O."""
+    return qchem.parse_qchem_mom_output((ex_folder / "h2o-5.4" / "mom-smd-sp.out").read_text())
 
 
-# @pytest.fixture(scope="module")
-# def parsed_tddft_uks_pc2_data() -> CalculationData:
-#     """Fixture to parse the UKS TDDFT output file for H2O (pc2)."""
-#     return qchem.parse_qchem_tddft_output((ex_folder / "h2o" / "tddft-uks-pc2.out").read_text())
-
-
-# @pytest.fixture(scope="module")
-# def parsed_mom_sp_data() -> MomCalculationResult:
-#     """Fixture to parse the MOM output file for H2O."""
-#     return qchem.parse_qchem_mom_output((ex_folder / "h2o" / "mom-sp.out").read_text())
-
-
-# @pytest.fixture(scope="module")
-# def parsed_mom_smd_sp_data() -> MomCalculationResult:
-#     """Fixture to parse the MOM output file for H2O."""
-#     return qchem.parse_qchem_mom_output((ex_folder / "h2o" / "mom-smd-sp.out").read_text())
-
-
-# @pytest.fixture(scope="module")
-# def parsed_mom_smd_xas_data() -> MomCalculationResult:
-#     """Fixture to parse the MOM XAS output file for H2O."""
-#     return qchem.parse_qchem_mom_output((ex_folder / "h2o" / "mom-smd-xas.out").read_text())
+@pytest.fixture(scope="module")
+def parsed_mom_smd_xas_data() -> MomCalculationResult:
+    """Fixture to parse the MOM XAS output file for H2O."""
+    return qchem.parse_qchem_mom_output((ex_folder / "h2o-5.4" / "mom-smd-xas.out").read_text())

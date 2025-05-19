@@ -16,6 +16,7 @@ from calcflow.parsers.qchem.typing import (
     SectionParser,
     _MutableCalculationData,
 )
+from calcflow.parsers.qchem.typing.pattern import PatternDefinition, VersionSpec
 from calcflow.utils import logger
 
 # --- Excited State Analysis Block (Unrelaxed Density Matrices) ---
@@ -85,19 +86,96 @@ EXCITON_DIFF_DM_HEADER_PAT = re.compile(r"^\s*Exciton analysis of the difference
 SECTION_SEPARATOR_PAT = re.compile(r"^\s*-{20,}\s*$")  # A line of dashes, often ends state blocks
 BLANK_LINE_PAT = re.compile(r"^\s*$")
 
+# --- Pattern Registries for Ground State Reference Block ---
+GS_REF_SECTION_PATTERNS_RKS = [
+    PatternDefinition(
+        field_name="no_data_rks_or_spin_traced",
+        description="NOs (RKS)",
+        versioned_patterns=[
+            (re.compile(r"^NOs$"), "6.2", None),
+        ],
+    ),
+    PatternDefinition(
+        field_name="mulliken",
+        description="Mulliken Population Analysis (State DM)",
+        versioned_patterns=[
+            (re.compile(r"^Mulliken Population Analysis \(State DM\)$"), "6.2", None),
+            (re.compile(r"^Mulliken Population Analysis$"), "5.4", None),
+        ],
+    ),
+    PatternDefinition(
+        field_name="multipole",
+        description="Multipole moment analysis of the density matrix",
+        versioned_patterns=[
+            (re.compile(r"^Multipole moment analysis of the density matrix$"), "6.2", None),
+        ],
+    ),
+]
+
+GS_REF_SECTION_PATTERNS_UKS = [
+    PatternDefinition(
+        field_name="no_data_alpha",
+        description="NOs (alpha)",
+        versioned_patterns=[
+            (re.compile(r"^NOs \(alpha\)$"), "6.2", None),
+        ],
+    ),
+    PatternDefinition(
+        field_name="no_data_beta",
+        description="NOs (beta)",
+        versioned_patterns=[
+            (re.compile(r"^NOs \(beta\)$"), "6.2", None),
+        ],
+    ),
+    PatternDefinition(
+        field_name="no_data_rks_or_spin_traced",
+        description="NOs (spin-traced)",
+        versioned_patterns=[
+            (re.compile(r"^NOs \(spin-traced\)$"), "6.2", None),
+        ],
+    ),
+    PatternDefinition(
+        field_name="mulliken",
+        description="Mulliken Population Analysis (State DM)",
+        versioned_patterns=[
+            (re.compile(r"^Mulliken Population Analysis \(State DM\)$"), "6.2", None),
+            (re.compile(r"^Mulliken Population Analysis$"), "5.4", None),
+        ],
+    ),
+    PatternDefinition(
+        field_name="multipole",
+        description="Multipole moment analysis of the density matrix",
+        versioned_patterns=[
+            (re.compile(r"^Multipole moment analysis of the density matrix$"), "6.2", None),
+        ],
+    ),
+]
+
 
 class GroundStateReferenceParser(SectionParser):
-    """Parses the 'Ground State (Reference) :' block within Excited State Analysis."""
+    """Parses the 'Ground State (Reference) :' block within Excited State Analysis using pattern registry."""
 
     def matches(self, line: str, current_data: _MutableCalculationData) -> bool:
-        # This parser is expected to be called when the Ground State block is confirmed.
-        # The main orchestrator would find "Excited State Analysis", then look for this.
         return GROUND_STATE_REF_HEADER_PAT.search(line) is not None
 
     def parse(self, iterator: LineIterator, first_line: str, results: _MutableCalculationData) -> None:
         logger.debug("Starting parsing of Ground State (Reference) block.")
-        # first_line is "Ground State (Reference) :" - this line is already consumed by the main parser in core.py
-        # The iterator is positioned at the line AFTER "Ground State (Reference) :"
+        # Determine RKS/UKS mode from results/rem or other metadata if available
+        # For now, use presence of alpha/beta/spin-traced as UKS, else RKS
+        qchem_version = getattr(results, "qchem_version", VersionSpec.from_str("6.2"))
+        is_uks = False
+        # Heuristic: if any UKS NOs header is present in the block, treat as UKS
+        # We'll scan ahead a few lines to check, then reset iterator
+        import itertools
+
+        peek_lines = list(itertools.islice(iterator, 0, 10))
+        for line in peek_lines:
+            if re.match(r"^NOs \((alpha|beta|spin-traced)\)$", line.strip()):
+                is_uks = True
+                break
+        # Reset iterator to before peek
+        iterator = itertools.chain(peek_lines, iterator)
+        section_patterns = GS_REF_SECTION_PATTERNS_UKS if is_uks else GS_REF_SECTION_PATTERNS_RKS
 
         gs_no_data_rks_or_spin_traced: GroundStateNOData | None = None
         gs_no_data_alpha: GroundStateNOData | None = None
@@ -105,84 +183,64 @@ class GroundStateReferenceParser(SectionParser):
         gs_mulliken_data: GroundStateMulliken | None = None
         gs_multipole_data: GroundStateMultipole | None = None
 
-        max_lines_to_scan = 200  # Increased safeguard for potentially more NO blocks
+        max_lines_to_scan = 200
         lines_scanned = 0
-
         while lines_scanned < max_lines_to_scan:
             try:
                 line = results.buffered_line if results.buffered_line else next(iterator)
-                results.buffered_line = None  # Consume buffer
+                results.buffered_line = None
                 lines_scanned += 1
-            except StopIteration:  # pragma: no cover
-                logger.debug("Reached end of iterator during Ground State Reference parsing.")  # pragma: no cover
-                break  # pragma: no cover
-
+            except StopIteration:
+                logger.debug("Reached end of iterator during Ground State Reference parsing.")
+                break
             if UNRELAXED_DM_HEADER_PAT.search(line):
                 logger.debug(
                     f"Found '{UNRELAXED_DM_HEADER_PAT.pattern}' header; current GS Ref section ends. Buffering line."
                 )
                 results.buffered_line = line
                 break
-
-            # Try to parse specific sub-sections if not already done
-            # Order matters: check for more specific UKS NOs before generic RKS NOs.
-            if gs_no_data_alpha is None and NOS_ALPHA_HEADER_PAT.search(line):
-                gs_no_data_alpha = self._parse_no_data(iterator, line, results, "alpha")
-                if results.buffered_line:  # Sub-parser buffered a line, re-evaluate it
-                    continue
-                # If no buffered line, it means sub-parser consumed up to its end or iterator end
-                # So, we should try to get a new line in the next iteration.
-                # No 'continue' here if sub-parser successfully finished without buffering means iterator is at next line.
-                # Correction: The sub-parser *always* either buffers or implies iterator is exhausted for its section.
-                # The main loop should always re-evaluate from results.buffered_line or next(iterator).
-                # The 'continue' ensures that if a sub-parser does its job and potentially buffers,
-                # the main loop re-evaluates the state, including the new buffered line.
+            stripped_line = line.strip()
+            matched_action_this_line = False
+            for pattern_def in section_patterns:
+                versioned_pattern = pattern_def.get_matching_pattern(qchem_version)
+                if versioned_pattern and versioned_pattern.pattern.match(stripped_line):
+                    field = pattern_def.field_name
+                    if field == "no_data_rks_or_spin_traced":
+                        gs_no_data_rks_or_spin_traced = self._parse_no_data(
+                            iterator, line, results, "spin-traced" if is_uks else "rks"
+                        )
+                        matched_action_this_line = True
+                        break
+                    elif field == "no_data_alpha":
+                        gs_no_data_alpha = self._parse_no_data(iterator, line, results, "alpha")
+                        matched_action_this_line = True
+                        break
+                    elif field == "no_data_beta":
+                        gs_no_data_beta = self._parse_no_data(iterator, line, results, "beta")
+                        matched_action_this_line = True
+                        break
+                    elif field == "mulliken":
+                        gs_mulliken_data = self._parse_mulliken_ground_state_dm(
+                            iterator, line, results.input_geometry, results
+                        )
+                        matched_action_this_line = True
+                        break
+                    elif field == "multipole":
+                        gs_multipole_data = self._parse_multipole_state_dm(iterator, line, results)
+                        matched_action_this_line = True
+                        break
+            if matched_action_this_line:
                 continue
-
-            if gs_no_data_beta is None and NOS_BETA_HEADER_PAT.search(line):
-                gs_no_data_beta = self._parse_no_data(iterator, line, results, "beta")
-                if results.buffered_line:
-                    continue
+            if stripped_line == "" or SECTION_SEPARATOR_PAT.search(line):
                 continue
-
-            if gs_no_data_rks_or_spin_traced is None and NOS_SPIN_TRACED_HEADER_PAT.search(line):
-                gs_no_data_rks_or_spin_traced = self._parse_no_data(iterator, line, results, "spin-traced")
-                if results.buffered_line:
-                    continue
-                continue
-
-            # This must come AFTER specific (alpha, beta, spin-traced) checks
-            if gs_no_data_rks_or_spin_traced is None and NOS_RKS_HEADER_PAT.search(line):
-                gs_no_data_rks_or_spin_traced = self._parse_no_data(iterator, line, results, "rks")
-                if results.buffered_line:
-                    continue
-                continue
-
-            if gs_mulliken_data is None and MULLIKEN_GS_POP_HEADER_PAT.search(line):
-                gs_mulliken_data = self._parse_mulliken_ground_state_dm(iterator, line, results.input_geometry, results)
-                if results.buffered_line:
-                    continue
-                continue
-
-            if gs_multipole_data is None and MULTIPOLE_DM_HEADER_PAT.search(line):
-                gs_multipole_data = self._parse_multipole_state_dm(iterator, line, results)
-                if results.buffered_line:
-                    continue
-                continue
-
-            if line.strip() == "" or SECTION_SEPARATOR_PAT.search(line):
-                continue
-
             logger.warning(
-                f"Unrecognized line encountered in Ground State Reference block: '{line.strip()}'. "
+                f"Unrecognized line encountered in Ground State Reference block: '{stripped_line}'. "
                 "Assuming end of this block and buffering line."
-            )  # pragma: no cover
-            results.buffered_line = line  # pragma: no cover
-            break  # pragma: no cover
-
-        if lines_scanned >= max_lines_to_scan and not results.buffered_line:  # pragma: no cover
-            logger.warning("GroundStateReferenceParser exceeded max lines scan.")  # pragma: no cover
-
+            )
+            results.buffered_line = line
+            break
+        if lines_scanned >= max_lines_to_scan and not results.buffered_line:
+            logger.warning("GroundStateReferenceParser exceeded max lines scan.")
         if (
             gs_no_data_alpha
             or gs_no_data_beta
@@ -198,10 +256,8 @@ class GroundStateReferenceParser(SectionParser):
                 multipole=gs_multipole_data,
             )
             logger.info("Stored Ground State Reference analysis data.")
-        else:  # pragma: no cover
-            logger.warning("No data components parsed for Ground State Reference block.")  # pragma: no cover
-            # results.parsing_warnings.append("No data components parsed for Ground State Reference block.") # Too noisy
-
+        else:
+            logger.warning("No data components parsed for Ground State Reference block.")
         logger.debug("Finished parsing Ground State (Reference) block.")
 
     def _parse_no_data(

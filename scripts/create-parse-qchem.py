@@ -38,7 +38,10 @@ run = {
     "tddft-parse": False,
     "mom-parse": False,
     "mom-xas-parse": False,
-    "sp-parse-5.4": True,
+    "sp-parse-5.4": False,
+    "tddft-uks-parse-5.4": False,
+    "mom-sp-parse-5.4": False,
+    "mom-xas-parse-5.4": True,
 }
 
 if run["sp-create"]:
@@ -128,3 +131,28 @@ if run["sp-parse-5.4"]:
     print(sp_sto.metadata)
     print(sp_sto.final_energy)
     print(sp_sto.smd)
+
+if run["tddft-uks-parse-5.4"]:
+    tddft_pc2 = parse_qchem_tddft_output((clc_54_folder / "tddft-uks-pc2.out").read_text())
+    print(tddft_pc2)
+    print(tddft_pc2.tddft)
+
+if run["mom-sp-parse-5.4"]:
+    mom_pc2 = parse_qchem_mom_output((clc_54_folder / "mom-smd-sp.out").read_text())
+    print(mom_pc2.job1)
+    print(mom_pc2.job2)
+    assert mom_pc2.job1.scf is not None
+    assert mom_pc2.job2.scf is not None
+    ev = (mom_pc2.job2.scf.energy - mom_pc2.job1.scf.energy) * 27.21138602
+    print(f"E(H2O) = {ev:.6f} eV")
+
+if run["mom-xas-parse-5.4"]:
+    mom_pc2 = parse_qchem_mom_output((clc_54_folder / "mom-smd-xas.out").read_text())
+    print(mom_pc2.job1)
+    print(mom_pc2.job2)
+    assert mom_pc2.job1.scf is not None
+    assert mom_pc2.job2.scf is not None
+    assert mom_pc2.job2.tddft is not None
+    print(mom_pc2.job2.tddft)
+    assert mom_pc2.job2.tddft.tda_states is not None
+    print(mom_pc2.job2.tddft.tda_states[0])

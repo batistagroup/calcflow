@@ -73,7 +73,7 @@ def test_unrelaxed_dm_singlet_4(parsed_tddft_pc2_data: CalculationData) -> None:
     assert dipole.x == pytest.approx(0.988173)
     assert dipole.y == pytest.approx(0.208793)
     assert dipole.z == pytest.approx(1.759378)
-    assert multipole.rms_density_size_ang == pytest.approx([0.674938, 0.505847, 0.572431])
+    assert multipole.rms_density_size_ang_comps == pytest.approx([0.674938, 0.505847, 0.572431])
 
     # Exciton analysis
     assert analysis.exciton_difference_dm_analysis is not None
@@ -142,7 +142,7 @@ def test_unrelaxed_dm_singlet_8(parsed_tddft_pc2_data: CalculationData) -> None:
     assert dipole.x == pytest.approx(0.178572)
     assert dipole.y == pytest.approx(0.042455)
     assert dipole.z == pytest.approx(0.344950)
-    assert multipole.rms_density_size_ang == pytest.approx([0.644320, 0.509829, 0.574419])
+    assert multipole.rms_density_size_ang_comps == pytest.approx([0.644320, 0.509829, 0.574419])
 
     # Exciton analysis
     assert analysis.exciton_difference_dm_analysis is not None
@@ -215,7 +215,7 @@ def test_unrelaxed_dm_uks_excited_state_1(parsed_tddft_uks_pc2_data: Calculation
     assert dipole.x == pytest.approx(0.621980)
     assert dipole.y == pytest.approx(0.120499)
     assert dipole.z == pytest.approx(1.056010)
-    assert multipole.rms_density_size_ang == pytest.approx([0.583184, 0.469983, 0.557523])
+    assert multipole.rms_density_size_ang_comps == pytest.approx([0.583184, 0.469983, 0.557523])
 
     # Exciton analysis - Total
     assert analysis.exciton_difference_dm_analysis is not None
