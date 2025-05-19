@@ -494,6 +494,7 @@ def test_parse_smd_summary_mismatched_genp(
     line_iter = iter(sample_scf_block_smd_mismatched_genp[sample_scf_block_smd_mismatched_genp.index(start_line) + 1 :])
     results = initial_data
 
+    results.qchem_version = "6.2"
     parser.parse(line_iter, start_line, results)
 
     assert results.parsed_scf is True

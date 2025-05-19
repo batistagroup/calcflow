@@ -111,7 +111,10 @@ SCF_PATTERNS = [
         block_type="smd_summary",
         description="SCF energy in solvent (E_SCF + G_PCM)",
         versioned_patterns=[
-            (re.compile(r"^\s*G_ENP\s*=\s*(-?\d+\.\d+)\s*a\.u\."), None, lambda m: float(m.group(1))),
+            # QChem 5.4 pattern
+            (re.compile(r"^\s*G-ENP\(liq\).*?\s*(-?\d+\.\d+)\s*a\.u\."), "5.4", lambda m: float(m.group(1))),
+            # Default pattern (e.g., 6.2+)
+            (re.compile(r"^\s*G_ENP\s*=\s*(-?\d+\.\d+)\s*a\.u\."), "6.2", lambda m: float(m.group(1))),
         ],
     ),
     PatternDefinition(
@@ -119,7 +122,10 @@ SCF_PATTERNS = [
         block_type="smd_summary",
         description="Total free energy in solution (G_ENP + G_CDS)",
         versioned_patterns=[
-            (re.compile(r"^\s*G\(tot\)\s*=\s*(-?\d+\.\d+)\s*a\.u\."), None, lambda m: float(m.group(1))),
+            # QChem 5.4 pattern
+            (re.compile(r"^\s*G-S\(liq\).*?\s*(-?\d+\.\d+)\s*a\.u\."), "5.4", lambda m: float(m.group(1))),
+            # Default pattern (e.g., 6.2+)
+            (re.compile(r"^\s*G\(tot\)\s*=\s*(-?\d+\.\d+)\s*a\.u\."), "6.2", lambda m: float(m.group(1))),
         ],
     ),
     # MOM patterns
