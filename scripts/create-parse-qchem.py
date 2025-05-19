@@ -127,4 +127,4 @@ if run["sp-parse-5.4"]:
     print(sp_sto)
     print(sp_sto.metadata)
     print(sp_sto.final_energy)
-    breakpoint()
+    print(sp_sto.smd)

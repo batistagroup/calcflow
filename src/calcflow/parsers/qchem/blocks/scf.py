@@ -100,6 +100,9 @@ SCF_PATTERNS = [
         block_type="smd_summary",
         description="SMD non-electrostatic energy component",
         versioned_patterns=[
+            # QChem 5.4 pattern
+            (re.compile(r"^\s*free energy*\s*(-?\d+\.\d+)\s*kcal/mol"), "5.4", lambda m: float(m.group(1))),
+            # QChem 6.2+ pattern
             (re.compile(r"^\s*G_CDS\s*=\s*(-?\d+\.\d+)\s*kcal/mol"), "6.2", lambda m: float(m.group(1))),
         ],
     ),
@@ -398,10 +401,10 @@ class ScfParser(SectionParser):
         qchem_version = getattr(results, "qchem_version", "")
 
         for pattern_def in SCF_PATTERNS:
-            # Skip patterns that don't match the current context
+            # Skip patterns that don't match the current context strictly based on the flag
+            # Allow SMD patterns to be matched if not in the explicit block, as they appear
+            # in the general SCF results section in older Q-Chem versions.
             if in_smd_block and pattern_def.block_type != "smd_summary":
-                continue
-            if not in_smd_block and pattern_def.block_type == "smd_summary":
                 continue
 
             # Get the appropriate pattern for this QChem version
