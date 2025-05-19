@@ -4,56 +4,69 @@ This module provides dataclasses for defining version-specific regex patterns
 that can be used to parse QChem output files across different versions.
 """
 
-import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from re import Match, Pattern
-from typing import Any, TypeAlias, TypeVar
+from typing import Any, TypeVar
 
-# Type for version specification
-VersionSpec: TypeAlias = str | None
+from calcflow.exceptions import InternalCodeError
 
 # Type variable for regex pattern
 T = TypeVar("T", bound=str)
 
 
-def compare_versions(version1: str, version2: str) -> int:
-    """Compare two version strings.
+@dataclass
+class VersionSpec:
+    """Specification for a version string."""
 
-    Args:
-        version1: First version string in format "X.Y" or "X.Y.Z"
-        version2: Second version string in format "X.Y" or "X.Y.Z"
+    major: int
+    minor: int
+    patch: int
 
-    Returns:
-        -1 if version1 < version2, 0 if version1 == version2, 1 if version1 > version2
-    """
-    if not version1 and not version2:
-        return 0
-    if not version1:
-        return -1
-    if not version2:
-        return 1
+    @classmethod
+    def from_str(cls, version_str: str):
+        """Parse a version string into a VersionSpec."""
+        parts = version_str.split(".")
+        return cls(major=int(parts[0]), minor=int(parts[1]), patch=int(parts[2]) if len(parts) > 2 else 0)
 
-    # Handle potential suffixes like "beta" by splitting on non-numeric chars
-    v1_clean = re.split(r"[^0-9.]", version1)[0]
-    v2_clean = re.split(r"[^0-9.]", version2)[0]
+    def __eq__(self, other) -> bool:
+        if isinstance(other, str):
+            other = VersionSpec.from_str(other)
+        return self.major == other.major and self.minor == other.minor and self.patch == other.patch
 
-    v1_parts = [int(part) for part in v1_clean.split(".")]
-    v2_parts = [int(part) for part in v2_clean.split(".")]
+    def __lt__(self, other) -> bool:
+        if isinstance(other, str):
+            other = VersionSpec.from_str(other)
+        return (
+            self.major < other.major
+            or (self.major == other.major and self.minor < other.minor)
+            or (self.major == other.major and self.minor == other.minor and self.patch < other.patch)
+        )
 
-    # Pad shorter version with zeros
-    while len(v1_parts) < len(v2_parts):
-        v1_parts.append(0)
-    while len(v2_parts) < len(v1_parts):
-        v2_parts.append(0)
+    def __le__(self, other) -> bool:
+        if isinstance(other, str):
+            other = VersionSpec.from_str(other)
+        return self < other or self == other
 
-    # Compare version components
-    for v1, v2 in zip(v1_parts, v2_parts, strict=False):
-        if v1 < v2:
-            return -1
-        if v1 > v2:
-            return 1
-    return 0  # Versions are equal
+    def __gt__(self, other) -> bool:
+        if isinstance(other, str):
+            other = VersionSpec.from_str(other)
+        return not self <= other
+
+    def __ge__(self, other) -> bool:
+        if isinstance(other, str):
+            other = VersionSpec.from_str(other)
+        return not self < other
+
+    @property
+    def version(self) -> str:
+        return f"{self.major}.{self.minor}.{self.patch}"
+
+    def __str__(self) -> str:
+        return self.version
+
+    def __repr__(self) -> str:
+        return f"VersionSpec(major={self.major}, minor={self.minor}, patch={self.patch})"
 
 
 @dataclass
@@ -61,7 +74,7 @@ class VersionedPattern:
     """A pattern with an associated version."""
 
     pattern: Pattern[str]
-    version: VersionSpec = None  # None means applicable to any version
+    version: VersionSpec
     transform: Callable[[Match[str]], Any] = lambda m: m.group(1)  # Default transform
 
 
@@ -93,7 +106,8 @@ class PatternDefinition:
         required: bool = False,
         block_type: str | None = None,
         description: str = "",
-        versioned_patterns: list[tuple[Pattern[str], VersionSpec, Callable[[Match[str]], Any] | None]] | None = None,
+        versioned_patterns: list[tuple[Pattern[str], VersionSpec | str, Callable[[Match[str]], Any] | None]]
+        | None = None,
     ) -> None:
         """Initialize a PatternDefinition with optional versioned patterns."""
         self.field_name = field_name
@@ -110,13 +124,26 @@ class PatternDefinition:
     def add_pattern(
         self,
         pattern: Pattern[str],
-        version: VersionSpec = None,
+        version: str | VersionSpec | None = None,
         transform: Callable[[Match[str]], Any] = lambda m: m.group(1),
     ) -> None:
         """Add a new pattern with version to this definition."""
-        self.patterns.append(VersionedPattern(pattern=pattern, version=version, transform=transform))
+        resolved_version: VersionSpec | None
+        if isinstance(version, VersionSpec):
+            resolved_version = version
+        elif isinstance(version, str):
+            resolved_version = VersionSpec.from_str(version)
+        else:  # version is None
+            resolved_version = None
+        self.patterns.append(VersionedPattern(pattern=pattern, version=resolved_version, transform=transform))
+        # Sort patterns: None versions first, then by major, minor, patch ascending
+        self.patterns.sort(
+            key=lambda vp: (0, -1, -1, -1)
+            if vp.version is None
+            else (1, vp.version.major, vp.version.minor, vp.version.patch)
+        )
 
-    def get_matching_pattern(self, version: str) -> VersionedPattern | None:
+    def get_matching_pattern(self, version: VersionSpec) -> VersionedPattern | None:
         """Get the best matching pattern for the given version.
 
         If only one pattern exists and it has no version, it's used for all versions.
@@ -124,31 +151,20 @@ class PatternDefinition:
         If no patterns match the version criteria, return None.
         """
         if not self.patterns:
-            return None
+            raise InternalCodeError("No patterns defined for this definition")
 
         # If only one pattern with no version, use it for all versions
-        if len(self.patterns) == 1 and self.patterns[0].version is None:
+        if len(self.patterns) == 1:
             return self.patterns[0]
 
         # Find the latest version <= current version
         best_pattern = None
         for pattern in self.patterns:
-            # Patterns with no version are fallbacks
-            if pattern.version is None:
-                if best_pattern is None:
-                    best_pattern = pattern
-                continue
-
-            # Skip patterns with versions > current version
-            if compare_versions(pattern.version, version) > 0:
-                continue
-
-            # Update best pattern if this one is newer
-            if (
-                best_pattern is None
-                or best_pattern.version is None
-                or (pattern.version is not None and compare_versions(pattern.version, best_pattern.version) > 0)
-            ):
+            if pattern.version <= version:
                 best_pattern = pattern
+            else:
+                break
 
+        if best_pattern is None:
+            raise InternalCodeError(f"No pattern found for version {version}")
         return best_pattern

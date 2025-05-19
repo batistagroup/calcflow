@@ -6,6 +6,7 @@ from calcflow.parsers.qchem.typing import (
     ScfIteration,
     _MutableCalculationData,
 )
+from calcflow.parsers.qchem.typing.pattern import VersionSpec
 
 
 @pytest.fixture
@@ -18,7 +19,7 @@ def parser() -> ScfParser:
 def initial_data_qchem54() -> _MutableCalculationData:
     """Provides a fresh _MutableCalculationData instance for Q-Chem 5.4."""
     data = _MutableCalculationData(raw_output="")
-    data.qchem_version = "5.4"  # Set Q-Chem version
+    data.qchem_version = VersionSpec.from_str("5.4")  # Set Q-Chem version
     return data
 
 

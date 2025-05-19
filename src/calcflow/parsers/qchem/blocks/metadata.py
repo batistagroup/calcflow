@@ -1,6 +1,7 @@
 import re
 
 from calcflow.parsers.qchem.typing import LineIterator, SectionParser, _MutableCalculationData
+from calcflow.parsers.qchem.typing.pattern import VersionSpec
 from calcflow.utils import logger
 
 # --- Regex Patterns --- #
@@ -44,6 +45,8 @@ class MetadataParser(SectionParser):
                 # Double-check flag ensure we don't overwrite
                 if not getattr(results, flag_name, False):
                     value = match.group(1).strip()
+                    if key == "qchem_version":
+                        value = VersionSpec.from_str(value)
                     setattr(results, key, value)
                     setattr(results, flag_name, True)  # Mark as parsed
                     logger.debug(f"Parsed metadata - {key}: {value}")

@@ -2,6 +2,7 @@ import pytest
 
 from calcflow.parsers.qchem.blocks.scf import ScfParser
 from calcflow.parsers.qchem.typing import ScfIteration, _MutableCalculationData
+from calcflow.parsers.qchem.typing.pattern import VersionSpec
 
 
 @pytest.fixture
@@ -466,7 +467,7 @@ def test_parse_scf_with_smd_summary(
     line_iter = iter(sample_scf_block_with_smd[sample_scf_block_with_smd.index(start_line) + 1 :])
     results = initial_data
 
-    results.qchem_version = "6.2"
+    results.qchem_version = VersionSpec.from_str("6.2")
     parser.parse(line_iter, start_line, results)
 
     assert results.parsed_scf is True
@@ -494,7 +495,7 @@ def test_parse_smd_summary_mismatched_genp(
     line_iter = iter(sample_scf_block_smd_mismatched_genp[sample_scf_block_smd_mismatched_genp.index(start_line) + 1 :])
     results = initial_data
 
-    results.qchem_version = "6.2"
+    results.qchem_version = VersionSpec.from_str("6.2")
     parser.parse(line_iter, start_line, results)
 
     assert results.parsed_scf is True
@@ -518,6 +519,7 @@ def test_parse_smd_partial_summary(
     line_iter = iter(sample_scf_block_smd_partial_summary[sample_scf_block_smd_partial_summary.index(start_line) + 1 :])
     results = initial_data
 
+    results.qchem_version = VersionSpec.from_str("6.2")
     parser.parse(line_iter, start_line, results)
 
     assert results.parsed_scf is True
@@ -587,7 +589,7 @@ def test_parse_smd_summary_no_explicit_scf_energy(
     # Recreate iterator starting from the line after the start line
     line_iter = iter(scf_block_smd_no_final_scf[scf_block_smd_no_final_scf.index(start_line) + 1 :])
     results = initial_data
-    results.qchem_version = "6.2"
+    results.qchem_version = VersionSpec.from_str("6.2")
     parser.parse(line_iter, start_line, results)
 
     assert results.parsed_scf is True
@@ -643,7 +645,7 @@ def test_parse_sample_smd_h2o_sp_sto(
     # Recreate iterator starting from the line after the start line
     line_iter = iter(sample_smd_h2o_sp_sto[sample_smd_h2o_sp_sto.index(start_line) + 1 :])
     results = initial_data
-    results.qchem_version = "6.2"
+    results.qchem_version = VersionSpec.from_str("6.2")
     parser.parse(line_iter, start_line, results)
 
     assert results.parsed_scf is True

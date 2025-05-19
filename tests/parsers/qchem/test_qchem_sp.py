@@ -27,11 +27,11 @@ def test_parse_qchem_sp_output_h2o(parsed_sp_sto_data: CalculationData) -> None:
 
     # --- Top-Level Checks ---
     assert data.termination_status == "NORMAL"
+    # --- Metadata Checks ---
+    assert data.metadata.qchem_version == "6.2"
     assert data.final_energy == approx(-75.31188446)
     assert data.nuclear_repulsion == approx(8.93764808)
 
-    # --- Metadata Checks ---
-    assert data.metadata.qchem_version == "6.2"
     assert data.metadata.host == "login30"
     # assert data.metadata.run_date == "Sun May  4 14:52:42 2025" # Date is dynamic in example
     assert data.metadata.calculation_method == "wb97x-d3"

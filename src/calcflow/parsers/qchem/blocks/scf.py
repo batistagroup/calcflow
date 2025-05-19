@@ -404,7 +404,10 @@ class ScfParser(SectionParser):
             in_smd_block: Whether we're currently in an SMD summary block
         """
         # Get QChem version from results
-        qchem_version = getattr(results, "qchem_version", "")
+        qchem_version = getattr(results, "qchem_version", None)
+        if qchem_version is None:
+            logger.warning("No QChem version found in results.")
+            return
 
         for pattern_def in SCF_PATTERNS:
             # Skip patterns that don't match the current context strictly based on the flag
