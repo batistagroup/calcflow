@@ -79,9 +79,8 @@ SCF_PATTERNS = [
         description="Final SCF energy value",
         versioned_patterns=[
             (SCF_FINAL_ENERGY_PAT, None, lambda m: float(m.group(1))),
-        ]
+        ],
     ),
-    
     # Final energy pattern - version dependent
     PatternDefinition(
         field_name="final_energy",
@@ -91,9 +90,8 @@ SCF_PATTERNS = [
             (TOTAL_ENERGY_PAT, "6.0", lambda m: float(m.group(1))),
             # QChem 5.x uses "Total energy in the final basis set"
             (TOTAL_ENERGY_FINAL_BASIS_PAT, "5.4", lambda m: float(m.group(1))),
-        ]
+        ],
     ),
-    
     # SMD patterns
     PatternDefinition(
         field_name="smd_g_pcm_kcal_mol",
@@ -101,36 +99,32 @@ SCF_PATTERNS = [
         description="SMD polarization energy component",
         versioned_patterns=[
             (G_PCM_PAT, None, lambda m: float(m.group(1))),
-        ]
+        ],
     ),
-    
     PatternDefinition(
         field_name="smd_g_cds_kcal_mol",
         block_type="smd_summary",
         description="SMD non-electrostatic energy component",
         versioned_patterns=[
             (G_CDS_PAT, None, lambda m: float(m.group(1))),
-        ]
+        ],
     ),
-    
     PatternDefinition(
         field_name="smd_g_enp_au",
         block_type="smd_summary",
         description="SCF energy in solvent (E_SCF + G_PCM)",
         versioned_patterns=[
             (G_ENP_PAT, None, lambda m: float(m.group(1))),
-        ]
+        ],
     ),
-    
     PatternDefinition(
         field_name="smd_g_tot_au",
         block_type="smd_summary",
         description="Total free energy in solution (G_ENP + G_CDS)",
         versioned_patterns=[
             (G_TOT_PAT, None, lambda m: float(m.group(1))),
-        ]
+        ],
     ),
-    
     # MOM patterns
     PatternDefinition(
         field_name="mom_active",
@@ -138,25 +132,23 @@ SCF_PATTERNS = [
         description="MOM is active in this calculation",
         versioned_patterns=[
             (MOM_ACTIVE_PAT, None, lambda _: True),
-        ]
+        ],
     ),
-    
     PatternDefinition(
         field_name="mom_method_type",
         block_type="mom",
         description="IMOM method is being used",
         versioned_patterns=[
             (IMOM_METHOD_PAT, None, lambda _: "IMOM"),
-        ]
+        ],
     ),
-    
     PatternDefinition(
         field_name="mom_overlap",
         block_type="mom",
         description="MOM overlap with current and target orbitals",
         versioned_patterns=[
             (MOM_OVERLAP_PAT, None, lambda m: (float(m.group(1)), float(m.group(2)))),
-        ]
+        ],
     ),
 ]
 
@@ -374,8 +366,8 @@ class ScfParser(SectionParser):
     def _parse_scf_iteration(
         self,
         line: str,
-        match: re.Match,
-        mom_active: bool = False,
+        match: re.Match[str],
+        mom_active: bool | None = None,
         mom_method_type: str | None = None,
         mom_overlap_current: float | None = None,
         mom_overlap_target: float | None = None,
@@ -429,15 +421,7 @@ class ScfParser(SectionParser):
 
             # Process the match
             if pattern_def.field_name:
-                # Special handling for MOM overlap which has two values
-                if pattern_def.field_name == "mom_overlap":
-                    current, target = versioned_pattern.transform(match)
-                    # These go into the next SCF iteration
-                    results.mom_overlap_current = current
-                    results.mom_overlap_target = target
-                else:
-                    # Standard field update
-                    value = versioned_pattern.transform(match)
-                    setattr(results, pattern_def.field_name, value)
+                value = versioned_pattern.transform(match)
+                setattr(results, pattern_def.field_name, value)
 
-                    logger.debug(f"Found {pattern_def.description}: {value}")
+                logger.debug(f"Found {pattern_def.description}: {value}")
