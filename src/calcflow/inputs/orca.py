@@ -15,6 +15,7 @@ SUPPORTED_FUNCTIONALS = {"b3lyp", "pbe0", "m06", "cam-b3lyp", "wb97x", "wb97x-d3
 
 # Define allowed models specifically for ORCA
 ORCA_ALLOWED_SOLVATION_MODELS = Literal["smd", "cpcm"]
+ORCA_ALLOWED_RI_APPROXIMATIONS = Literal["RIJCOSX", "RIJK"]
 
 
 @dataclass(frozen=True)
@@ -49,7 +50,7 @@ class OrcaInput(CalculationInput):
     n_cores: int = 1
     geom_mode: str = "xyz"
 
-    ri_approx: str | None = None
+    ri_approx: ORCA_ALLOWED_RI_APPROXIMATIONS | None = None
     aux_basis: str | None = None
 
     run_tddft: bool = False
@@ -181,22 +182,13 @@ class OrcaInput(CalculationInput):
         Returns:
             A new OrcaInput instance with RI enabled
         """
+        if approx not in get_args(ORCA_ALLOWED_RI_APPROXIMATIONS):
+            raise ValidationError(
+                f"RI approximation '{approx}' not recognized for ORCA. Allowed: {get_args(ORCA_ALLOWED_RI_APPROXIMATIONS)}"
+            )
         logger.info(f"Enabling RI approximation: {approx} with aux basis {aux_basis}")
-        return replace(self, ri_approx=approx, aux_basis=aux_basis)
-
-    def enable_rijcosx(self: T_OrcaInput, aux_basis: str) -> T_OrcaInput:
-        """Enable RIJCOSX approximation with a given auxiliary basis set.
-
-        Args:
-            aux_basis: The auxiliary basis set to use (e.g. "def2/J").
-
-        Returns:
-            A new OrcaInput instance with RIJCOSX enabled.
-        """
-        if not aux_basis:
-            raise ValidationError("An auxiliary basis set must be provided for RIJCOSX.")
-        logger.info(f"Enabling RIJCOSX approximation with auxiliary basis: {aux_basis}")
-        return replace(self, ri_approx="RIJCOSX", aux_basis=aux_basis)
+        casted = cast(ORCA_ALLOWED_RI_APPROXIMATIONS, approx)
+        return replace(self, ri_approx=casted, aux_basis=aux_basis)
 
     def enable_print_mos(self: T_OrcaInput) -> T_OrcaInput:
         """Enable printing of MOs and Overlap matrix in the output.

@@ -449,15 +449,10 @@ class TestOrcaInputMethods:
 
     def test_enable_rijcosx_valid(self, minimal_orca_input: OrcaInput) -> None:
         """Test enable_rijcosx with a valid auxiliary basis."""
-        modified_input = minimal_orca_input.enable_rijcosx(aux_basis="def2/J")
+        modified_input = minimal_orca_input.enable_ri(approx="RIJCOSX", aux_basis="def2/J")
         assert modified_input is not minimal_orca_input
         assert modified_input.ri_approx == "RIJCOSX"
         assert modified_input.aux_basis == "def2/J"
-
-    def test_enable_rijcosx_empty_aux_basis(self, minimal_orca_input: OrcaInput) -> None:
-        """Test enable_rijcosx raises ValidationError if aux_basis is empty."""
-        with pytest.raises(ValidationError, match="An auxiliary basis set must be provided for RIJCOSX"):
-            minimal_orca_input.enable_rijcosx(aux_basis="")
 
 
 class TestOrcaInputSetSolvation:
