@@ -290,6 +290,44 @@ class TestOrcaInputInitValidation:
                 solvent="water",
             )
 
+    # --- Hessian Recalculation and Optimize Hydrogens Init Validation ---
+    def test_init_recalc_hess_freq_wrong_task(self) -> None:
+        """Test __post_init__ validation for recalc_hess_freq with non-geometry task."""
+        with pytest.raises(ValidationError, match="Hessian recalculation .* only applicable for 'geometry' tasks"):
+            OrcaInput(
+                task="energy",  # Non-geometry task
+                level_of_theory="hf",
+                basis_set="sto-3g",
+                charge=0,
+                spin_multiplicity=1,
+                recalc_hess_freq=10,
+            )
+
+    @pytest.mark.parametrize("invalid_freq", [0, -1])
+    def test_init_recalc_hess_freq_invalid_value(self, invalid_freq: int) -> None:
+        """Test __post_init__ validation for non-positive recalc_hess_freq."""
+        with pytest.raises(ValidationError, match="recalc_hess_freq must be a positive integer"):
+            OrcaInput(
+                task="geometry",
+                level_of_theory="hf",
+                basis_set="sto-3g",
+                charge=0,
+                spin_multiplicity=1,
+                recalc_hess_freq=invalid_freq,
+            )
+
+    def test_init_optimize_hydrogens_only_wrong_task(self) -> None:
+        """Test __post_init__ validation for optimize_hydrogens_only with non-geometry task."""
+        with pytest.raises(ValidationError, match="Optimizing only hydrogens is only applicable for 'geometry' tasks"):
+            OrcaInput(
+                task="energy",  # Non-geometry task
+                level_of_theory="hf",
+                basis_set="sto-3g",
+                charge=0,
+                spin_multiplicity=1,
+                optimize_hydrogens_only=True,
+            )
+
 
 class TestOrcaInputMethods:
     """Tests for methods modifying OrcaInput instances."""
@@ -365,7 +403,9 @@ class TestOrcaInputMethods:
             minimal_orca_input.set_hessian_recalculation(frequency=10)
 
     @pytest.mark.parametrize("invalid_freq", [0, -5])
-    def test_set_hessian_recalculation_invalid_frequency(self, minimal_orca_input: OrcaInput, invalid_freq: int) -> None:
+    def test_set_hessian_recalculation_invalid_frequency(
+        self, minimal_orca_input: OrcaInput, invalid_freq: int
+    ) -> None:
         """Test set_hessian_recalculation raises error for non-positive frequency."""
         geom_input = replace(minimal_orca_input, task="geometry")
         with pytest.raises(ValidationError, match="Hessian recalculation frequency must be a positive integer"):
@@ -387,17 +427,17 @@ class TestOrcaInputMethods:
 
     def test_copy_method(self, minimal_orca_input: OrcaInput) -> None:
         """Test the copy method for deep copying."""
-        original_input = replace(minimal_orca_input, ri_approx="RI", aux_basis="def2/J") # Add a mutable-like field
+        original_input = replace(minimal_orca_input, ri_approx="RI", aux_basis="def2/J")  # Add a mutable-like field
         copied_input = original_input.copy()
 
         assert copied_input is not original_input
-        assert copied_input == original_input # Dataclass equality should hold
+        assert copied_input == original_input  # Dataclass equality should hold
 
         # Test deepcopy by attempting to modify a field (even if immutable here, it's good practice for dicts)
         # If basis_set could be a dict: original_input.basis_set["new_key"] = "new_value"
         # For now, let's show they are independent by replacing one
         modified_original = replace(original_input, n_cores=100)
-        assert copied_input.n_cores == original_input.n_cores # Copied should still have original n_cores
+        assert copied_input.n_cores == original_input.n_cores  # Copied should still have original n_cores
         assert modified_original.n_cores == 100
 
         # More direct test for a mutable attribute if we had one that's commonly a dict.
@@ -845,7 +885,9 @@ end"""
         expected_keywords_set = {"!", "RHF", "sto-3g", "Opt"}
         self._assert_keywords_match(output, expected_keywords_set)
 
-    def test_export_geom_recalc_hess_and_optimize_hydrogens(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
+    def test_export_geom_recalc_hess_and_optimize_hydrogens(
+        self, minimal_orca_input: OrcaInput, default_geom: Geometry
+    ) -> None:
         """Test export with both Hessian recalculation and optimize_hydrogens_only enabled."""
         geom_input = replace(minimal_orca_input, task="geometry")
         combined_input = geom_input.set_hessian_recalculation(frequency=20).enable_optimize_hydrogens_only()
