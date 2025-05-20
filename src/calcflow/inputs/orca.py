@@ -184,6 +184,20 @@ class OrcaInput(CalculationInput):
         logger.info(f"Enabling RI approximation: {approx} with aux basis {aux_basis}")
         return replace(self, ri_approx=approx, aux_basis=aux_basis)
 
+    def enable_rijcosx(self: T_OrcaInput, aux_basis: str) -> T_OrcaInput:
+        """Enable RIJCOSX approximation with a given auxiliary basis set.
+
+        Args:
+            aux_basis: The auxiliary basis set to use (e.g. "def2/J").
+
+        Returns:
+            A new OrcaInput instance with RIJCOSX enabled.
+        """
+        if not aux_basis:
+            raise ValidationError("An auxiliary basis set must be provided for RIJCOSX.")
+        logger.info(f"Enabling RIJCOSX approximation with auxiliary basis: {aux_basis}")
+        return replace(self, ri_approx="RIJCOSX", aux_basis=aux_basis)
+
     def enable_print_mos(self: T_OrcaInput) -> T_OrcaInput:
         """Enable printing of MOs and Overlap matrix in the output.
 
@@ -216,8 +230,7 @@ class OrcaInput(CalculationInput):
             If neither is specified, defaults to calculating 6 roots.
         """
         if nroots is None and iroot is None:
-            nroots = 5
-            logger.info(f"Setting TDDFT with default nroots={nroots}, triplets={triplets}, use_tda={use_tda}")
+            logger.info(f"Disabling TDDFT with nroots={nroots}, triplets={triplets}, use_tda={use_tda}")
         elif iroot is not None:
             logger.info(f"Setting TDDFT for iroot={iroot}, triplets={triplets}, use_tda={use_tda}")
         else:
