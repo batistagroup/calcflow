@@ -230,7 +230,7 @@ class OrcaInput(CalculationInput):
             If neither is specified, defaults to calculating 6 roots.
         """
         if nroots is None and iroot is None:
-            logger.info(f"Disabling TDDFT with nroots={nroots}, triplets={triplets}, use_tda={use_tda}")
+            raise ValidationError("Either nroots or iroot must be specified.")
         elif iroot is not None:
             logger.info(f"Setting TDDFT for iroot={iroot}, triplets={triplets}, use_tda={use_tda}")
         else:
