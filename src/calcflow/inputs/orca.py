@@ -182,13 +182,13 @@ class OrcaInput(CalculationInput):
         Returns:
             A new OrcaInput instance with RI enabled
         """
-        if approx not in get_args(ORCA_ALLOWED_RI_APPROXIMATIONS):
+        normalized = cast(ORCA_ALLOWED_RI_APPROXIMATIONS, approx.upper())
+        if normalized not in get_args(ORCA_ALLOWED_RI_APPROXIMATIONS):
             raise ValidationError(
                 f"RI approximation '{approx}' not recognized for ORCA. Allowed: {get_args(ORCA_ALLOWED_RI_APPROXIMATIONS)}"
             )
         logger.info(f"Enabling RI approximation: {approx} with aux basis {aux_basis}")
-        casted = cast(ORCA_ALLOWED_RI_APPROXIMATIONS, approx)
-        return replace(self, ri_approx=casted, aux_basis=aux_basis)
+        return replace(self, ri_approx=normalized, aux_basis=aux_basis)
 
     def enable_print_mos(self: T_OrcaInput) -> T_OrcaInput:
         """Enable printing of MOs and Overlap matrix in the output.
