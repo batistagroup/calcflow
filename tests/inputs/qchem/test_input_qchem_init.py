@@ -174,3 +174,51 @@ def test_qchem_input_post_init_trnss_invalid_solute_orbitals(solute_orbitals, ex
             reduced_excitation_space=True,
             solute_orbitals=solute_orbitals,
         )
+
+
+def test_qchem_input_copy_method(default_qchem_input: QchemInput) -> None:
+    """Test the copy() method for QchemInput to ensure deep copies."""
+    from dataclasses import replace
+
+    # Make the original input a bit more complex
+    original_input = replace(
+        default_qchem_input,
+        n_cores=2,
+        run_tddft=True,
+        tddft_nroots=3,
+        reduced_excitation_space=True,
+        solute_orbitals=[10, 20, 30],
+        basis_set={"C": "6-31g*", "H": "sto-3g"},  # Use a dict basis for deepcopy check
+    )
+
+    copied_input = original_input.copy()
+
+    # 1. Check they are different instances
+    assert copied_input is not original_input, "Copied input should be a new instance."
+
+    # 2. Check they are equal in value (dataclasses implement __eq__)
+    assert copied_input == original_input, "Copied input should be equal in value to the original."
+
+    # 3. Test deep copy behavior for mutable attributes
+
+    # Test with solute_orbitals (list)
+    assert copied_input.solute_orbitals is not None
+    assert original_input.solute_orbitals is not None
+    copied_input.solute_orbitals.append(40)
+    assert original_input.solute_orbitals == [10, 20, 30], (
+        "Modifying solute_orbitals in copied input should not affect original."
+    )
+    assert copied_input.solute_orbitals == [10, 20, 30, 40]
+
+    # Test with basis_set (dict)
+    assert isinstance(copied_input.basis_set, dict)
+    assert isinstance(original_input.basis_set, dict)
+    # The type ignore is because basis_set can be str | dict, but we've ensured it's dict here.
+    copied_input.basis_set["O"] = "def2-svp"  # type: ignore
+
+    assert "O" not in original_input.basis_set, "Modifying basis_set in copied input should not affect original."
+    assert copied_input.basis_set["O"] == "def2-svp"  # type: ignore
+
+    # Ensure other attributes are still the same after modifications to mutable fields of the copy
+    assert copied_input.n_cores == original_input.n_cores
+    assert copied_input.run_tddft == original_input.run_tddft
