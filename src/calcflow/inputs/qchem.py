@@ -306,7 +306,7 @@ class QchemInput(CalculationInput):
 
         # For MOM targeting ground state or excited states, we currently only support
         # closed-shell singlet reference states for determining occupations.
-        if self.charge != 0 or self.spin_multiplicity != 1:
+        if self.mom_transition is not None and self.charge != 0 or self.spin_multiplicity != 1:
             raise NotSupportedError(
                 "MOM occupation determination currently only supports closed-shell singlet reference states. "
                 f"Got charge={self.charge}, multiplicity={self.spin_multiplicity}."
