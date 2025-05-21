@@ -1,4 +1,5 @@
 import re
+from copy import deepcopy
 from dataclasses import dataclass, replace
 from typing import ClassVar, Literal, TypeVar, cast, get_args
 
@@ -113,6 +114,14 @@ class QchemInput(CalculationInput):
             raise ValidationError(
                 f"Solvation model '{self.implicit_solvation_model}' not recognized. Allowed: {get_args(QCHEM_ALLOWED_SOLVATION_MODELS)}"
             )
+
+    def copy(self: T_QchemInput) -> T_QchemInput:
+        """Create a deep copy of the QchemInput instance.
+
+        Returns:
+            A new QchemInput instance with the same parameters.
+        """
+        return deepcopy(self)
 
     def enable_mom(self: T_QchemInput, method: str = "IMOM") -> T_QchemInput:
         """Enable MOM calculation with specified method.
