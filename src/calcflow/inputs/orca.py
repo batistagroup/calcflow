@@ -1,3 +1,4 @@
+from copy import deepcopy
 from dataclasses import dataclass, replace
 from typing import ClassVar, Literal, TypeVar, cast, get_args
 
@@ -14,6 +15,7 @@ SUPPORTED_FUNCTIONALS = {"b3lyp", "pbe0", "m06", "cam-b3lyp", "wb97x", "wb97x-d3
 
 # Define allowed models specifically for ORCA
 ORCA_ALLOWED_SOLVATION_MODELS = Literal["smd", "cpcm"]
+ORCA_ALLOWED_RI_APPROXIMATIONS = Literal["RIJCOSX", "RIJK"]
 
 
 @dataclass(frozen=True)
@@ -39,6 +41,8 @@ class OrcaInput(CalculationInput):
         output_verbosity: Level of output verbosity. Defaults to "Normal".
         print_mos: Flag to control printing of Molecular Orbitals (MOs) and Overlap matrix.
             Defaults to False.
+        recalc_hess_freq: Frequency for Hessian recalculation. Defaults to None.
+        optimize_hydrogens_only: Flag to optimize only hydrogens in geometry optimization. Defaults to False.
     """
 
     program: ClassVar[str] = "orca"
@@ -46,7 +50,7 @@ class OrcaInput(CalculationInput):
     n_cores: int = 1
     geom_mode: str = "xyz"
 
-    ri_approx: str | None = None
+    ri_approx: ORCA_ALLOWED_RI_APPROXIMATIONS | None = None
     aux_basis: str | None = None
 
     run_tddft: bool = False
@@ -60,6 +64,8 @@ class OrcaInput(CalculationInput):
 
     output_verbosity: Literal["Normal", "Verbose", "Mini"] = "Normal"
     print_mos: bool = False
+    recalc_hess_freq: int | None = None
+    optimize_hydrogens_only: bool = False
 
     def __post_init__(self) -> None:
         """Performs ORCA-specific validation after initialization.
@@ -123,6 +129,17 @@ class OrcaInput(CalculationInput):
                 "Both `implicit_solvation_model` and `solvent` must be provided together, or neither."
             )
 
+        if self.recalc_hess_freq is not None:
+            if self.task != "geometry":
+                raise ValidationError(
+                    "Hessian recalculation (recalc_hess_freq) is only applicable for 'geometry' tasks."
+                )
+            if self.recalc_hess_freq < 1:
+                raise ValidationError("recalc_hess_freq must be a positive integer.")
+
+        if self.optimize_hydrogens_only and self.task != "geometry":
+            raise ValidationError("Optimizing only hydrogens is only applicable for 'geometry' tasks.")
+
     def set_solvation(self: T_OrcaInput, model: str | None, solvent: str | None) -> T_OrcaInput:
         """
         Set the implicit solvation model and solvent.
@@ -165,8 +182,13 @@ class OrcaInput(CalculationInput):
         Returns:
             A new OrcaInput instance with RI enabled
         """
+        normalized = cast(ORCA_ALLOWED_RI_APPROXIMATIONS, approx.upper())
+        if normalized not in get_args(ORCA_ALLOWED_RI_APPROXIMATIONS):
+            raise ValidationError(
+                f"RI approximation '{approx}' not recognized for ORCA. Allowed: {get_args(ORCA_ALLOWED_RI_APPROXIMATIONS)}"
+            )
         logger.info(f"Enabling RI approximation: {approx} with aux basis {aux_basis}")
-        return replace(self, ri_approx=approx, aux_basis=aux_basis)
+        return replace(self, ri_approx=normalized, aux_basis=aux_basis)
 
     def enable_print_mos(self: T_OrcaInput) -> T_OrcaInput:
         """Enable printing of MOs and Overlap matrix in the output.
@@ -200,8 +222,7 @@ class OrcaInput(CalculationInput):
             If neither is specified, defaults to calculating 6 roots.
         """
         if nroots is None and iroot is None:
-            nroots = 5
-            logger.info(f"Setting TDDFT with default nroots={nroots}, triplets={triplets}, use_tda={use_tda}")
+            raise ValidationError("Either nroots or iroot must be specified.")
         elif iroot is not None:
             logger.info(f"Setting TDDFT for iroot={iroot}, triplets={triplets}, use_tda={use_tda}")
         else:
@@ -215,6 +236,49 @@ class OrcaInput(CalculationInput):
             tddft_triplets=triplets,
             tddft_use_tda=use_tda,
         )
+
+    def set_hessian_recalculation(self: T_OrcaInput, frequency: int) -> T_OrcaInput:
+        """Enable and configure Hessian recalculation during geometry optimization.
+
+        Args:
+            frequency: The frequency (number of steps) at which to recalculate the Hessian.
+
+        Returns:
+            A new OrcaInput instance with Hessian recalculation configured.
+
+        Raises:
+            ValidationError: If the task is not 'geometry' or frequency is not positive.
+        """
+        if self.task != "geometry":
+            raise ValidationError("Hessian recalculation is only applicable for 'geometry' tasks.")
+        if frequency < 1:
+            raise ValidationError("Hessian recalculation frequency must be a positive integer.")
+
+        logger.info(f"Setting Hessian recalculation frequency to every {frequency} steps.")
+        return replace(self, recalc_hess_freq=frequency)
+
+    def enable_optimize_hydrogens_only(self: T_OrcaInput) -> T_OrcaInput:
+        """Enable optimizing only hydrogen atoms during geometry optimization.
+
+        Returns:
+            A new OrcaInput instance with hydrogen-only optimization enabled.
+
+        Raises:
+            ValidationError: If the task is not 'geometry'.
+        """
+        if self.task != "geometry":
+            raise ValidationError("Optimizing only hydrogens is only applicable for 'geometry' tasks.")
+
+        logger.info("Enabling optimization of hydrogen atoms only.")
+        return replace(self, optimize_hydrogens_only=True)
+
+    def copy(self: T_OrcaInput) -> T_OrcaInput:
+        """Create a deep copy of the OrcaInput instance.
+
+        Returns:
+            A new, fully independent OrcaInput instance with the same parameters.
+        """
+        return deepcopy(self)
 
     def _handle_level_of_theory(self) -> list[str]:
         keywords: list[str] = []
@@ -406,6 +470,23 @@ class OrcaInput(CalculationInput):
 
         return "\n".join(lines)
 
+    def _get_geom_block(self) -> str:
+        """Generates the %geom block for Hessian recalculation during geometry optimization.
+
+        Returns:
+            String containing %geom block if recalc_hess_freq is set or optimize_hydrogens_only is true, empty string otherwise.
+        """
+        if self.task == "geometry" and (self.recalc_hess_freq is not None or self.optimize_hydrogens_only):
+            lines = ["%geom"]
+            if self.recalc_hess_freq is not None:
+                lines.append("    Calc_Hess true")
+                lines.append(f"    Recalc_Hess {self.recalc_hess_freq}")
+            if self.optimize_hydrogens_only:
+                lines.append("    OptimizeHydrogens true")
+            lines.append("end")
+            return "\n".join(lines)
+        return ""
+
     def export_input_file(self, geometry: "Geometry") -> str:
         """Generates the ORCA input file content.
 
@@ -427,6 +508,7 @@ class OrcaInput(CalculationInput):
             self._get_solvent_block(),
             self._get_tddft_block(),
             self._get_output_block(),
+            self._get_geom_block(),
             f"* {self.geom_mode} {self.charge} {self.spin_multiplicity}",
             geometry.get_coordinate_block(),
             "*",

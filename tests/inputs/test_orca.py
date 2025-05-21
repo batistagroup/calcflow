@@ -290,6 +290,44 @@ class TestOrcaInputInitValidation:
                 solvent="water",
             )
 
+    # --- Hessian Recalculation and Optimize Hydrogens Init Validation ---
+    def test_init_recalc_hess_freq_wrong_task(self) -> None:
+        """Test __post_init__ validation for recalc_hess_freq with non-geometry task."""
+        with pytest.raises(ValidationError, match="Hessian recalculation .* only applicable for 'geometry' tasks"):
+            OrcaInput(
+                task="energy",  # Non-geometry task
+                level_of_theory="hf",
+                basis_set="sto-3g",
+                charge=0,
+                spin_multiplicity=1,
+                recalc_hess_freq=10,
+            )
+
+    @pytest.mark.parametrize("invalid_freq", [0, -1])
+    def test_init_recalc_hess_freq_invalid_value(self, invalid_freq: int) -> None:
+        """Test __post_init__ validation for non-positive recalc_hess_freq."""
+        with pytest.raises(ValidationError, match="recalc_hess_freq must be a positive integer"):
+            OrcaInput(
+                task="geometry",
+                level_of_theory="hf",
+                basis_set="sto-3g",
+                charge=0,
+                spin_multiplicity=1,
+                recalc_hess_freq=invalid_freq,
+            )
+
+    def test_init_optimize_hydrogens_only_wrong_task(self) -> None:
+        """Test __post_init__ validation for optimize_hydrogens_only with non-geometry task."""
+        with pytest.raises(ValidationError, match="Optimizing only hydrogens is only applicable for 'geometry' tasks"):
+            OrcaInput(
+                task="energy",  # Non-geometry task
+                level_of_theory="hf",
+                basis_set="sto-3g",
+                charge=0,
+                spin_multiplicity=1,
+                optimize_hydrogens_only=True,
+            )
+
 
 class TestOrcaInputMethods:
     """Tests for methods modifying OrcaInput instances."""
@@ -314,14 +352,9 @@ class TestOrcaInputMethods:
         assert modified_input.n_cores == minimal_orca_input.n_cores
 
     def test_set_tddft_defaults(self, minimal_orca_input: OrcaInput) -> None:
-        """Test set_tddft with default arguments (should set nroots=5)."""
-        modified_input = minimal_orca_input.set_tddft()
-        assert modified_input is not minimal_orca_input
-        assert modified_input.run_tddft
-        assert modified_input.tddft_nroots == 5  # Default when nroots/iroot are None
-        assert modified_input.tddft_iroot is None
-        assert not modified_input.tddft_triplets
-        assert modified_input.tddft_use_tda  # Default use_tda in set_tddft
+        """Test set_tddft raises ValidationError if nroots and iroot are None."""
+        with pytest.raises(ValidationError, match="Either nroots or iroot must be specified"):
+            minimal_orca_input.set_tddft()
 
     def test_set_tddft_with_nroots(self, minimal_orca_input: OrcaInput) -> None:
         """Test set_tddft specifying nroots."""
@@ -354,6 +387,72 @@ class TestOrcaInputMethods:
 
     # Note: Validation for conflicting nroots/iroot happens in __post_init__,
     # not directly in set_tddft, so we don't test that specific error here.
+
+    def test_set_hessian_recalculation_valid(self, minimal_orca_input: OrcaInput) -> None:
+        """Test set_hessian_recalculation with valid frequency on a geometry task."""
+        geom_input = replace(minimal_orca_input, task="geometry")
+        modified_input = geom_input.set_hessian_recalculation(frequency=10)
+        assert modified_input is not geom_input
+        assert modified_input.recalc_hess_freq == 10
+        assert modified_input.task == "geometry"
+
+    def test_set_hessian_recalculation_wrong_task(self, minimal_orca_input: OrcaInput) -> None:
+        """Test set_hessian_recalculation raises error if task is not geometry."""
+        assert minimal_orca_input.task == "energy"  # Precondition
+        with pytest.raises(ValidationError, match="Hessian recalculation is only applicable for 'geometry' tasks"):
+            minimal_orca_input.set_hessian_recalculation(frequency=10)
+
+    @pytest.mark.parametrize("invalid_freq", [0, -5])
+    def test_set_hessian_recalculation_invalid_frequency(
+        self, minimal_orca_input: OrcaInput, invalid_freq: int
+    ) -> None:
+        """Test set_hessian_recalculation raises error for non-positive frequency."""
+        geom_input = replace(minimal_orca_input, task="geometry")
+        with pytest.raises(ValidationError, match="Hessian recalculation frequency must be a positive integer"):
+            geom_input.set_hessian_recalculation(frequency=invalid_freq)
+
+    def test_enable_optimize_hydrogens_only_valid(self, minimal_orca_input: OrcaInput) -> None:
+        """Test enable_optimize_hydrogens_only on a geometry task."""
+        geom_input = replace(minimal_orca_input, task="geometry")
+        modified_input = geom_input.enable_optimize_hydrogens_only()
+        assert modified_input is not geom_input
+        assert modified_input.optimize_hydrogens_only
+        assert modified_input.task == "geometry"
+
+    def test_enable_optimize_hydrogens_only_wrong_task(self, minimal_orca_input: OrcaInput) -> None:
+        """Test enable_optimize_hydrogens_only raises error if task is not geometry."""
+        assert minimal_orca_input.task == "energy"  # Precondition
+        with pytest.raises(ValidationError, match="Optimizing only hydrogens is only applicable for 'geometry' tasks"):
+            minimal_orca_input.enable_optimize_hydrogens_only()
+
+    def test_copy_method(self, minimal_orca_input: OrcaInput) -> None:
+        """Test the copy method for deep copying."""
+        original_input = replace(minimal_orca_input, ri_approx="RI", aux_basis="def2/J")  # Add a mutable-like field
+        copied_input = original_input.copy()
+
+        assert copied_input is not original_input
+        assert copied_input == original_input  # Dataclass equality should hold
+
+        # Test deepcopy by attempting to modify a field (even if immutable here, it's good practice for dicts)
+        # If basis_set could be a dict: original_input.basis_set["new_key"] = "new_value"
+        # For now, let's show they are independent by replacing one
+        modified_original = replace(original_input, n_cores=100)
+        assert copied_input.n_cores == original_input.n_cores  # Copied should still have original n_cores
+        assert modified_original.n_cores == 100
+
+        # More direct test for a mutable attribute if we had one that's commonly a dict.
+        # For example, if 'basis_set' was guaranteed to be a dict for this test:
+        # original_input_with_dict_basis = replace(minimal_orca_input, basis_set={"C": "sto-3g"})
+        # copied_with_dict_basis = original_input_with_dict_basis.copy()
+        # copied_with_dict_basis.basis_set["H"] = "6-31g"
+        # assert "H" not in original_input_with_dict_basis.basis_set # Check original is untouched
+
+    def test_enable_rijcosx_valid(self, minimal_orca_input: OrcaInput) -> None:
+        """Test enable_rijcosx with a valid auxiliary basis."""
+        modified_input = minimal_orca_input.enable_ri(approx="RIJCOSX", aux_basis="def2/J")
+        assert modified_input is not minimal_orca_input
+        assert modified_input.ri_approx == "RIJCOSX"
+        assert modified_input.aux_basis == "def2/J"
 
 
 class TestOrcaInputSetSolvation:
@@ -753,6 +852,52 @@ end"""
         ):
             inconsistent_input = replace(minimal_orca_input, run_tddft=True, tddft_nroots=None, tddft_iroot=None)
             inconsistent_input.export_input_file(default_geom)  # Should raise in _get_tddft_block (Line 315)
+
+    def test_export_geom_recalc_hess(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
+        """Test export with Hessian recalculation enabled."""
+        geom_input = replace(minimal_orca_input, task="geometry")
+        hess_input = geom_input.set_hessian_recalculation(frequency=15)
+        output = hess_input.export_input_file(default_geom)
+        expected_geom_block = """%geom
+    Calc_Hess true
+    Recalc_Hess 15
+end"""
+        assert expected_geom_block in output
+        # Ensure Opt keyword is still present
+        expected_keywords_set = {"!", "RHF", "sto-3g", "Opt"}
+        self._assert_keywords_match(output, expected_keywords_set)
+
+    def test_export_geom_optimize_hydrogens(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
+        """Test export with optimize_hydrogens_only enabled."""
+        geom_input = replace(minimal_orca_input, task="geometry")
+        hydro_opt_input = geom_input.enable_optimize_hydrogens_only()
+        output = hydro_opt_input.export_input_file(default_geom)
+        expected_geom_block = """%geom
+    OptimizeHydrogens true
+end"""
+        assert expected_geom_block in output
+        # Ensure Opt keyword is still present
+        expected_keywords_set = {"!", "RHF", "sto-3g", "Opt"}
+        self._assert_keywords_match(output, expected_keywords_set)
+
+    def test_export_geom_recalc_hess_and_optimize_hydrogens(
+        self, minimal_orca_input: OrcaInput, default_geom: Geometry
+    ) -> None:
+        """Test export with both Hessian recalculation and optimize_hydrogens_only enabled."""
+        geom_input = replace(minimal_orca_input, task="geometry")
+        combined_input = geom_input.set_hessian_recalculation(frequency=20).enable_optimize_hydrogens_only()
+        output = combined_input.export_input_file(default_geom)
+        # Order within the block might vary if not enforced, but content should be there.
+        # For now, let's check for individual lines if order is not guaranteed by _get_geom_block for multiple options.
+        # However, current _get_geom_block has a fixed order.
+        expected_geom_block = """%geom
+    Calc_Hess true
+    Recalc_Hess 20
+    OptimizeHydrogens true
+end"""
+        assert expected_geom_block in output
+        expected_keywords_set = {"!", "RHF", "sto-3g", "Opt"}
+        self._assert_keywords_match(output, expected_keywords_set)
 
 
 # --- Add more test classes below ---
