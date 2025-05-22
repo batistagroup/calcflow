@@ -10,7 +10,7 @@
 
 **CalcFlow: Quantum Chemistry Calculation I/O. Done Right.**
 
-`CalcFlow` provides a robust, Pythonic interface for preparing inputs and parsing outputs for quantum chemistry software like Q-Chem and ORCA. It has **zero external dependencies** and is built for clarity and reliability. Get your calculations set up and results processed without the usual boilerplate.
+CalcFlow provides a robust, Pythonic interface for preparing inputs and parsing outputs for quantum chemistry software like Q-Chem and ORCA. It has **zero external dependencies** and is built for clarity and reliability. Get your calculations set up and results processed without the usual boilerplate.
 
 WARNING: Package is in pre-release alpha stage. May introduce backwards-incompatible changes. Contributions & suggestions & advice are welcome.
 
@@ -171,7 +171,7 @@ TransitionDMMulliken(
     sum_abs_trans_charges_qta=0.002226, sum_sq_trans_charges_qt2=2e-06)
 ```
 
-See [scripts/create-parse-qchem.py](scripts/create-parse-qchem.py) for more examples or to play with outputs used for tests (stored in [](data/calculations/examples/qchem/))
+See [scripts/create-parse-qchem.py](scripts/create-parse-qchem.py) for more examples or to play with outputs used for tests (stored in [data/calculations/examples/qchem/](data/calculations/examples/qchem/))
 
 ## Contributing
 
