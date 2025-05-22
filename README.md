@@ -173,6 +173,30 @@ TransitionDMMulliken(
 
 See [scripts/create-parse-qchem.py](scripts/create-parse-qchem.py) for more examples or to play with outputs used for tests (stored in [data/calculations/examples/qchem/](data/calculations/examples/qchem/))
 
+### Which versions of QChem do you support?
+
+It's tested on 6.2 and 5.4. Good news is that I'm intending to make it easy to adjust for version-specific printing. For example,
+
+```txt
+QChem 5.4. prints final SCF energy as
+SCF   energy in the final basis set =      -75.3184602363
+while 6.2. prints it as
+SCF   energy =   -75.32080770
+
+p.s. nevermind the difference in energy, 5.4. mistakenly prints SCF energy same as Total energy, which includes solvation terms
+```
+
+which is why the [calcflow/parsers/qchem/blocks/scf.py](src/calcflow/parsers/qchem/blocks/scf.py) block defines different patterns for different versions:
+
+```py
+PatternDefinition(field_name="scf_energy", required=True, description="Final SCF energy value",
+versioned_patterns=[
+        (re.compile(r"^\s*SCF\s+energy\s*=\s*(-?\d+\.\d+)"), "6.2", lambda m: float(m.group(1))),
+        (re.compile(r"^\s*SCF\s+energy in the final basis set\s*=\s*(-?\d+\.\d+)"), "5.4", lambda m: float(m.group(1))),
+    ],
+),
+```
+
 ## Contributing
 
 Direct, effective contributions are welcome. Fork, modify, test, and pull request. Adhere to existing quality standards.
