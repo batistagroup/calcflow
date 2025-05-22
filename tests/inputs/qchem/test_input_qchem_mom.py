@@ -129,14 +129,14 @@ def test_generate_occupied_block_non_singlet(mom_enabled_input: QchemInput, h2o_
     inp_charged = replace(mom_enabled_input, charge=1, unrestricted=True).set_mom_transition("HOMO->LUMO")
     with pytest.raises(
         NotSupportedError,
-        match="MOM occupation determination currently only supports closed-shell singlet reference states",
+        match="MOM occupation determination via symbolic transition or 'GROUND_STATE' marker currently only supports a closed-shell singlet reference state for the job where occupations are determined.",
     ):
         inp_charged._generate_occupied_block(h2o_geometry)
 
     inp_triplet = replace(mom_enabled_input, spin_multiplicity=3, unrestricted=True).set_mom_transition("HOMO->LUMO")
     with pytest.raises(
         NotSupportedError,
-        match="MOM occupation determination currently only supports closed-shell singlet reference states",
+        match="MOM occupation determination via symbolic transition or 'GROUND_STATE' marker currently only supports a closed-shell singlet reference state for the job where occupations are determined.",
     ):
         inp_triplet._generate_occupied_block(h2o_geometry)
 
@@ -427,6 +427,7 @@ def test_set_mom_ground_state_before_enable(default_qchem_input: QchemInput) -> 
         default_qchem_input.set_mom_ground_state()
 
 
+# fmt:off
 @pytest.mark.parametrize(
     "geometry_elements_coords, charge, multiplicity, expected_alpha, expected_beta, expected_error, error_match",
     [
@@ -434,59 +435,19 @@ def test_set_mom_ground_state_before_enable(default_qchem_input: QchemInput) -> 
         ((["O", "H", "H"], [[0, 0, 0], [0, 0, 1], [0, 1, 0]]), 0, 1, "1:5", "1:5", None, None),  # H2O, 10e-
         ((["He"], [[0, 0, 0]]), 0, 1, "1", "1", None, None),  # He, 2e-
         # Invalid system: non-closed-shell singlet for _generate_occupied_block check
-        (
-            (["O", "H", "H"], [[0, 0, 0], [0, 0, 1], [0, 1, 0]]),
-            1,
-            1,
-            None,
-            None,
-            NotSupportedError,
-            "MOM occupation determination currently only supports closed-shell singlet reference states",
-        ),
-        (
-            (["O", "H", "H"], [[0, 0, 0], [0, 0, 1], [0, 1, 0]]),
-            0,
-            3,
-            None,
-            None,
-            NotSupportedError,
-            "MOM occupation determination currently only supports closed-shell singlet reference states",
-        ),
-        # Invalid system: odd total electrons for GROUND_STATE processing (QchemInput charge=0, mult=1)
-        (
-            (["Li"], [[0, 0, 0]]),
-            0,
-            1,
-            None,
-            None,
-            ConfigurationError,
-            "Expected an even number of total electrons",
-        ),  # Li (Z=3), total_e = 3.
+        ((["O", "H", "H"], [[0, 0, 0], [0, 0, 1], [0, 1, 0]]), 1, 1, None, None, NotSupportedError, "MOM occupation determination via symbolic transition or 'GROUND_STATE' marker currently only supports a closed-shell singlet reference state for the job where occupations are determined."),
+        ((["O", "H", "H"], [[0, 0, 0], [0, 0, 1], [0, 1, 0]]), 0, 3, None, None, NotSupportedError, "MOM occupation determination via symbolic transition or 'GROUND_STATE' marker currently only supports a closed-shell singlet reference state for the job where occupations are determined."),
+        # Invalid system: odd total electrons for GROUND_STATE processing (QchemInput charge=0, mult=1)   # Li (Z=3), total_e = 3.
+        ((["Li"], [[0, 0, 0]]), 0, 1, None, None, ConfigurationError, "Expected an even number of total electrons"),
         # Corrected test for QchemInput(charge=1) for a system that would otherwise have 0 electrons.
-        # This should be caught by the initial NotSupportedError due to QchemInput.charge != 0.
-        (
-            (["H"], [[0, 0, 0]]),
-            1,
-            1,
-            None,
-            None,
-            NotSupportedError,
-            "MOM occupation determination currently only supports closed-shell singlet reference states",
-        ),  # H(Z=1), QchemInput(charge=1). total_e = 0.
-        # New test for insufficient occupied orbitals (QchemInput charge=0, mult=1, but 0 total electrons from geometry)
-        (
-            ([], []),
-            0,
-            1,
-            None,
-            None,
-            ConfigurationError,
-            "System with 0 electrons .* insufficient occupied orbitals for 'GROUND_STATE' MOM",
-        ),  # No atoms -> total_nuclear_charge=0. total_e = 0.
+        # This should be caught by the initial NotSupportedError due to QchemInput.charge != 0. # H(Z=1), QchemInput(charge=1). total_e = 0.
+        ((["H"], [[0, 0, 0]]), 1, 1, None, None, NotSupportedError, "MOM occupation determination via symbolic transition or 'GROUND_STATE' marker currently only supports a closed-shell singlet reference state for the job where occupations are determined."),
+        # New test for insufficient occupied orbitals (QchemInput charge=0, mult=1, but 0 total electrons from geometry).   # No atoms -> total_nuclear_charge=0. total_e = 0.
+        (([], []), 0, 1, None, None, ConfigurationError, "System with 0 electrons .* insufficient occupied orbitals for 'GROUND_STATE' MOM"),
         # N atom (total_nuclear_charge=7) QchemInput(charge=0, mult=1) -> 7e-. Expect odd electron error.
         ((["N"], [[0, 0, 0]]), 0, 1, None, None, ConfigurationError, "Expected an even number of total electrons"),
     ],
-)
+) # fmt:on
 def test_generate_occupied_block_mom_ground_state(
     unrestricted_input: QchemInput,
     geometry_elements_coords: tuple[list[str], list[list[float]]],

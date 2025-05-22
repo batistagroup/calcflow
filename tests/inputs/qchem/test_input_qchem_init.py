@@ -146,21 +146,21 @@ def test_qchem_input_post_init_trnss_without_tddft() -> None:
             basis_set="sto-3g",
             reduced_excitation_space=True,
             run_tddft=False,  # Explicitly set to False
-            solute_orbitals=[1, 2],  # Provide valid orbitals to isolate the TDDFT dependency check
+            initial_orbitals=[1, 2],  # Provide valid orbitals to isolate the TDDFT dependency check
         )
 
 
 @pytest.mark.parametrize(
-    "solute_orbitals, expected_error_match",
+    "initial_orbitals, expected_error_match",
     [
-        ([], "The solute_orbitals list cannot be empty for reduced excitation space."),
-        ([1, 0], "All solute_orbitals must be positive integers."),
-        ([1, -2], "All solute_orbitals must be positive integers."),
-        ([1.5], "All solute_orbitals must be positive integers."),  # Test non-integer
+        ([], "The initial_orbitals list cannot be empty for reduced excitation space."),
+        ([1, 0], "All initial_orbitals must be positive integers."),
+        ([1, -2], "All initial_orbitals must be positive integers."),
+        ([1.5], "All initial_orbitals must be positive integers."),  # Test non-integer
     ],
 )
-def test_qchem_input_post_init_trnss_invalid_solute_orbitals(solute_orbitals, expected_error_match) -> None:
-    """Test validation error if reduced_excitation_space is True but solute_orbitals are invalid."""
+def test_qchem_input_post_init_trnss_invalid_solute_orbitals(initial_orbitals, expected_error_match) -> None:
+    """Test validation error if reduced_excitation_space is True but initial_orbitals are invalid."""
     # TDDFT must be enabled for TRNSS check to be reached
     with pytest.raises(ValidationError, match=expected_error_match):
         QchemInput(
@@ -169,8 +169,56 @@ def test_qchem_input_post_init_trnss_invalid_solute_orbitals(solute_orbitals, ex
             task="energy",
             level_of_theory="hf",
             basis_set="sto-3g",
-            run_tddft=True,  # TDDFT enabled to reach solute_orbitals validation
+            run_tddft=True,  # TDDFT enabled to reach initial_orbitals validation
             tddft_nroots=5,
             reduced_excitation_space=True,
-            solute_orbitals=solute_orbitals,
+            initial_orbitals=initial_orbitals,
         )
+
+
+def test_qchem_input_copy_method(default_qchem_input: QchemInput) -> None:
+    """Test the copy() method for QchemInput to ensure deep copies."""
+    from dataclasses import replace
+
+    # Make the original input a bit more complex
+    original_input = replace(
+        default_qchem_input,
+        n_cores=2,
+        run_tddft=True,
+        tddft_nroots=3,
+        reduced_excitation_space=True,
+        initial_orbitals=[10, 20, 30],
+        basis_set={"C": "6-31g*", "H": "sto-3g"},  # Use a dict basis for deepcopy check
+    )
+
+    copied_input = original_input.copy()
+
+    # 1. Check they are different instances
+    assert copied_input is not original_input, "Copied input should be a new instance."
+
+    # 2. Check they are equal in value (dataclasses implement __eq__)
+    assert copied_input == original_input, "Copied input should be equal in value to the original."
+
+    # 3. Test deep copy behavior for mutable attributes
+
+    # Test with initial_orbitals (list)
+    assert copied_input.initial_orbitals is not None
+    assert original_input.initial_orbitals is not None
+    copied_input.initial_orbitals.append(40)
+    assert original_input.initial_orbitals == [10, 20, 30], (
+        "Modifying initial_orbitals in copied input should not affect original."
+    )
+    assert copied_input.initial_orbitals == [10, 20, 30, 40]
+
+    # Test with basis_set (dict)
+    assert isinstance(copied_input.basis_set, dict)
+    assert isinstance(original_input.basis_set, dict)
+    # The type ignore is because basis_set can be str | dict, but we've ensured it's dict here.
+    copied_input.basis_set["O"] = "def2-svp"  # type: ignore
+
+    assert "O" not in original_input.basis_set, "Modifying basis_set in copied input should not affect original."
+    assert copied_input.basis_set["O"] == "def2-svp"  # type: ignore
+
+    # Ensure other attributes are still the same after modifications to mutable fields of the copy
+    assert copied_input.n_cores == original_input.n_cores
+    assert copied_input.run_tddft == original_input.run_tddft

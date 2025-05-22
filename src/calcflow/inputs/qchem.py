@@ -1,4 +1,5 @@
 import re
+from copy import deepcopy
 from dataclasses import dataclass, replace
 from typing import ClassVar, Literal, TypeVar, cast, get_args
 
@@ -46,7 +47,8 @@ class QchemInput(CalculationInput):
         mom_beta_occ: Beta orbital occupation string for MOM.
         mom_transition: Symbolic transition specification (e.g., "HOMO->LUMO").
         reduced_excitation_space: Flag to enable reduced excitation space for TDDFT calculations.
-        solute_orbitals: List of molecular orbitals from which excitations are allowed when TRNSS is enabled.
+        initial_orbitals: List of molecular orbitals from which excitations are allowed when TRNSS is enabled.
+        mom_job2_charge: Charge for the second job in a MOM calculation
     """
 
     program: ClassVar[str] = "qchem"
@@ -63,7 +65,7 @@ class QchemInput(CalculationInput):
 
     # --- TDDFT Reduced Excitation Space ---
     reduced_excitation_space: bool = False
-    solute_orbitals: list[int] | None = None
+    initial_orbitals: list[int] | None = None
 
     # --- MOM Specific Attributes ---
     run_mom: bool = False
@@ -71,6 +73,7 @@ class QchemInput(CalculationInput):
     mom_alpha_occ: str | None = None
     mom_beta_occ: str | None = None
     mom_transition: str | None = None  # Stores symbolic transition if using that mode
+    mom_job2_charge: int | None = None  # Charge for the second job in a MOM calculation
 
     implicit_solvation_model: QCHEM_ALLOWED_SOLVATION_MODELS | None = None
     solvent: str | None = None
@@ -100,11 +103,11 @@ class QchemInput(CalculationInput):
         if self.reduced_excitation_space:
             if not self.run_tddft:
                 raise ConfigurationError("reduced_excitation_space (TRNSS) requires TDDFT (run_tddft) to be enabled.")
-            # Validate solute_orbitals if reduced_excitation_space is enabled
-            if not self.solute_orbitals:
-                raise ValidationError("The solute_orbitals list cannot be empty for reduced excitation space.")
-            if not all(isinstance(orb, int) and orb > 0 for orb in self.solute_orbitals):
-                raise ValidationError("All solute_orbitals must be positive integers.")
+            # Validate initial_orbitals if reduced_excitation_space is enabled
+            if not self.initial_orbitals:
+                raise ValidationError("The initial_orbitals list cannot be empty for reduced excitation space.")
+            if not all(isinstance(orb, int) and orb > 0 for orb in self.initial_orbitals):
+                raise ValidationError("All initial_orbitals must be positive integers.")
 
         # Use the Q-Chem specific literal for validation
         if self.implicit_solvation_model and self.implicit_solvation_model not in get_args(
@@ -113,6 +116,14 @@ class QchemInput(CalculationInput):
             raise ValidationError(
                 f"Solvation model '{self.implicit_solvation_model}' not recognized. Allowed: {get_args(QCHEM_ALLOWED_SOLVATION_MODELS)}"
             )
+
+    def copy(self: T_QchemInput) -> T_QchemInput:
+        """Create a deep copy of the QchemInput instance.
+
+        Returns:
+            A new QchemInput instance with the same parameters.
+        """
+        return deepcopy(self)
 
     def enable_mom(self: T_QchemInput, method: str = "IMOM") -> T_QchemInput:
         """Enable MOM calculation with specified method.
@@ -295,15 +306,22 @@ class QchemInput(CalculationInput):
         if not self.unrestricted:
             raise ConfigurationError("MOM requires unrestricted=True")
 
+        # Determine the charge to use for electron counting in this block
+        # If mom_job2_charge is set, it means we are generating the $occupied block
+        # for the *second* job of a MOM calculation, which might have a different charge.
+        effective_charge = self.mom_job2_charge if self.mom_job2_charge is not None else self.charge
+
         # For MOM targeting ground state or excited states, we currently only support
         # closed-shell singlet reference states for determining occupations.
-        if self.charge != 0 or self.spin_multiplicity != 1:
+        # This validation now uses the effective_charge for the current job.
+        if self.mom_transition is not None and (effective_charge != 0 or self.spin_multiplicity != 1):
             raise NotSupportedError(
-                "MOM occupation determination currently only supports closed-shell singlet reference states. "
-                f"Got charge={self.charge}, multiplicity={self.spin_multiplicity}."
+                "MOM occupation determination via symbolic transition or 'GROUND_STATE' marker "
+                f"currently only supports a closed-shell singlet reference state for the job where occupations are determined. "
+                f"Effective charge for this job = {effective_charge}, multiplicity = {self.spin_multiplicity}."
             )
 
-        total_electrons = geometry.total_nuclear_charge - self.charge
+        total_electrons = geometry.total_nuclear_charge - effective_charge
 
         if self.mom_transition == "GROUND_STATE":
             if total_electrons < 0:
@@ -430,16 +448,16 @@ class QchemInput(CalculationInput):
         logger.debug(f"Setting RPA keyword to: {enable}")
         return replace(self, rpa=enable)
 
-    def set_reduced_excitation_space(self: T_QchemInput, solute_orbitals: list[int]) -> T_QchemInput:
+    def set_reduced_excitation_space(self: T_QchemInput, initial_orbitals: list[int]) -> T_QchemInput:
         """Configure a reduced excitation space for TDDFT calculations.
 
         This setting activates Q-Chem's TRNSS capability, restricting excitations
         to originate from a specified subset of molecular orbitals. It sets
-        TRNSS = TRUE, TRTYPE = 3, and N_SOL = len(solute_orbitals) in the $rem block,
+        TRNSS = TRUE, TRTYPE = 3, and N_SOL = len(initial_orbitals) in the $rem block,
         and requires a $solute block specifying the active orbitals.
 
         Args:
-            solute_orbitals: A list of positive integers representing the molecular orbitals
+            initial_orbitals: A list of positive integers representing the molecular orbitals
                              from which excitations are allowed. The list will be
                              stored internally sorted and with duplicates removed.
 
@@ -448,7 +466,7 @@ class QchemInput(CalculationInput):
 
         Raises:
             ConfigurationError: If TDDFT (run_tddft) is not enabled.
-            ValidationError: If the solute_orbitals list is empty or contains
+            ValidationError: If the initial_orbitals list is empty or contains
                              non-positive integers.
         """
         if not self.run_tddft:
@@ -456,13 +474,13 @@ class QchemInput(CalculationInput):
                 "Reduced excitation space (TRNSS) requires TDDFT to be enabled. "
                 "Ensure run_tddft is True before calling this method."
             )
-        if not solute_orbitals:
-            raise ValidationError("The solute_orbitals list cannot be empty for reduced excitation space.")
-        if not all(isinstance(orb, int) and orb > 0 for orb in solute_orbitals):
-            raise ValidationError("All solute_orbitals must be positive integers.")
+        if not initial_orbitals:
+            raise ValidationError("The initial_orbitals list cannot be empty for reduced excitation space.")
+        if not all(isinstance(orb, int) and orb > 0 for orb in initial_orbitals):
+            raise ValidationError("All initial_orbitals must be positive integers.")
 
         # Store unique, sorted orbitals
-        processed_orbitals = sorted(list(set(solute_orbitals)))
+        processed_orbitals = sorted(list(set(initial_orbitals)))
 
         logger.debug(
             f"Setting reduced excitation space with orbitals: {processed_orbitals}. "
@@ -471,7 +489,7 @@ class QchemInput(CalculationInput):
         return replace(
             self,
             reduced_excitation_space=True,
-            solute_orbitals=processed_orbitals,
+            initial_orbitals=processed_orbitals,
         )
 
     def set_basis(self: T_QchemInput, basis: str | dict[str, str]) -> T_QchemInput:
@@ -489,18 +507,20 @@ class QchemInput(CalculationInput):
         logger.debug(f"Setting basis set to: {basis}")
         return replace(self, basis_set=basis)
 
-    def _get_molecule_block(self, geom: str) -> str:
+    def _get_molecule_block(self, geom: str, charge_override: int | None = None) -> str:
         """Generates the $molecule block.
 
         Args:
             geom: Molecular geometry in XYZ format (multiline string, excluding header lines).
+            charge_override: Optional integer to override the instance's charge for this block.
 
         Returns:
             String containing the formatted $molecule block.
         """
+        charge_to_use = charge_override if charge_override is not None else self.charge
         lines = [
             "$molecule",
-            f"{self.charge} {self.spin_multiplicity}",
+            f"{charge_to_use} {self.spin_multiplicity}",
             geom.strip(),
             "$end",
         ]
@@ -570,11 +590,13 @@ class QchemInput(CalculationInput):
                 # --- Reduced Excitation Space for TDDFT --- (This logic is now nested)
                 if self.reduced_excitation_space:
                     # The outer condition (mom_start or not self.run_mom) already ensures this is the correct job context.
-                    if not self.solute_orbitals:  # Should be caught by setter, defensive check
-                        raise InputGenerationError("solute_orbitals must be set when reduced_excitation_space is True.")
+                    if not self.initial_orbitals:  # Should be caught by setter, defensive check
+                        raise InputGenerationError(
+                            "initial_orbitals must be set when reduced_excitation_space is True."
+                        )
                     rem_vars["TRNSS"] = True
                     rem_vars["TRTYPE"] = 3
-                    rem_vars["N_SOL"] = len(self.solute_orbitals)
+                    rem_vars["N_SOL"] = len(self.initial_orbitals)
 
         # --- Implicit Solvation --- #
         if self.implicit_solvation_model:
@@ -655,13 +677,13 @@ class QchemInput(CalculationInput):
 
         Returns:
             String containing the formatted $solute block if reduced_excitation_space
-            is True and solute_orbitals are provided, otherwise an empty string.
+            is True and initial_orbitals are provided, otherwise an empty string.
         """
-        if not self.reduced_excitation_space or not self.solute_orbitals:
+        if not self.reduced_excitation_space or not self.initial_orbitals:
             return ""
 
         lines = ["$solute"]
-        lines.append(" ".join(str(orb) for orb in self.solute_orbitals))
+        lines.append(" ".join(str(orb) for orb in self.initial_orbitals))
         lines.append("$end")
         return "\n".join(lines)
 
@@ -712,8 +734,19 @@ class QchemInput(CalculationInput):
             return first_job.strip() + "\n"
 
         # For MOM, add second job
+        second_job_molecule_block: str
+        if self.mom_job2_charge is not None:
+            # If a specific charge is set for job 2, generate a full $molecule block
+            logger.info(f"Generating $molecule block for MOM job 2 with charge: {self.mom_job2_charge}")
+            second_job_molecule_block = self._get_molecule_block(
+                geometry.get_coordinate_block(), charge_override=self.mom_job2_charge
+            )
+        else:
+            # Default behavior: read geometry from the first job
+            second_job_molecule_block = "$molecule\n    read\n$end"
+
         second_job_blocks = [
-            "$molecule\n    read\n$end",
+            second_job_molecule_block,
             self._get_rem_block(
                 scf_guess="read",
                 mom_start=True,
@@ -729,6 +762,31 @@ class QchemInput(CalculationInput):
         second_job = "\n\n".join(block for block in second_job_blocks if block)
 
         return f"{first_job.strip()}\n\n@@@\n\n{second_job.strip()}\n"
+
+    def set_mom_job2_charge(self: T_QchemInput, charge: int) -> T_QchemInput:
+        """Set a specific charge for the second job in a MOM calculation.
+
+        This charge will be used in the $molecule block of the second job,
+        allowing it to differ from the primary charge of the QchemInput object.
+        The spin multiplicity remains the same as the primary setting.
+
+        Args:
+            charge: The integer charge for the second MOM job.
+
+        Returns:
+            A new QchemInput instance with the second job charge set.
+
+        Raises:
+            ConfigurationError: If MOM is not enabled (run_mom=False).
+        """
+        if not self.run_mom:
+            raise ConfigurationError(
+                "MOM must be enabled (run_mom=True) via enable_mom() before setting a specific charge for the second MOM job."
+            )
+        logger.info(
+            f"Setting charge for second MOM job to: {charge}. This will affect the $molecule block and electron count for job 2."
+        )
+        return replace(self, mom_job2_charge=charge)
 
 
 def _convert_transition_to_occupations(transition: str, n_electrons: int) -> tuple[str, str]:
