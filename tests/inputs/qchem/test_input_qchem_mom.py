@@ -426,6 +426,7 @@ def test_set_mom_ground_state_before_enable(default_qchem_input: QchemInput) -> 
     ):
         default_qchem_input.set_mom_ground_state()
 
+
 # fmt:off
 @pytest.mark.parametrize(
     "geometry_elements_coords, charge, multiplicity, expected_alpha, expected_beta, expected_error, error_match",

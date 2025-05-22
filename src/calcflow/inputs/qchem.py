@@ -73,7 +73,7 @@ class QchemInput(CalculationInput):
     mom_alpha_occ: str | None = None
     mom_beta_occ: str | None = None
     mom_transition: str | None = None  # Stores symbolic transition if using that mode
-    mom_job2_charge: int | None = None # Charge for the second job in a MOM calculation
+    mom_job2_charge: int | None = None  # Charge for the second job in a MOM calculation
 
     implicit_solvation_model: QCHEM_ALLOWED_SOLVATION_MODELS | None = None
     solvent: str | None = None
@@ -736,7 +736,9 @@ class QchemInput(CalculationInput):
         if self.mom_job2_charge is not None:
             # If a specific charge is set for job 2, generate a full $molecule block
             logger.info(f"Generating $molecule block for MOM job 2 with charge: {self.mom_job2_charge}")
-            second_job_molecule_block = self._get_molecule_block(geometry.get_coordinate_block(), charge_override=self.mom_job2_charge)
+            second_job_molecule_block = self._get_molecule_block(
+                geometry.get_coordinate_block(), charge_override=self.mom_job2_charge
+            )
         else:
             # Default behavior: read geometry from the first job
             second_job_molecule_block = "$molecule\n    read\n$end"
@@ -779,7 +781,9 @@ class QchemInput(CalculationInput):
             raise ConfigurationError(
                 "MOM must be enabled (run_mom=True) via enable_mom() before setting a specific charge for the second MOM job."
             )
-        logger.info(f"Setting charge for second MOM job to: {charge}. This will affect the $molecule block and electron count for job 2.")
+        logger.info(
+            f"Setting charge for second MOM job to: {charge}. This will affect the $molecule block and electron count for job 2."
+        )
         return replace(self, mom_job2_charge=charge)
 
 
