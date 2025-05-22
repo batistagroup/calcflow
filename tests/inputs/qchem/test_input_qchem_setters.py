@@ -99,7 +99,7 @@ def test_set_basis_dict(default_qchem_input: QchemInput) -> None:
 
 
 @pytest.mark.parametrize(
-    "solute_orbitals, expected_orbitals, expected_error",
+    "initial_orbitals, expected_orbitals, expected_error",
     [
         ([3, 1, 2, 3], [1, 2, 3], None),
         ([], None, ValidationError),
@@ -107,22 +107,22 @@ def test_set_basis_dict(default_qchem_input: QchemInput) -> None:
     ],
 )
 def test_set_reduced_excitation_space(
-    default_qchem_input: QchemInput, solute_orbitals, expected_orbitals, expected_error
+    default_qchem_input: QchemInput, initial_orbitals, expected_orbitals, expected_error
 ) -> None:
     """Test configuring reduced excitation space for TDDFT."""
 
     # Test case where TDDFT is NOT enabled first (should raise ConfigurationError)
     with pytest.raises(ConfigurationError, match="requires TDDFT"):
-        default_qchem_input.set_reduced_excitation_space(solute_orbitals=[1])  # Use a dummy list
+        default_qchem_input.set_reduced_excitation_space(initial_orbitals=[1])  # Use a dummy list
 
     # Enable TDDFT first
     tddft_input = default_qchem_input.set_tddft(nroots=5)
 
     if expected_error:
         with pytest.raises(expected_error):
-            tddft_input.set_reduced_excitation_space(solute_orbitals=solute_orbitals)
+            tddft_input.set_reduced_excitation_space(initial_orbitals=initial_orbitals)
     else:
-        inp = tddft_input.set_reduced_excitation_space(solute_orbitals=solute_orbitals)
+        inp = tddft_input.set_reduced_excitation_space(initial_orbitals=initial_orbitals)
         assert inp.reduced_excitation_space is True
-        assert inp.solute_orbitals == expected_orbitals
+        assert inp.initial_orbitals == expected_orbitals
         assert inp is not tddft_input  # Ensure immutability

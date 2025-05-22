@@ -22,48 +22,48 @@ def test_set_reduced_excitation_space_valid(default_qchem_input: QchemInput) -> 
     orbitals = [10, 8, 12, 8]  # Unsorted, with duplicates
     expected_orbitals = [8, 10, 12]
 
-    inp_reduced = inp_tddft.set_reduced_excitation_space(solute_orbitals=orbitals)
+    inp_reduced = inp_tddft.set_reduced_excitation_space(initial_orbitals=orbitals)
 
     assert inp_reduced.run_tddft
     assert inp_reduced.reduced_excitation_space
-    assert inp_reduced.solute_orbitals == expected_orbitals
+    assert inp_reduced.initial_orbitals == expected_orbitals
     assert inp_reduced is not inp_tddft  # Immutability
 
 
 def test_set_reduced_excitation_space_tddft_not_enabled(default_qchem_input: QchemInput) -> None:
     """Test error if setting reduced excitation space before TDDFT is enabled."""
     with pytest.raises(ConfigurationError, match="Reduced excitation space .TRNSS. requires TDDFT to be enabled"):
-        default_qchem_input.set_reduced_excitation_space(solute_orbitals=[1, 2, 3])
+        default_qchem_input.set_reduced_excitation_space(initial_orbitals=[1, 2, 3])
 
 
 def test_set_reduced_excitation_space_empty_orbitals(default_qchem_input: QchemInput) -> None:
-    """Test error if solute_orbitals list is empty."""
+    """Test error if initial_orbitals list is empty."""
     inp_tddft = default_qchem_input.set_tddft(nroots=3)
-    with pytest.raises(ValidationError, match="The solute_orbitals list cannot be empty"):
-        inp_tddft.set_reduced_excitation_space(solute_orbitals=[])
+    with pytest.raises(ValidationError, match="The initial_orbitals list cannot be empty"):
+        inp_tddft.set_reduced_excitation_space(initial_orbitals=[])
 
 
 @pytest.mark.parametrize(
     "invalid_orbitals, error_msg",
     [
-        ([1, 0, 2], "All solute_orbitals must be positive integers."),
-        ([1, -5, 2], "All solute_orbitals must be positive integers."),
-        ([1, 2.5, 3], "All solute_orbitals must be positive integers."),
-        (["a", 2, 3], "All solute_orbitals must be positive integers."),
+        ([1, 0, 2], "All initial_orbitals must be positive integers."),
+        ([1, -5, 2], "All initial_orbitals must be positive integers."),
+        ([1, 2.5, 3], "All initial_orbitals must be positive integers."),
+        (["a", 2, 3], "All initial_orbitals must be positive integers."),
     ],
 )
 def test_set_reduced_excitation_space_invalid_orbital_values(
     default_qchem_input: QchemInput, invalid_orbitals: list, error_msg: str
 ) -> None:
-    """Test error if solute_orbitals list contains non-positive or non-integer values."""
+    """Test error if initial_orbitals list contains non-positive or non-integer values."""
     inp_tddft = default_qchem_input.set_tddft(nroots=3)
     with pytest.raises(ValidationError, match=error_msg):
-        inp_tddft.set_reduced_excitation_space(solute_orbitals=invalid_orbitals)
+        inp_tddft.set_reduced_excitation_space(initial_orbitals=invalid_orbitals)
 
 
 def test_get_rem_block_tddft_reduced_excitation(helpers, default_qchem_input: QchemInput) -> None:
     """Test $rem block with TDDFT and reduced excitation space."""
-    inp = default_qchem_input.set_tddft(nroots=5).set_reduced_excitation_space(solute_orbitals=[8, 10, 11])
+    inp = default_qchem_input.set_tddft(nroots=5).set_reduced_excitation_space(initial_orbitals=[8, 10, 11])
 
     expected_rem_dict = {
         # Base from default_qchem_input
@@ -97,7 +97,7 @@ def test_get_rem_block_tddft_reduced_excitation(helpers, default_qchem_input: Qc
 
 def test_get_solute_block_active(default_qchem_input: QchemInput) -> None:
     """Test $solute block generation when TRNSS is active."""
-    inp = default_qchem_input.set_tddft(nroots=3).set_reduced_excitation_space(solute_orbitals=[7, 8, 9])
+    inp = default_qchem_input.set_tddft(nroots=3).set_reduced_excitation_space(initial_orbitals=[7, 8, 9])
     expected_block = """$solute
 7 8 9
 $end"""
@@ -117,7 +117,7 @@ def test_export_input_file_tddft_reduced_excitation(
     """Test exporting an input file with TDDFT and reduced excitation space."""
     inp = (
         default_qchem_input.set_tddft(nroots=3)
-        .set_reduced_excitation_space(solute_orbitals=[4, 5])
+        .set_reduced_excitation_space(initial_orbitals=[4, 5])
         .set_basis("def2-svp")  # Use a slightly more realistic basis
     )
 
@@ -173,7 +173,7 @@ def test_export_input_file_mom_tddft_reduced_excitation(
         unrestricted_input.enable_mom()
         .set_mom_transition("HOMO->LUMO")  # Sets up MOM for H2O (5 alpha, 5 beta)
         .set_tddft(nroots=2)  # Enable TDDFT for the second job
-        .set_reduced_excitation_space(solute_orbitals=[4, 5])  # Reduce excitation space for TDDFT
+        .set_reduced_excitation_space(initial_orbitals=[4, 5])  # Reduce excitation space for TDDFT
         .set_basis("def2-tzvp")  # Use a different basis for clarity
     )
 

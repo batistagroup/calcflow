@@ -37,11 +37,11 @@ run = {
     "tddft-create": False,
     "tddft-parse": False,
     "mom-parse": False,
-    "mom-xas-parse": False,
+    "mom-xas-parse": True,
     "sp-parse-5.4": False,
     "tddft-uks-parse-5.4": False,
     "mom-sp-parse-5.4": False,
-    "mom-xas-parse-5.4": True,
+    "mom-xas-parse-5.4": False,
 }
 
 if run["sp-create"]:
@@ -124,6 +124,7 @@ if run["mom-xas-parse"]:
     print(mom_pc2.job2)
     print(mom_pc2.job2.scf)
     print(mom_pc2.job2.tddft)
+    breakpoint()
 
 if run["sp-parse-5.4"]:
     sp_sto = parse_qchem_sp_output((clc_54_folder / "sp-sto-smd.out").read_text())

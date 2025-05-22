@@ -77,50 +77,101 @@ what about getting an O K-Edge XAS spectrum with an element-specific basis?
 job3 = (
     qchem_job.set_tddft(nroots=10, singlets=True, triplets=False, state_analysis=True)
     .set_basis({"H": "pc-2", "O": "pcX-2"})
-    .set_reduced_excitation_space(solute_orbitals=[1])
+    .set_reduced_excitation_space(initial_orbitals=[1])
 )
 with open("h2o_xas.in", "w") as f:
     f.write(job3.export_input_file(water_molecule))
 ```
 
+By the way, this pythonic (arguably intuitive) method
+
+```py
+.set_reduced_excitation_space(initial_orbitals=[1])
+```
+
+translates into, take a guess
+
+```
+$rem
+    TRNSS = TRUE
+    TRTYPE = 3
+    N_SOL = 1
+$end
+
+$solute
+    1
+$end
+```
+
+that was obvious, wasn't it. Honestly, a major reason why this package exists. Btw, if you want to get a XAS spectrum from S1 state, you can do that too:
+
+```python
+job4 = (
+    qchem_job.set_tddft(nroots=10, singlets=True, triplets=False, state_analysis=True)
+    .set_basis({"H": "pc-2", "O": "pcX-2"})
+    .set_reduced_excitation_space(initial_orbitals=[1])
+    .set_unrestricted()
+    .enable_mom()
+    .set_mom_transition("HOMO->LUMO")
+)
+with open("h2o_s1_xas.in", "w") as f:
+    f.write(job4.export_input_file(water_molecule))
+```
+
+this will create a 2-job input file, initial SCF calculation followed by MOM with HOMO electron moved to LUMO and TDDFT from orbital 1 on top of that.
+
+fun fact: because water_molecule is a Geometry instance, it has `.total_nuclear_charge` property, which is used to calculate indexes of HOMO and LUMO orbitals. You can specify same transition numerically `5->6` or even specify occupation numbers manually:
+
+```py
+.set_mom_occupation(alpha_occ="1 2 3 4 6", beta_occ="1 2 3 4 5")
+# or
+.set_mom_occupation(alpha_occ="1:4 6", beta_occ="1:4 5")
+```
 
 ## Parsing Q-Chem Output Files
 
-Once your Q-Chem calculation is complete, use `CalcFlow` parsers. Example for a single point energy calculation:
+Once your Q-Chem calculation is complete, use `CalcFlow` parsers. Example for the last calculation
 
 ```python
-from calcflow.parsers.qchem import parse_qchem_sp_output # Specific parser for Q-Chem SP
+from calcflow.parsers.qchem import parse_qchem_mom_output
 
-# Path to your Q-Chem output file
-output_file_path = "h2o_qchem_sp.out" # Replace with your actual file path
-
-try:
-    with open(output_file_path, "r") as f:
-        output_content = f.read()
-
-    # Parse the content
-    parsed_data = parse_qchem_sp_output(output_content)
-
-    # Access extracted information
-    if parsed_data.success:
-        print(f"Q-Chem calculation successful!")
-        print(f"Final SCF Energy: {parsed_data.final_energy} Eh")
-        if parsed_data.multipole_moments:
-            print(f"Dipole Moment (Debye): {parsed_data.multipole_moments.dipole_moment_debye}")
-        if parsed_data.smd: # If SMD solvation was used
-            print(f"SMD Solvation Energy: {parsed_data.smd.smd_energy_solvent} Eh")
-            print(f"Total Energy with SMD: {parsed_data.smd.total_energy_with_solvent} Eh")
-    else:
-        print(f"Q-Chem calculation failed or did not complete.")
-        if parsed_data.errors: # Check for errors attribute
-            print(f"Errors: {', '.join(parsed_data.errors)}")
-
-except FileNotFoundError:
-    print(f"Error: Output file '{output_file_path}' not found.")
-except Exception as e:
-    print(f"An error occurred during parsing: {e}")
+# Replace with your actual file path
+out_path = "h2o_qchem_sp.out" 
+mom_pc2 = parse_qchem_mom_output((clc_folder / "mom-smd-xas.out").read_text())
 ```
-*Note: The exact parser module (e.g., `parse_qchem_tddft_output`, `parse_qchem_mom_output`) and the attributes of `parsed_data` will vary based on the Q-Chem calculation type. Consult the `calcflow.parsers` documentation for details.*
+
+And just like that you have access to all relevant results.
+
+```py
+> mom_pc2.job2
+CalculationData(method='src1-r1', basis='gen', status='NORMAL')
+> print(mom_pc2.job2.scf)
+ScfResults(status='Converged', energy=-76.53682225, n_iterations=9)
+> print(mom_pc2.job2.tddft)
+TddftResults(tda_states=10 states, tddft_states=None, excited_state_analyses=10 analyses, transition_dm_analyses=10 analyses, nto_analyses=10 analyses)
+```
+
+Say you want to get excitation energies and oscillator strenghts? Be my guest:
+
+```py
+eVs = [state.excitation_energy_ev for state in mom_pc2.job2.tddft.tda_states]
+intens = [state.oscillator_strength for state in mom_pc2.job2.tddft.tda_states]
+```
+
+Mulliken populations for 3rd state?
+
+```py
+> mom_pc2.job2.tddft.transition_dm_analyses[2].mulliken
+TransitionDMMulliken(
+    populations=[
+        TransitionDMAtomPopulation(atom_index=0, symbol='H', transition_charge_e=-0.000558, hole_charge_rks=None, electron_charge_rks=None, delta_charge_rks=None, hole_charge_alpha_uks=7.2e-05, hole_charge_beta_uks=7.2e-05, electron_charge_alpha_uks=-0.241416, electron_charge_beta_uks=-0.241421), 
+        TransitionDMAtomPopulation(atom_index=1, symbol='O', transition_charge_e=0.001113, hole_charge_rks=None, electron_charge_rks=None, delta_charge_rks=None, hole_charge_alpha_uks=0.499858, hole_charge_beta_uks=0.499855, electron_charge_alpha_uks=-0.021788, electron_charge_beta_uks=-0.021788), 
+        TransitionDMAtomPopulation(atom_index=2, symbol='H', transition_charge_e=-0.000555, hole_charge_rks=None, electron_charge_rks=None, delta_charge_rks=None, hole_charge_alpha_uks=7.2e-05, hole_charge_beta_uks=7.2e-05, electron_charge_alpha_uks=-0.236798, electron_charge_beta_uks=-0.23679)
+        ], 
+    sum_abs_trans_charges_qta=0.002226, sum_sq_trans_charges_qt2=2e-06)
+```
+
+See [scripts/create-parse-qchem.py](scripts/create-parse-qchem.py) for more examples or to play with outputs used for tests (stored in [](data/calculations/examples/qchem/))
 
 ## Contributing
 

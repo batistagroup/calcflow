@@ -47,7 +47,7 @@ class QchemInput(CalculationInput):
         mom_beta_occ: Beta orbital occupation string for MOM.
         mom_transition: Symbolic transition specification (e.g., "HOMO->LUMO").
         reduced_excitation_space: Flag to enable reduced excitation space for TDDFT calculations.
-        solute_orbitals: List of molecular orbitals from which excitations are allowed when TRNSS is enabled.
+        initial_orbitals: List of molecular orbitals from which excitations are allowed when TRNSS is enabled.
         mom_job2_charge: Charge for the second job in a MOM calculation
     """
 
@@ -65,7 +65,7 @@ class QchemInput(CalculationInput):
 
     # --- TDDFT Reduced Excitation Space ---
     reduced_excitation_space: bool = False
-    solute_orbitals: list[int] | None = None
+    initial_orbitals: list[int] | None = None
 
     # --- MOM Specific Attributes ---
     run_mom: bool = False
@@ -103,11 +103,11 @@ class QchemInput(CalculationInput):
         if self.reduced_excitation_space:
             if not self.run_tddft:
                 raise ConfigurationError("reduced_excitation_space (TRNSS) requires TDDFT (run_tddft) to be enabled.")
-            # Validate solute_orbitals if reduced_excitation_space is enabled
-            if not self.solute_orbitals:
-                raise ValidationError("The solute_orbitals list cannot be empty for reduced excitation space.")
-            if not all(isinstance(orb, int) and orb > 0 for orb in self.solute_orbitals):
-                raise ValidationError("All solute_orbitals must be positive integers.")
+            # Validate initial_orbitals if reduced_excitation_space is enabled
+            if not self.initial_orbitals:
+                raise ValidationError("The initial_orbitals list cannot be empty for reduced excitation space.")
+            if not all(isinstance(orb, int) and orb > 0 for orb in self.initial_orbitals):
+                raise ValidationError("All initial_orbitals must be positive integers.")
 
         # Use the Q-Chem specific literal for validation
         if self.implicit_solvation_model and self.implicit_solvation_model not in get_args(
@@ -448,16 +448,16 @@ class QchemInput(CalculationInput):
         logger.debug(f"Setting RPA keyword to: {enable}")
         return replace(self, rpa=enable)
 
-    def set_reduced_excitation_space(self: T_QchemInput, solute_orbitals: list[int]) -> T_QchemInput:
+    def set_reduced_excitation_space(self: T_QchemInput, initial_orbitals: list[int]) -> T_QchemInput:
         """Configure a reduced excitation space for TDDFT calculations.
 
         This setting activates Q-Chem's TRNSS capability, restricting excitations
         to originate from a specified subset of molecular orbitals. It sets
-        TRNSS = TRUE, TRTYPE = 3, and N_SOL = len(solute_orbitals) in the $rem block,
+        TRNSS = TRUE, TRTYPE = 3, and N_SOL = len(initial_orbitals) in the $rem block,
         and requires a $solute block specifying the active orbitals.
 
         Args:
-            solute_orbitals: A list of positive integers representing the molecular orbitals
+            initial_orbitals: A list of positive integers representing the molecular orbitals
                              from which excitations are allowed. The list will be
                              stored internally sorted and with duplicates removed.
 
@@ -466,7 +466,7 @@ class QchemInput(CalculationInput):
 
         Raises:
             ConfigurationError: If TDDFT (run_tddft) is not enabled.
-            ValidationError: If the solute_orbitals list is empty or contains
+            ValidationError: If the initial_orbitals list is empty or contains
                              non-positive integers.
         """
         if not self.run_tddft:
@@ -474,13 +474,13 @@ class QchemInput(CalculationInput):
                 "Reduced excitation space (TRNSS) requires TDDFT to be enabled. "
                 "Ensure run_tddft is True before calling this method."
             )
-        if not solute_orbitals:
-            raise ValidationError("The solute_orbitals list cannot be empty for reduced excitation space.")
-        if not all(isinstance(orb, int) and orb > 0 for orb in solute_orbitals):
-            raise ValidationError("All solute_orbitals must be positive integers.")
+        if not initial_orbitals:
+            raise ValidationError("The initial_orbitals list cannot be empty for reduced excitation space.")
+        if not all(isinstance(orb, int) and orb > 0 for orb in initial_orbitals):
+            raise ValidationError("All initial_orbitals must be positive integers.")
 
         # Store unique, sorted orbitals
-        processed_orbitals = sorted(list(set(solute_orbitals)))
+        processed_orbitals = sorted(list(set(initial_orbitals)))
 
         logger.debug(
             f"Setting reduced excitation space with orbitals: {processed_orbitals}. "
@@ -489,7 +489,7 @@ class QchemInput(CalculationInput):
         return replace(
             self,
             reduced_excitation_space=True,
-            solute_orbitals=processed_orbitals,
+            initial_orbitals=processed_orbitals,
         )
 
     def set_basis(self: T_QchemInput, basis: str | dict[str, str]) -> T_QchemInput:
@@ -590,11 +590,13 @@ class QchemInput(CalculationInput):
                 # --- Reduced Excitation Space for TDDFT --- (This logic is now nested)
                 if self.reduced_excitation_space:
                     # The outer condition (mom_start or not self.run_mom) already ensures this is the correct job context.
-                    if not self.solute_orbitals:  # Should be caught by setter, defensive check
-                        raise InputGenerationError("solute_orbitals must be set when reduced_excitation_space is True.")
+                    if not self.initial_orbitals:  # Should be caught by setter, defensive check
+                        raise InputGenerationError(
+                            "initial_orbitals must be set when reduced_excitation_space is True."
+                        )
                     rem_vars["TRNSS"] = True
                     rem_vars["TRTYPE"] = 3
-                    rem_vars["N_SOL"] = len(self.solute_orbitals)
+                    rem_vars["N_SOL"] = len(self.initial_orbitals)
 
         # --- Implicit Solvation --- #
         if self.implicit_solvation_model:
@@ -675,13 +677,13 @@ class QchemInput(CalculationInput):
 
         Returns:
             String containing the formatted $solute block if reduced_excitation_space
-            is True and solute_orbitals are provided, otherwise an empty string.
+            is True and initial_orbitals are provided, otherwise an empty string.
         """
-        if not self.reduced_excitation_space or not self.solute_orbitals:
+        if not self.reduced_excitation_space or not self.initial_orbitals:
             return ""
 
         lines = ["$solute"]
-        lines.append(" ".join(str(orb) for orb in self.solute_orbitals))
+        lines.append(" ".join(str(orb) for orb in self.initial_orbitals))
         lines.append("$end")
         return "\n".join(lines)
 
