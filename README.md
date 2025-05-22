@@ -197,6 +197,52 @@ versioned_patterns=[
 ),
 ```
 
+## Slurm submission scripts
+
+As a bonus, there's also a pythonic way of preparing slurm submission files. Most likely you have system-specific variations in which modules should be loaded or which env variables should be defined, so you could inherit from a general SlurmArgs (in [calcflow/inputs/slurm.py](src/calcflow/inputs/slurm.py)):
+
+```py
+from dataclasses import dataclass
+
+from calcflow.inputs.slurm import SlurmArgs
+
+
+@dataclass(frozen=True)
+class NerscSlurmArgs(SlurmArgs):
+    def get_modules(self) -> str:
+        if self.software == "qchem":
+            return """
+module load qchem
+            """
+        elif self.software == "orca":
+            return """
+module load openmpi
+            """
+        return ""
+
+    def get_temp_variables(self) -> str:
+        if self.software == "qchem":
+            return f"""
+export QCSCRATCH=$PSCRATCH
+export QCLOCALSCR=$QCSCRATCH
+export OMP_NUM_THREADS={self.n_cores}
+export QC_THREADS={self.n_cores}
+        """
+        return ""
+```
+
+and then in a very similar manner you can create custom configs:
+
+```py
+nersc_args = NerscSlurmArgs(
+    exec_fname="mom-sp", time="01:00:00", n_cores=16,
+    constraint="cpu", account="mxxxx", queue="regular")
+with (clc_folder / "submit.sh").open("w") as f:
+    f.write(base_args.set_software("qchem").create_submit_script(f"{name}-{state}-{mom_type}"))
+```
+
+where `.set_software` dictates which modules/temp variables will be printed, and arg to `create_submit_script` is the job name.
+
 ## Contributing
 
 Direct, effective contributions are welcome. Fork, modify, test, and pull request. Adhere to existing quality standards.
