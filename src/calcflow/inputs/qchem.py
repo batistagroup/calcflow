@@ -48,6 +48,7 @@ class QchemInput(CalculationInput):
         mom_transition: Symbolic transition specification (e.g., "HOMO->LUMO").
         reduced_excitation_space: Flag to enable reduced excitation space for TDDFT calculations.
         solute_orbitals: List of molecular orbitals from which excitations are allowed when TRNSS is enabled.
+        mom_job2_charge: Charge for the second job in a MOM calculation
     """
 
     program: ClassVar[str] = "qchem"
@@ -72,6 +73,7 @@ class QchemInput(CalculationInput):
     mom_alpha_occ: str | None = None
     mom_beta_occ: str | None = None
     mom_transition: str | None = None  # Stores symbolic transition if using that mode
+    mom_job2_charge: int | None = None # Charge for the second job in a MOM calculation
 
     implicit_solvation_model: QCHEM_ALLOWED_SOLVATION_MODELS | None = None
     solvent: str | None = None
@@ -304,15 +306,22 @@ class QchemInput(CalculationInput):
         if not self.unrestricted:
             raise ConfigurationError("MOM requires unrestricted=True")
 
+        # Determine the charge to use for electron counting in this block
+        # If mom_job2_charge is set, it means we are generating the $occupied block
+        # for the *second* job of a MOM calculation, which might have a different charge.
+        effective_charge = self.mom_job2_charge if self.mom_job2_charge is not None else self.charge
+
         # For MOM targeting ground state or excited states, we currently only support
         # closed-shell singlet reference states for determining occupations.
-        if self.mom_transition is not None and self.charge != 0 or self.spin_multiplicity != 1:
+        # This validation now uses the effective_charge for the current job.
+        if self.mom_transition is not None and (effective_charge != 0 or self.spin_multiplicity != 1):
             raise NotSupportedError(
-                "MOM occupation determination currently only supports closed-shell singlet reference states. "
-                f"Got charge={self.charge}, multiplicity={self.spin_multiplicity}."
+                "MOM occupation determination via symbolic transition or 'GROUND_STATE' marker "
+                f"currently only supports a closed-shell singlet reference state for the job where occupations are determined. "
+                f"Effective charge for this job = {effective_charge}, multiplicity = {self.spin_multiplicity}."
             )
 
-        total_electrons = geometry.total_nuclear_charge - self.charge
+        total_electrons = geometry.total_nuclear_charge - effective_charge
 
         if self.mom_transition == "GROUND_STATE":
             if total_electrons < 0:
@@ -498,18 +507,20 @@ class QchemInput(CalculationInput):
         logger.debug(f"Setting basis set to: {basis}")
         return replace(self, basis_set=basis)
 
-    def _get_molecule_block(self, geom: str) -> str:
+    def _get_molecule_block(self, geom: str, charge_override: int | None = None) -> str:
         """Generates the $molecule block.
 
         Args:
             geom: Molecular geometry in XYZ format (multiline string, excluding header lines).
+            charge_override: Optional integer to override the instance's charge for this block.
 
         Returns:
             String containing the formatted $molecule block.
         """
+        charge_to_use = charge_override if charge_override is not None else self.charge
         lines = [
             "$molecule",
-            f"{self.charge} {self.spin_multiplicity}",
+            f"{charge_to_use} {self.spin_multiplicity}",
             geom.strip(),
             "$end",
         ]
@@ -721,8 +732,17 @@ class QchemInput(CalculationInput):
             return first_job.strip() + "\n"
 
         # For MOM, add second job
+        second_job_molecule_block: str
+        if self.mom_job2_charge is not None:
+            # If a specific charge is set for job 2, generate a full $molecule block
+            logger.info(f"Generating $molecule block for MOM job 2 with charge: {self.mom_job2_charge}")
+            second_job_molecule_block = self._get_molecule_block(geometry.get_coordinate_block(), charge_override=self.mom_job2_charge)
+        else:
+            # Default behavior: read geometry from the first job
+            second_job_molecule_block = "$molecule\n    read\n$end"
+
         second_job_blocks = [
-            "$molecule\n    read\n$end",
+            second_job_molecule_block,
             self._get_rem_block(
                 scf_guess="read",
                 mom_start=True,
@@ -738,6 +758,29 @@ class QchemInput(CalculationInput):
         second_job = "\n\n".join(block for block in second_job_blocks if block)
 
         return f"{first_job.strip()}\n\n@@@\n\n{second_job.strip()}\n"
+
+    def set_mom_job2_charge(self: T_QchemInput, charge: int) -> T_QchemInput:
+        """Set a specific charge for the second job in a MOM calculation.
+
+        This charge will be used in the $molecule block of the second job,
+        allowing it to differ from the primary charge of the QchemInput object.
+        The spin multiplicity remains the same as the primary setting.
+
+        Args:
+            charge: The integer charge for the second MOM job.
+
+        Returns:
+            A new QchemInput instance with the second job charge set.
+
+        Raises:
+            ConfigurationError: If MOM is not enabled (run_mom=False).
+        """
+        if not self.run_mom:
+            raise ConfigurationError(
+                "MOM must be enabled (run_mom=True) via enable_mom() before setting a specific charge for the second MOM job."
+            )
+        logger.info(f"Setting charge for second MOM job to: {charge}. This will affect the $molecule block and electron count for job 2.")
+        return replace(self, mom_job2_charge=charge)
 
 
 def _convert_transition_to_occupations(transition: str, n_electrons: int) -> tuple[str, str]:
