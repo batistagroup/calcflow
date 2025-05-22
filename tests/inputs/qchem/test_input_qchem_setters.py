@@ -45,29 +45,67 @@ def test_set_solvation_inconsistent_args(default_qchem_input: QchemInput) -> Non
         default_qchem_input.set_solvation(model=None, solvent="water")
 
 
-def test_set_tddft_valid(default_qchem_input: QchemInput) -> None:
-    """Test setting valid TDDFT parameters."""
-    inp = default_qchem_input.set_tddft(nroots=10, singlets=False, triplets=True)
+def test_set_tddft_full_config(default_qchem_input: QchemInput) -> None:
+    """Test setting all TDDFT parameters at once."""
+    inp = default_qchem_input.set_tddft(nroots=10, singlets=False, triplets=True, state_analysis=False)
     assert inp.run_tddft
     assert inp.tddft_nroots == 10
     assert not inp.tddft_singlets
     assert inp.tddft_triplets
-    assert inp.tddft_state_analysis  # Default
+    assert not inp.tddft_state_analysis
     assert inp is not default_qchem_input
 
 
+def test_set_tddft_partial_update(default_qchem_input: QchemInput) -> None:
+    """Test updating individual TDDFT parameters while preserving others."""
+    # First setup initial TDDFT configuration
+    inp1 = default_qchem_input.set_tddft(nroots=5, singlets=False, triplets=True, state_analysis=False)
+
+    # Update only nroots, should preserve other settings
+    inp2 = inp1.set_tddft(nroots=10)
+    assert inp2.run_tddft
+    assert inp2.tddft_nroots == 10
+    assert not inp2.tddft_singlets  # Preserved
+    assert inp2.tddft_triplets  # Preserved
+    assert not inp2.tddft_state_analysis  # Preserved
+    assert inp2 is not inp1
+
+    # Update only state_analysis
+    inp3 = inp2.set_tddft(state_analysis=True)
+    assert inp3.tddft_nroots == 10  # Preserved
+    assert not inp3.tddft_singlets  # Preserved
+    assert inp3.tddft_triplets  # Preserved
+    assert inp3.tddft_state_analysis  # Updated
+
+
+def test_set_tddft_no_params_returns_unchanged(default_qchem_input: QchemInput) -> None:
+    """Test that calling set_tddft with no parameters returns the same instance."""
+    inp = default_qchem_input.set_tddft()
+    assert inp is default_qchem_input
+
+
 def test_set_tddft_invalid_nroots(default_qchem_input: QchemInput) -> None:
-    """Test setting invalid nroots in set_tddft raises ValidationError."""
-    with pytest.raises(ValidationError, match="tddft_nroots must be a positive integer."):
+    """Test setting invalid nroots raises ValidationError during object creation."""
+    with pytest.raises(ValidationError, match="tddft_nroots must be a positive integer"):
         default_qchem_input.set_tddft(nroots=0)
-    with pytest.raises(ValidationError, match="tddft_nroots must be a positive integer."):
+    with pytest.raises(ValidationError, match="tddft_nroots must be a positive integer"):
         default_qchem_input.set_tddft(nroots=-1)
 
 
 def test_set_tddft_no_states(default_qchem_input: QchemInput) -> None:
-    """Test setting no states in set_tddft raises ValidationError."""
-    with pytest.raises(ValidationError, match="At least one of singlets or triplets must be True for TDDFT."):
+    """Test setting no states raises ValidationError during object creation."""
+    with pytest.raises(ValidationError, match="at least one of tddft_singlets or tddft_triplets must be True"):
         default_qchem_input.set_tddft(nroots=5, singlets=False, triplets=False)
+
+
+def test_set_tddft_update_to_invalid_state(default_qchem_input: QchemInput) -> None:
+    """Test updating TDDFT to an invalid state raises ValidationError."""
+    # Setup valid initial state
+    inp1 = default_qchem_input.set_tddft(nroots=5, singlets=True, triplets=False)
+
+    # Try to update to invalid state (no singlets or triplets)
+    with pytest.raises(ValidationError, match="at least one of tddft_singlets or tddft_triplets must be True"):
+        inp1.set_tddft(singlets=False, triplets=False)
 
 
 def test_set_rpa(default_qchem_input: QchemInput) -> None:

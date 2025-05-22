@@ -400,40 +400,49 @@ class QchemInput(CalculationInput):
 
     def set_tddft(
         self: T_QchemInput,
-        nroots: int,
-        singlets: bool = True,
-        triplets: bool = False,
-        state_analysis: bool = True,
+        nroots: int | None = None,
+        singlets: bool | None = None,
+        triplets: bool | None = None,
+        state_analysis: bool | None = None,
     ) -> T_QchemInput:
-        """Configure and enable TDDFT calculation.
+        """Configure TDDFT calculation parameters.
+
+        If any parameter is provided, TDDFT will be enabled. Parameters not specified
+        will preserve their current values. For initial setup, typical usage would be
+        to specify at least nroots and the desired state types.
 
         Args:
-            nroots: Number of excited states to calculate. Must be positive.
-            singlets: Whether to include singlet states. Defaults to True.
-            triplets: Whether to include triplet states. Defaults to False.
-            state_analysis: Whether to perform state analysis. Defaults to True.
+            nroots: Number of excited states to calculate. If None, preserves current value.
+            singlets: Whether to include singlet states. If None, preserves current value.
+            triplets: Whether to include triplet states. If None, preserves current value.
+            state_analysis: Whether to perform state analysis. If None, preserves current value.
 
         Returns:
-            A new QchemInput instance with TDDFT enabled and configured.
+            A new QchemInput instance with TDDFT configured.
 
         Raises:
-            ValidationError: If input parameters are invalid (e.g., nroots <= 0).
+            ValidationError: If resulting configuration is invalid (handled by __post_init__).
         """
-        if nroots <= 0:
-            raise ValidationError("tddft_nroots must be a positive integer.")
-        if not singlets and not triplets:
-            raise ValidationError("At least one of singlets or triplets must be True for TDDFT.")
+        # If no parameters provided, return unchanged
+        if all(param is None for param in [nroots, singlets, triplets, state_analysis]):
+            return self
+
+        # Use current values as defaults for unspecified parameters
+        new_nroots = nroots if nroots is not None else self.tddft_nroots
+        new_singlets = singlets if singlets is not None else self.tddft_singlets
+        new_triplets = triplets if triplets is not None else self.tddft_triplets
+        new_state_analysis = state_analysis if state_analysis is not None else self.tddft_state_analysis
 
         logger.debug(
-            f"Setting TDDFT: nroots={nroots}, singlets={singlets}, triplets={triplets}, state_analysis={state_analysis}"
+            f"Setting TDDFT: nroots={new_nroots}, singlets={new_singlets}, triplets={new_triplets}, state_analysis={new_state_analysis}"
         )
         return replace(
             self,
             run_tddft=True,
-            tddft_nroots=nroots,
-            tddft_singlets=singlets,
-            tddft_triplets=triplets,
-            tddft_state_analysis=state_analysis,
+            tddft_nroots=new_nroots,
+            tddft_singlets=new_singlets,
+            tddft_triplets=new_triplets,
+            tddft_state_analysis=new_state_analysis,
         )
 
     def set_rpa(self: T_QchemInput, enable: bool = True) -> T_QchemInput:
