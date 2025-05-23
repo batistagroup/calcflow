@@ -471,7 +471,7 @@ class QchemInput(CalculationInput):
         elif self.mom_transition is not None:
             # This path handles all symbolic transitions including excitations, ionizations, and combinations
             alpha_occ, beta_occ = self._convert_extended_transitions_to_occupations(
-                self.mom_transition, total_electrons, effective_charge, effective_multiplicity, geometry
+                self.mom_transition, geometry
             )
         elif self.mom_alpha_occ is None or self.mom_beta_occ is None:
             raise ConfigurationError(
@@ -536,24 +536,18 @@ class QchemInput(CalculationInput):
             )
 
     def _convert_extended_transitions_to_occupations(
-        self,
-        transition_string: str,
-        total_electrons: int,
-        effective_charge: int,
-        effective_multiplicity: int,
-        geometry: "Geometry",
+        self, 
+        transition_string: str, 
+        geometry: "Geometry"
     ) -> tuple[str, str]:
         """Convert extended transition string to occupation strings.
-
+        
         Handles excitations, ionizations, and combinations.
-
+        
         Args:
             transition_string: Semicolon-separated transition operations
-            total_electrons: Total electrons in the final state
-            effective_charge: Effective charge for the job
-            effective_multiplicity: Effective spin multiplicity for the job
             geometry: Geometry object for the molecule
-
+            
         Returns:
             Tuple of (alpha_occ, beta_occ) strings
         """
