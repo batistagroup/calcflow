@@ -470,9 +470,7 @@ class QchemInput(CalculationInput):
             beta_occ = alpha_occ  # Closed-shell singlet ground state
         elif self.mom_transition is not None:
             # This path handles all symbolic transitions including excitations, ionizations, and combinations
-            alpha_occ, beta_occ = self._convert_extended_transitions_to_occupations(
-                self.mom_transition, geometry
-            )
+            alpha_occ, beta_occ = self._convert_extended_transitions_to_occupations(self.mom_transition, geometry)
         elif self.mom_alpha_occ is None or self.mom_beta_occ is None:
             raise ConfigurationError(
                 "If mom_transition is not 'GROUND_STATE' or a symbolic transition, "
@@ -536,18 +534,16 @@ class QchemInput(CalculationInput):
             )
 
     def _convert_extended_transitions_to_occupations(
-        self, 
-        transition_string: str, 
-        geometry: "Geometry"
+        self, transition_string: str, geometry: "Geometry"
     ) -> tuple[str, str]:
         """Convert extended transition string to occupation strings.
-        
+
         Handles excitations, ionizations, and combinations.
-        
+
         Args:
             transition_string: Semicolon-separated transition operations
             geometry: Geometry object for the molecule
-            
+
         Returns:
             Tuple of (alpha_occ, beta_occ) strings
         """
