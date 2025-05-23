@@ -691,19 +691,24 @@ class QchemInput(CalculationInput):
         if target_idx <= initial_homo:
             raise ValidationError(f"Target orbital {target_idx} must be unoccupied (HOMO={initial_homo})")
 
-        # For closed-shell singlet reference, both spins have same occupation
-        # Apply excitation to alpha channel (traditional for simple excitations)
-        spin_channel = source_spin or "alpha"
+        # Determine spin channels for source and target separately
+        source_spin_channel = source_spin or "alpha"
+        target_spin_channel = target_spin or source_spin_channel
 
-        if spin_channel == "alpha":
+        # Remove electron from source orbital using source spin channel
+        if source_spin_channel == "alpha":
             if source_idx not in alpha_occupied:
                 raise ValidationError(f"Cannot excite from unoccupied alpha orbital {source_idx}")
             alpha_occupied.remove(source_idx)
-            alpha_occupied.add(target_idx)
         else:  # beta
             if source_idx not in beta_occupied:
                 raise ValidationError(f"Cannot excite from unoccupied beta orbital {source_idx}")
             beta_occupied.remove(source_idx)
+
+        # Add electron to target orbital using target spin channel
+        if target_spin_channel == "alpha":
+            alpha_occupied.add(target_idx)
+        else:  # beta
             beta_occupied.add(target_idx)
 
     def _format_occupation_set(self, occupied: set[int]) -> str:
