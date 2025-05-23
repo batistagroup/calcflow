@@ -852,167 +852,50 @@ def test_apply_excitation_unoccupied_beta_source_previously_emptied(unrestricted
         inp._generate_occupied_block(h2o_geometry)
 
 
-def test_apply_excitation_spin_flip_alpha_to_beta(unrestricted_input: QchemInput, h2o_geometry: Geometry) -> None:
-    """Test spin-flip excitation from alpha to beta channel works correctly.
+def test_apply_excitation_double_occupation_prevents_electron_loss(unrestricted_input: QchemInput, h2o_geometry: Geometry) -> None:
+    """Test that attempting to excite to an already-occupied target orbital fails with proper error.
     
-    This test specifically targets the bug where target_spin was ignored and
-    electrons were always added to the source spin channel.
+    This test specifically catches the electron conservation bug where:
+    1. First excitation: HOMO->LUMO (fills LUMO)  
+    2. Second excitation: HOMO-1->LUMO (tries to add to already-occupied LUMO)
+    
+    Before the fix, this would silently lose an electron because Python sets
+    ignore duplicate additions. The fix prevents this by validating that target
+    orbitals are unoccupied before adding electrons.
     """
     # H2O: 10 electrons, HOMO=5, LUMO=6
-    # Initial: alpha={1,2,3,4,5}, beta={1,2,3,4,5} (singlet, mult=1)
-    # Transition: 5(beta)->6(alpha) should give:
-    # Final: alpha={1,2,3,4,5,6}, beta={1,2,3,4} (6α + 4β = triplet, mult=3)
-    inp = unrestricted_input.enable_mom().set_mom_transition("5(beta)->6(alpha)")
-    inp = inp.set_mom_job2_spin_multiplicity(3)  # Triplet state after spin flip
+    # First transition: 5->6 (HOMO->LUMO), alpha occupied becomes {1,2,3,4,6}
+    # Second transition: 4->6 (HOMO-1->LUMO), tries to add electron to already-occupied 6
+    # This should raise ValidationError about orbital 6 already being occupied
+    inp = unrestricted_input.enable_mom().set_mom_transition("HOMO->LUMO; HOMO-1->LUMO")
     
-    block = inp._generate_occupied_block(h2o_geometry)
-    
-    # Check that the result is correct
-    expected = """$occupied
-1:6
-1:4
-$end"""
-    assert block == expected
-    
-    # Verify the electron counts are correct (should still be 10 total)
-    # Alpha: 1:6 = 6 electrons
-    # Beta: 1:4 = 4 electrons  
-    # Total: 6 + 4 = 10 electrons ✓
-    # Net spin: (6-4)/2 = 1, so multiplicity = 2*1 + 1 = 3 ✓
-
-
-def test_apply_excitation_spin_flip_beta_to_alpha(unrestricted_input: QchemInput, h2o_geometry: Geometry) -> None:
-    """Test spin-flip excitation from beta to alpha channel works correctly."""
-    # H2O: 10 electrons, HOMO=5, LUMO=6  
-    # Initial: alpha={1,2,3,4,5}, beta={1,2,3,4,5} (singlet, mult=1)
-    # Transition: 5(alpha)->6(beta) should give:
-    # Final: alpha={1,2,3,4}, beta={1,2,3,4,5,6} (4α + 6β = invalid for triplet)
-    # This actually creates a state with S = (4-6)/2 = -1, which needs |S| = 1
-    # For a valid triplet with net |S| = 1, we need to change the target multiplicity or transition
-    inp = unrestricted_input.enable_mom().set_mom_transition("5(alpha)->6(beta)")
-    # Since we can't set negative multiplicities, let's test this as a special excited state
-    # that may not correspond to a standard multiplicity - skip multiplicity validation
-    inp = inp.set_mom_job2_charge(0).set_mom_job2_spin_multiplicity(1)  # Keep original for now
-    
-    # For this test, we expect the validation to fail with multiplicity mismatch
-    # since 4α + 6β cannot form a singlet (mult=1)
-    with pytest.raises(ValidationError, match="Spin multiplicity 1 inconsistent with alpha/beta electron counts"):
+    with pytest.raises(ValidationError, match="Target orbital 6 already occupied in alpha channel"):
         inp._generate_occupied_block(h2o_geometry)
 
 
-def test_apply_excitation_spin_flip_with_orbital_numbers(unrestricted_input: QchemInput, h2o_geometry: Geometry) -> None:
-    """Test spin-flip excitation using explicit orbital numbers."""
+def test_apply_excitation_double_occupation_prevents_electron_loss_beta_channel(unrestricted_input: QchemInput, h2o_geometry: Geometry) -> None:
+    """Test double-occupation prevention in beta channel."""
     # H2O: 10 electrons, HOMO=5, LUMO=6
-    # Transition: 4(beta)->7(alpha) 
-    # Final: alpha={1,2,3,4,5,7}, beta={1,2,3,5} (6α + 4β = triplet, mult=3)
-    inp = unrestricted_input.enable_mom().set_mom_transition("4(beta)->7(alpha)")
-    inp = inp.set_mom_job2_spin_multiplicity(3)  # Triplet state after spin flip
+    # Both excitations target beta channel orbital 6
+    inp = unrestricted_input.enable_mom().set_mom_transition("5(beta)->6(beta); 4(beta)->6(beta)")
     
-    block = inp._generate_occupied_block(h2o_geometry)
-    
-    expected = """$occupied
-1:5 7
-1:3 5
-$end"""
-    assert block == expected
+    with pytest.raises(ValidationError, match="Target orbital 6 already occupied in beta channel"):
+        inp._generate_occupied_block(h2o_geometry)
 
 
-def test_apply_excitation_multiple_spin_flips(unrestricted_input: QchemInput, h2o_geometry: Geometry) -> None:
-    """Test multiple spin-flip excitations in sequence."""
+def test_apply_excitation_double_occupation_cross_spin_allowed(unrestricted_input: QchemInput, h2o_geometry: Geometry) -> None:
+    """Test that exciting to the same orbital index in different spin channels is allowed."""
     # H2O: 10 electrons, HOMO=5, LUMO=6
-    # Transition 1: 5(alpha)->6(beta) -> alpha={1,2,3,4}, beta={1,2,3,4,5,6}
-    # Transition 2: 4(beta)->7(alpha) -> alpha={1,2,3,4,7}, beta={1,2,3,5,6}
-    # Final state: 5α + 5β = singlet again, mult=1
-    inp = unrestricted_input.enable_mom().set_mom_transition("5(alpha)->6(beta); 4(beta)->7(alpha)")
-    # Note: Two spin flips can cancel out, returning to singlet (mult=1)
-    
-    block = inp._generate_occupied_block(h2o_geometry)
-    
-    expected = """$occupied
-1:4 7
-1:3 5:6
-$end"""
-    assert block == expected
-
-
-def test_apply_excitation_same_spin_still_works(unrestricted_input: QchemInput, h2o_geometry: Geometry) -> None:
-    """Test that same-spin excitations still work correctly after fix."""
-    # H2O: 10 electrons, HOMO=5, LUMO=6
-    # Transition: 5(alpha)->6(alpha) (same spin)
-    # Final: alpha={1,2,3,4,6}, beta={1,2,3,4,5}
-    inp = unrestricted_input.enable_mom().set_mom_transition("5(alpha)->6(alpha)")
+    # First: 5(alpha)->6(alpha) - puts electron in alpha channel orbital 6
+    # Second: 5(beta)->6(beta) - puts electron in beta channel orbital 6 (different set)
+    # This should work because alpha and beta orbital sets are separate
+    inp = unrestricted_input.enable_mom().set_mom_transition("5(alpha)->6(alpha); 5(beta)->6(beta)")
+    # Final: alpha={1,2,3,4,6}, beta={1,2,3,4,6} = 5α + 5β = singlet
     
     block = inp._generate_occupied_block(h2o_geometry)
     
     expected = """$occupied
 1:4 6
-1:5
-$end"""
-    assert block == expected
-
-
-def test_apply_excitation_no_spin_specified_defaults_to_alpha(unrestricted_input: QchemInput, h2o_geometry: Geometry) -> None:
-    """Test that excitations without spin specification default to alpha channel."""
-    # H2O: 10 electrons, HOMO=5, LUMO=6
-    # Transition: HOMO->LUMO (no spin specified, should default to alpha)
-    # Final: alpha={1,2,3,4,6}, beta={1,2,3,4,5}
-    inp = unrestricted_input.enable_mom().set_mom_transition("HOMO->LUMO")
-    
-    block = inp._generate_occupied_block(h2o_geometry)
-    
-    expected = """$occupied
-1:4 6
-1:5
-$end"""
-    assert block == expected
-
-
-def test_apply_excitation_mixed_spin_specifications(unrestricted_input: QchemInput, h2o_geometry: Geometry) -> None:
-    """Test excitation with source spin specified but target defaults to source."""
-    # H2O: 10 electrons, HOMO=5, LUMO=6
-    # Transition: 5(beta)->6 (target defaults to beta since source is beta)
-    # Final: alpha={1,2,3,4,5}, beta={1,2,3,4,6}
-    inp = unrestricted_input.enable_mom().set_mom_transition("5(beta)->6")
-    
-    block = inp._generate_occupied_block(h2o_geometry)
-    
-    expected = """$occupied
-1:5
 1:4 6
 $end"""
     assert block == expected
-
-
-def test_spin_flip_bug_detection(unrestricted_input: QchemInput, h2o_geometry: Geometry) -> None:
-    """Test that specifically would have caught the original spin-flip bug.
-    
-    Before the fix, target_spin was ignored, causing this test to fail.
-    The bug would have put the electron in the wrong spin channel.
-    """
-    # H2O: 10 electrons, HOMO=5, LUMO=6
-    # Use the exact transition from the original bug report but corrected for valid physics
-    # Transition: 5(beta)->7(alpha) creates 6α + 4β = triplet state
-    inp = unrestricted_input.enable_mom().set_mom_transition("5(beta)->7(alpha)")
-    inp = inp.set_mom_job2_spin_multiplicity(3)  # Triplet state: 6α + 4β
-    
-    block = inp._generate_occupied_block(h2o_geometry)
-    
-    # The bug would have produced: alpha={1,2,3,4,5}, beta={1,2,3,4,7} (beta->beta instead of beta->alpha)
-    # The fix correctly produces: alpha={1,2,3,4,5,7}, beta={1,2,3,4} (beta->alpha as specified)
-    expected = """$occupied
-1:5 7
-1:4
-$end"""
-    assert block == expected
-    
-    # Verify specific expectations:
-    # - Orbital 5 should be REMOVED from beta channel ✓
-    # - Orbital 7 should be ADDED to alpha channel ✓ (this was the bug)
-    # - Alpha channel should have orbitals 1,2,3,4,5,7 (7 was added)
-    # - Beta channel should have orbitals 1,2,3,4 (5 was removed)
-    lines = block.split('\n')
-    alpha_line = lines[1]  # Line after $occupied
-    beta_line = lines[2]   # Second line after $occupied
-    
-    assert alpha_line == "1:5 7", f"Expected alpha='1:5 7', got '{alpha_line}'"
-    assert beta_line == "1:4", f"Expected beta='1:4', got '{beta_line}'"

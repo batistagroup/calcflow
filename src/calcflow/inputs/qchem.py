@@ -707,8 +707,12 @@ class QchemInput(CalculationInput):
 
         # Add electron to target orbital using target spin channel
         if target_spin_channel == "alpha":
+            if target_idx in alpha_occupied:
+                raise ValidationError(f"Target orbital {target_idx} already occupied in alpha channel")
             alpha_occupied.add(target_idx)
         else:  # beta
+            if target_idx in beta_occupied:
+                raise ValidationError(f"Target orbital {target_idx} already occupied in beta channel")
             beta_occupied.add(target_idx)
 
     def _format_occupation_set(self, occupied: set[int]) -> str:
