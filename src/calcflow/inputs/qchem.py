@@ -49,6 +49,7 @@ class QchemInput(CalculationInput):
         reduced_excitation_space: Flag to enable reduced excitation space for TDDFT calculations.
         initial_orbitals: List of molecular orbitals from which excitations are allowed when TRNSS is enabled.
         mom_job2_charge: Charge for the second job in a MOM calculation
+        mom_job2_spin_multiplicity: Spin multiplicity for the second job in a MOM calculation
     """
 
     program: ClassVar[str] = "qchem"
@@ -74,6 +75,7 @@ class QchemInput(CalculationInput):
     mom_beta_occ: str | None = None
     mom_transition: str | None = None  # Stores symbolic transition if using that mode
     mom_job2_charge: int | None = None  # Charge for the second job in a MOM calculation
+    mom_job2_spin_multiplicity: int | None = None  # Spin multiplicity for the second job in a MOM calculation
 
     implicit_solvation_model: QCHEM_ALLOWED_SOLVATION_MODELS | None = None
     solvent: str | None = None
@@ -177,14 +179,15 @@ class QchemInput(CalculationInput):
         return replace(self, mom_alpha_occ=alpha_occ, mom_beta_occ=beta_occ, mom_transition=None)
 
     def set_mom_transition(self: T_QchemInput, transition: str) -> T_QchemInput:
-        """Set MOM occupations using a symbolic HOMO/LUMO transition.
+        """Set MOM transition using a single transition string or semicolon-separated operations.
 
-        For closed-shell singlet ground states only. The transition will be applied
-        to both alpha and beta electrons identically.
+        Supports excitations, ionizations, and combinations:
+        - Single excitation: "HOMO->LUMO", "5->7"
+        - Single ionization: "5->vac", "HOMO(beta)->vac"
+        - Multiple operations: "HOMO->LUMO; 5(beta)->vac"
 
         Args:
-            transition: Transition specification (e.g., "HOMO->LUMO", "HOMO-1->LUMO+2").
-                       Only single transitions supported.
+            transition: Transition specification string.
 
         Returns:
             A new QchemInput instance with the transition stored.
@@ -196,42 +199,170 @@ class QchemInput(CalculationInput):
         if not self.run_mom:
             raise ConfigurationError("MOM must be enabled first. Call enable_mom() before set_mom_transition().")
 
-        # Parse and validate the transition format
+        return self._process_mom_transitions(transition)
+
+    def set_mom_transitions(self: T_QchemInput, transitions: list[str]) -> T_QchemInput:
+        """Set MOM transitions using a list of transition strings.
+
+        Args:
+            transitions: List of transition specifications.
+
+        Returns:
+            A new QchemInput instance with the transitions stored.
+
+        Raises:
+            ConfigurationError: If MOM is not enabled.
+            ValidationError: If any transition specification is invalid.
+        """
+        if not self.run_mom:
+            raise ConfigurationError("MOM must be enabled first. Call enable_mom() before set_mom_transitions().")
+
+        combined = "; ".join(transitions)
+        return self._process_mom_transitions(combined)
+
+    def _process_mom_transitions(self: T_QchemInput, transition_string: str) -> T_QchemInput:
+        """Internal method to process and validate transition strings.
+
+        Args:
+            transition_string: Semicolon-separated transition operations.
+
+        Returns:
+            A new QchemInput instance with validated transitions.
+
+        Raises:
+            ValidationError: If any transition is invalid.
+        """
+        # Parse and validate each operation
+        operations = [op.strip() for op in transition_string.split(";")]
+
+        for operation in operations:
+            self._validate_single_transition(operation)
+
+        # Store the validated transition string
+        return replace(self, mom_transition=transition_string, mom_alpha_occ=None, mom_beta_occ=None)
+
+    def _validate_single_transition(self, transition: str) -> None:
+        """Validate a single transition operation.
+
+        Args:
+            transition: Single transition string (e.g., "HOMO->LUMO", "5(beta)->vac")
+
+        Raises:
+            ValidationError: If the transition format is invalid.
+        """
         if "->" not in transition:
             raise ValidationError(f"Invalid transition format: '{transition}'. Expected 'SourceOrb->TargetOrb'.")
 
-        source, target = [x.strip().upper() for x in transition.split("->")]
+        source, target = [x.strip() for x in transition.split("->")]
 
-        # Validate HOMO/LUMO format with optional +/- offset OR positive integer
-        pattern = re.compile(r"(HOMO|LUMO)(?:([+-])(\d+))?")
+        # Validate source orbital
+        self._validate_source_orbital(source, transition)
 
-        def _is_valid_specifier(spec: str) -> bool:
-            if spec.isdigit() and int(spec) > 0:
-                return True  # Positive integer
-            match = pattern.fullmatch(spec)
+        # Validate target orbital
+        self._validate_target_orbital(target, transition)
+
+        # Additional cross-validation
+        if source.upper() == "VAC":
+            raise ValidationError(f"Invalid transition '{transition}': cannot have 'vac' as source orbital.")
+
+    def _validate_source_orbital(self, source: str, full_transition: str) -> None:
+        """Validate source orbital specification.
+
+        Args:
+            source: Source orbital string
+            full_transition: Full transition for error context
+        """
+        # Parse spin specification if present
+        orbital_part, spin_part = self._parse_spin_specification(source)
+
+        if not orbital_part:
+            raise ValidationError(f"Invalid source orbital: '{source}' in transition '{full_transition}'.")
+
+        # Validate the orbital part
+        if orbital_part.isdigit():
+            if int(orbital_part) <= 0:
+                raise ValidationError(f"Invalid source orbital: '{source}'. Orbital numbers must be positive.")
+        else:
+            # HOMO/LUMO format validation
+            pattern = re.compile(r"(HOMO|LUMO)(?:([+-])(\d+))?", re.IGNORECASE)
+            match = pattern.fullmatch(orbital_part.upper())
             if not match:
-                return False  # Neither integer nor HOMO/LUMO format
-            # Additional checks for HOMO/LUMO format
-            if match.group(1) == "HOMO" and match.group(2) == "+":
-                raise ValidationError(f"Invalid source orbital: '{spec}'. Cannot use HOMO+n.")
-            if match.group(1) == "LUMO" and match.group(2) == "-":
-                raise ValidationError(f"Invalid target orbital: '{spec}'. Cannot use LUMO-n.")
-            return True
+                raise ValidationError(
+                    f"Invalid source orbital: '{source}'. Must be HOMO[-n], LUMO[+n], or positive integer."
+                )
 
-        if not _is_valid_specifier(source):
-            raise ValidationError(
-                f"Invalid source orbital: '{source}'. Must be HOMO[-n], LUMO[+n], or positive integer."
-            )
-        if not _is_valid_specifier(target):
-            raise ValidationError(
-                f"Invalid target orbital: '{target}'. Must be HOMO[-n], LUMO[+n], or positive integer."
-            )
+            # Additional validation for HOMO/LUMO
+            orbital_type, operator, offset = match.groups()
+            if orbital_type == "HOMO" and operator == "+":
+                raise ValidationError(f"Invalid source orbital: '{source}'. Cannot use HOMO+n.")
+            if orbital_type == "LUMO" and operator == "-":
+                raise ValidationError(f"Invalid source orbital: '{source}'. Cannot use LUMO-n.")
 
-        # Store the validated transition string (keep original case for potential user preference)
-        original_source, original_target = [x.strip() for x in transition.split("->")]
-        validated_transition = f"{original_source}->{original_target}"
+    def _validate_target_orbital(self, target: str, full_transition: str) -> None:
+        """Validate target orbital specification.
 
-        return replace(self, mom_transition=validated_transition, mom_alpha_occ=None, mom_beta_occ=None)
+        Args:
+            target: Target orbital string
+            full_transition: Full transition for error context
+        """
+        # Check for ionization
+        if target.upper() == "VAC":
+            return  # Valid ionization target
+
+        # Parse spin specification if present
+        orbital_part, spin_part = self._parse_spin_specification(target)
+
+        if not orbital_part:
+            raise ValidationError(f"Invalid target orbital: '{target}' in transition '{full_transition}'.")
+
+        # Validate the orbital part (same logic as source, but different error messages)
+        if orbital_part.isdigit():
+            if int(orbital_part) <= 0:
+                raise ValidationError(f"Invalid target orbital: '{target}'. Orbital numbers must be positive.")
+        else:
+            # HOMO/LUMO format validation
+            pattern = re.compile(r"(HOMO|LUMO)(?:([+-])(\d+))?", re.IGNORECASE)
+            match = pattern.fullmatch(orbital_part.upper())
+            if not match:
+                raise ValidationError(
+                    f"Invalid target orbital: '{target}'. Must be HOMO[-n], LUMO[+n], positive integer, or 'vac'."
+                )
+
+            # Additional validation for HOMO/LUMO
+            orbital_type, operator, offset = match.groups()
+            if orbital_type == "HOMO" and operator == "+":
+                raise ValidationError(f"Invalid target orbital: '{target}'. Cannot use HOMO+n.")
+            if orbital_type == "LUMO" and operator == "-":
+                raise ValidationError(f"Invalid target orbital: '{target}'. Cannot use LUMO-n.")
+
+    def _parse_spin_specification(self, orbital_spec: str) -> tuple[str, str | None]:
+        """Parse orbital specification to separate orbital and spin parts.
+
+        Args:
+            orbital_spec: Orbital specification (e.g., "5", "5(beta)", "HOMO(alpha)")
+
+        Returns:
+            Tuple of (orbital_part, spin_part). spin_part is None if not specified.
+
+        Raises:
+            ValidationError: If spin specification is invalid.
+        """
+        # Check for spin specification in parentheses
+        spin_pattern = re.compile(r"^(.+?)\((\w+)\)$", re.IGNORECASE)
+        match = spin_pattern.match(orbital_spec.strip())
+
+        if match:
+            orbital_part = match.group(1).strip()
+            spin_part = match.group(2).strip().lower()
+
+            if spin_part not in ("alpha", "beta"):
+                raise ValidationError(
+                    f"Invalid spin specification '({match.group(2)})' in '{orbital_spec}'. Must be 'alpha' or 'beta'."
+                )
+
+            return orbital_part, spin_part
+        else:
+            return orbital_spec.strip(), None
 
     def set_mom_ground_state(self: T_QchemInput) -> T_QchemInput:
         """Sets the MOM calculation to target the ground state electronic configuration.
@@ -306,20 +437,14 @@ class QchemInput(CalculationInput):
         if not self.unrestricted:
             raise ConfigurationError("MOM requires unrestricted=True")
 
-        # Determine the charge to use for electron counting in this block
-        # If mom_job2_charge is set, it means we are generating the $occupied block
-        # for the *second* job of a MOM calculation, which might have a different charge.
+        # Determine the charge and spin multiplicity to use for electron counting in this block
+        # If mom_job2_charge or mom_job2_spin_multiplicity are set, it means we are generating
+        # the $occupied block for the *second* job of a MOM calculation, which might have
+        # different charge and/or spin multiplicity.
         effective_charge = self.mom_job2_charge if self.mom_job2_charge is not None else self.charge
-
-        # For MOM targeting ground state or excited states, we currently only support
-        # closed-shell singlet reference states for determining occupations.
-        # This validation now uses the effective_charge for the current job.
-        if self.mom_transition is not None and (effective_charge != 0 or self.spin_multiplicity != 1):
-            raise NotSupportedError(
-                "MOM occupation determination via symbolic transition or 'GROUND_STATE' marker "
-                f"currently only supports a closed-shell singlet reference state for the job where occupations are determined. "
-                f"Effective charge for this job = {effective_charge}, multiplicity = {self.spin_multiplicity}."
-            )
+        effective_multiplicity = (
+            self.mom_job2_spin_multiplicity if self.mom_job2_spin_multiplicity is not None else self.spin_multiplicity
+        )
 
         total_electrons = geometry.total_nuclear_charge - effective_charge
 
@@ -344,8 +469,8 @@ class QchemInput(CalculationInput):
             alpha_occ = f"1:{n_occupied_per_spin}" if n_occupied_per_spin > 1 else "1"
             beta_occ = alpha_occ  # Closed-shell singlet ground state
         elif self.mom_transition is not None:
-            # This path handles symbolic transitions like HOMO->LUMO
-            alpha_occ, beta_occ = _convert_transition_to_occupations(self.mom_transition, total_electrons)
+            # This path handles all symbolic transitions including excitations, ionizations, and combinations
+            alpha_occ, beta_occ = self._convert_extended_transitions_to_occupations(self.mom_transition, geometry)
         elif self.mom_alpha_occ is None or self.mom_beta_occ is None:
             raise ConfigurationError(
                 "If mom_transition is not 'GROUND_STATE' or a symbolic transition, "
@@ -356,6 +481,9 @@ class QchemInput(CalculationInput):
             alpha_occ = self.mom_alpha_occ
             beta_occ = self.mom_beta_occ
 
+        # Validate occupation strings against expected electron count and spin multiplicity
+        self._validate_mom_occupations(alpha_occ, beta_occ, total_electrons, effective_multiplicity)
+
         # Format the block
         lines = [
             "$occupied",
@@ -364,6 +492,264 @@ class QchemInput(CalculationInput):
             "$end",
         ]
         return "\n".join(lines)
+
+    def _validate_mom_occupations(self, alpha_occ: str, beta_occ: str, total_electrons: int, multiplicity: int) -> None:
+        """Validate that occupation strings are consistent with expected electron count and spin.
+
+        Args:
+            alpha_occ: Alpha electron occupation string
+            beta_occ: Beta electron occupation string
+            total_electrons: Expected total number of electrons
+            multiplicity: Expected spin multiplicity
+
+        Raises:
+            ValidationError: If occupation strings are inconsistent with expectations
+        """
+        # Count electrons in occupation strings
+        n_alpha = _count_electrons_in_qchem_occupation(alpha_occ)
+        n_beta = _count_electrons_in_qchem_occupation(beta_occ)
+        total_specified = n_alpha + n_beta
+
+        # Validate total electron count
+        if total_specified != total_electrons:
+            raise ValidationError(
+                f"Total electrons in occupation ({total_specified} = {n_alpha} alpha + {n_beta} beta) "
+                f"does not match expected {total_electrons} from geometry and charge"
+            )
+
+        # Calculate expected electron distribution for this multiplicity
+        try:
+            expected_alpha, expected_beta = _calculate_expected_electron_distribution(total_electrons, multiplicity)
+        except ValidationError as e:
+            # Re-raise with more context about MOM calculation
+            raise ValidationError(
+                f"Cannot achieve spin multiplicity {multiplicity} with {total_electrons} total electrons: {e}"
+            ) from e
+
+        # Validate spin consistency
+        if n_alpha != expected_alpha or n_beta != expected_beta:
+            raise ValidationError(
+                f"Spin multiplicity {multiplicity} inconsistent with alpha/beta electron counts "
+                f"({n_alpha} alpha, {n_beta} beta). Expected ({expected_alpha} alpha, {expected_beta} beta)"
+            )
+
+    def _convert_extended_transitions_to_occupations(
+        self, transition_string: str, geometry: "Geometry"
+    ) -> tuple[str, str]:
+        """Convert extended transition string to occupation strings.
+
+        Handles excitations, ionizations, and combinations.
+
+        Args:
+            transition_string: Semicolon-separated transition operations
+            geometry: Geometry object for the molecule
+
+        Returns:
+            Tuple of (alpha_occ, beta_occ) strings
+        """
+        # Parse operations
+        operations = [op.strip() for op in transition_string.split(";")]
+
+        # Calculate initial ground state for Job 1 (typically neutral closed shell)
+        initial_total_electrons = geometry.total_nuclear_charge - self.charge
+        if initial_total_electrons % 2 != 0:
+            raise ValidationError(
+                f"Initial state must have even electrons for symbolic transitions, got {initial_total_electrons}"
+            )
+
+        initial_homo = initial_total_electrons // 2
+
+        # Start with ground state occupation for both spins
+        alpha_occupied = set(range(1, initial_homo + 1))
+        beta_occupied = set(range(1, initial_homo + 1))
+
+        # Apply each operation
+        for operation in operations:
+            self._apply_single_operation(operation, alpha_occupied, beta_occupied, initial_homo, geometry)
+
+        # Convert to Q-Chem format strings
+        alpha_occ = self._format_occupation_set(alpha_occupied)
+        beta_occ = self._format_occupation_set(beta_occupied)
+
+        return alpha_occ, beta_occ
+
+    def _apply_single_operation(
+        self, operation: str, alpha_occupied: set[int], beta_occupied: set[int], initial_homo: int, geometry: "Geometry"
+    ) -> None:
+        """Apply a single transition operation to the occupation sets.
+
+        Args:
+            operation: Single operation string (e.g., "HOMO->LUMO", "5(beta)->vac")
+            alpha_occupied: Set of occupied alpha orbitals (modified in place)
+            beta_occupied: Set of occupied beta orbitals (modified in place)
+            initial_homo: HOMO index of the initial ground state
+            geometry: Geometry object
+        """
+        source, target = [x.strip() for x in operation.split("->")]
+
+        # Parse source orbital and spin
+        source_orbital, source_spin = self._parse_spin_specification(source)
+        source_idx = self._resolve_orbital_index(source_orbital, initial_homo)
+
+        # Handle ionization (target = "vac")
+        if target.upper() == "VAC":
+            self._apply_ionization(source_idx, source_spin, alpha_occupied, beta_occupied)
+        else:
+            # Handle excitation
+            target_orbital, target_spin = self._parse_spin_specification(target)
+            target_idx = self._resolve_orbital_index(target_orbital, initial_homo)
+            self._apply_excitation(
+                source_idx, source_spin, target_idx, target_spin, alpha_occupied, beta_occupied, initial_homo
+            )
+
+    def _resolve_orbital_index(self, orbital_spec: str, initial_homo: int) -> int:
+        """Resolve orbital specification to orbital index.
+
+        Args:
+            orbital_spec: Orbital specification (e.g., "5", "HOMO", "LUMO-1")
+            initial_homo: HOMO index of initial ground state
+
+        Returns:
+            Resolved orbital index
+        """
+        if orbital_spec.isdigit():
+            return int(orbital_spec)
+
+        # HOMO/LUMO format
+        pattern = re.compile(r"(HOMO|LUMO)(?:([+-])(\d+))?", re.IGNORECASE)
+        match = pattern.fullmatch(orbital_spec.upper())
+
+        if not match:
+            raise ValidationError(f"Invalid orbital specification: '{orbital_spec}'")
+
+        orbital_type, operator, offset = match.groups()
+        offset = int(offset) if offset else 0
+
+        if orbital_type == "HOMO":
+            idx = initial_homo
+            if operator == "-":
+                idx -= offset
+        else:  # LUMO
+            idx = initial_homo + 1
+            if operator == "+":
+                idx += offset
+
+        return idx
+
+    def _apply_ionization(
+        self, source_idx: int, source_spin: str | None, alpha_occupied: set[int], beta_occupied: set[int]
+    ) -> None:
+        """Apply ionization operation.
+
+        Args:
+            source_idx: Source orbital index to ionize from
+            source_spin: Spin specification ('alpha', 'beta', or None for auto)
+            alpha_occupied: Alpha occupation set (modified in place)
+            beta_occupied: Beta occupation set (modified in place)
+        """
+        if source_spin == "alpha":
+            if source_idx not in alpha_occupied:
+                raise ValidationError(f"Cannot ionize from unoccupied alpha orbital {source_idx}")
+            alpha_occupied.remove(source_idx)
+        elif source_spin == "beta":
+            if source_idx not in beta_occupied:
+                raise ValidationError(f"Cannot ionize from unoccupied beta orbital {source_idx}")
+            beta_occupied.remove(source_idx)
+        else:
+            # Auto-determine spin - prefer beta for typical core ionization
+            if source_idx in beta_occupied:
+                beta_occupied.remove(source_idx)
+            elif source_idx in alpha_occupied:
+                alpha_occupied.remove(source_idx)
+            else:
+                raise ValidationError(f"Cannot ionize from unoccupied orbital {source_idx}")
+
+    def _apply_excitation(
+        self,
+        source_idx: int,
+        source_spin: str | None,
+        target_idx: int,
+        target_spin: str | None,
+        alpha_occupied: set[int],
+        beta_occupied: set[int],
+        initial_homo: int,
+    ) -> None:
+        """Apply excitation operation.
+
+        Args:
+            source_idx: Source orbital index
+            source_spin: Source spin specification
+            target_idx: Target orbital index
+            target_spin: Target spin specification
+            alpha_occupied: Alpha occupation set (modified in place)
+            beta_occupied: Beta occupation set (modified in place)
+            initial_homo: HOMO index of initial ground state
+        """
+        # Validate physics: source must be occupied, target must be unoccupied
+        if source_idx > initial_homo:
+            raise ValidationError(f"Source orbital {source_idx} must be occupied (HOMO={initial_homo})")
+        if target_idx <= initial_homo:
+            raise ValidationError(f"Target orbital {target_idx} must be unoccupied (HOMO={initial_homo})")
+
+        # Determine spin channels for source and target separately
+        source_spin_channel = source_spin or "alpha"
+        target_spin_channel = target_spin or source_spin_channel
+
+        # Remove electron from source orbital using source spin channel
+        if source_spin_channel == "alpha":
+            if source_idx not in alpha_occupied:
+                raise ValidationError(f"Cannot excite from unoccupied alpha orbital {source_idx}")
+            alpha_occupied.remove(source_idx)
+        else:  # beta
+            if source_idx not in beta_occupied:
+                raise ValidationError(f"Cannot excite from unoccupied beta orbital {source_idx}")
+            beta_occupied.remove(source_idx)
+
+        # Add electron to target orbital using target spin channel
+        if target_spin_channel == "alpha":
+            if target_idx in alpha_occupied:
+                raise ValidationError(f"Target orbital {target_idx} already occupied in alpha channel")
+            alpha_occupied.add(target_idx)
+        else:  # beta
+            if target_idx in beta_occupied:
+                raise ValidationError(f"Target orbital {target_idx} already occupied in beta channel")
+            beta_occupied.add(target_idx)
+
+    def _format_occupation_set(self, occupied: set[int]) -> str:
+        """Format a set of occupied orbitals as Q-Chem occupation string.
+
+        Args:
+            occupied: Set of occupied orbital indices
+
+        Returns:
+            Q-Chem format occupation string
+        """
+        if not occupied:
+            return ""
+
+        occupied_list = sorted(list(occupied))
+        parts = []
+        start = occupied_list[0]
+        end = start
+
+        for i in range(1, len(occupied_list)):
+            if occupied_list[i] == end + 1:
+                end = occupied_list[i]
+            else:
+                if start == end:
+                    parts.append(str(start))
+                else:
+                    parts.append(f"{start}:{end}")
+                start = occupied_list[i]
+                end = start
+
+        # Append the last range/number
+        if start == end:
+            parts.append(str(start))
+        else:
+            parts.append(f"{start}:{end}")
+
+        return " ".join(parts)
 
     def set_solvation(self: T_QchemInput, model: str | None, solvent: str | None) -> T_QchemInput:
         """
@@ -542,20 +928,24 @@ class QchemInput(CalculationInput):
         logger.debug(f"Setting basis set to: {basis}")
         return replace(self, basis_set=basis)
 
-    def _get_molecule_block(self, geom: str, charge_override: int | None = None) -> str:
+    def _get_molecule_block(
+        self, geom: str, charge_override: int | None = None, multiplicity_override: int | None = None
+    ) -> str:
         """Generates the $molecule block.
 
         Args:
             geom: Molecular geometry in XYZ format (multiline string, excluding header lines).
             charge_override: Optional integer to override the instance's charge for this block.
+            multiplicity_override: Optional integer to override the instance's spin multiplicity for this block.
 
         Returns:
             String containing the formatted $molecule block.
         """
         charge_to_use = charge_override if charge_override is not None else self.charge
+        multiplicity_to_use = multiplicity_override if multiplicity_override is not None else self.spin_multiplicity
         lines = [
             "$molecule",
-            f"{charge_to_use} {self.spin_multiplicity}",
+            f"{charge_to_use} {multiplicity_to_use}",
             geom.strip(),
             "$end",
         ]
@@ -770,11 +1160,20 @@ class QchemInput(CalculationInput):
 
         # For MOM, add second job
         second_job_molecule_block: str
-        if self.mom_job2_charge is not None:
-            # If a specific charge is set for job 2, generate a full $molecule block
-            logger.info(f"Generating $molecule block for MOM job 2 with charge: {self.mom_job2_charge}")
+        if self.mom_job2_charge is not None or self.mom_job2_spin_multiplicity is not None:
+            # If a specific charge or spin multiplicity is set for job 2, generate a full $molecule block
+            charge_override = self.mom_job2_charge
+            multiplicity_override = self.mom_job2_spin_multiplicity
+
+            if charge_override is not None:
+                logger.info(f"Generating $molecule block for MOM job 2 with charge: {charge_override}")
+            if multiplicity_override is not None:
+                logger.info(f"Generating $molecule block for MOM job 2 with spin multiplicity: {multiplicity_override}")
+
             second_job_molecule_block = self._get_molecule_block(
-                geometry.get_coordinate_block(), charge_override=self.mom_job2_charge
+                geometry.get_coordinate_block(),
+                charge_override=charge_override,
+                multiplicity_override=multiplicity_override,
             )
         else:
             # Default behavior: read geometry from the first job
@@ -823,127 +1222,103 @@ class QchemInput(CalculationInput):
         )
         return replace(self, mom_job2_charge=charge)
 
+    def set_mom_job2_spin_multiplicity(self: T_QchemInput, multiplicity: int) -> T_QchemInput:
+        """Set a specific spin multiplicity for the second job in a MOM calculation.
 
-def _convert_transition_to_occupations(transition: str, n_electrons: int) -> tuple[str, str]:
-    """Converts a symbolic transition to Q-Chem occupation strings.
+        This spin multiplicity will be used in the $molecule block of the second job,
+        allowing it to differ from the primary spin multiplicity of the QchemInput object.
+        The charge remains the same as the primary setting unless also overridden.
+
+        Args:
+            multiplicity: The integer spin multiplicity for the second MOM job.
+
+        Returns:
+            A new QchemInput instance with the second job spin multiplicity set.
+
+        Raises:
+            ConfigurationError: If MOM is not enabled (run_mom=False).
+            ValidationError: If multiplicity is not a positive integer.
+        """
+        if not self.run_mom:
+            raise ConfigurationError(
+                "MOM must be enabled (run_mom=True) via enable_mom() before setting a specific spin multiplicity for the second MOM job."
+            )
+        if multiplicity < 1:
+            raise ValidationError("Spin multiplicity must be a positive integer")
+
+        logger.info(
+            f"Setting spin multiplicity for second MOM job to: {multiplicity}. This will affect the $molecule block and electron count validation for job 2."
+        )
+        return replace(self, mom_job2_spin_multiplicity=multiplicity)
+
+
+def _count_electrons_in_qchem_occupation(occupation_string: str) -> int:
+    """Count the number of electrons specified in a Q-Chem occupation string.
 
     Args:
-        transition: String containing the transition to convert.
-        n_electrons: Total number of electrons in the system.
+        occupation_string: Q-Chem occupation string (e.g., "1:5", "1:4 6", "1:3 5:7 9")
 
     Returns:
-        Tuple of (alpha_occ, beta_occ) strings in Q-Chem format.
+        Total number of electrons specified in the occupation string.
+    """
+    if not occupation_string.strip():
+        return 0
+
+    total_electrons = 0
+    parts = occupation_string.strip().split()
+
+    for part in parts:
+        if ":" in part:
+            # Range notation (e.g., "1:5")
+            start_str, end_str = part.split(":")
+            start, end = int(start_str), int(end_str)
+            total_electrons += end - start + 1
+        else:
+            # Single orbital (e.g., "6")
+            total_electrons += 1
+
+    return total_electrons
+
+
+def _calculate_expected_electron_distribution(n_electrons: int, multiplicity: int) -> tuple[int, int]:
+    """Calculate expected alpha and beta electron counts for given total electrons and multiplicity.
+
+    Args:
+        n_electrons: Total number of electrons
+        multiplicity: Spin multiplicity (2S + 1)
+
+    Returns:
+        Tuple of (n_alpha, n_beta) electron counts
 
     Raises:
-        ConfigurationError: If mom_transition is not set.
-        ValidationError: If the transition format is invalid.
+        ValidationError: If the multiplicity cannot be achieved with the given electron count
     """
-    # For closed shell singlet, each spin channel has n_electrons/2 electrons
-    if n_electrons % 2 != 0:
-        raise ValidationError(f"Expected even number of electrons, got {n_electrons}.")
+    # Multiplicity = 2S + 1, where S = (N_alpha - N_beta) / 2
+    # So N_alpha - N_beta = multiplicity - 1
+    # And N_alpha + N_beta = n_electrons
+    # Solving: N_alpha = (n_electrons + multiplicity - 1) / 2
+    #          N_beta = (n_electrons - multiplicity + 1) / 2
 
-    n_per_spin = n_electrons // 2
-    homo_idx = n_per_spin  # 1-based indexing in Q-Chem
-    lumo_idx = homo_idx + 1
+    if multiplicity < 1:
+        raise ValidationError(f"Spin multiplicity must be positive, got {multiplicity}")
 
-    # Ground state occupation for beta (closed shell reference)
-    beta_occ = str(homo_idx) if homo_idx == 1 else f"1:{homo_idx}"
+    alpha_plus_beta = n_electrons
+    alpha_minus_beta = multiplicity - 1
 
-    # --- Parse Source and Target --- #
-    source_str, target_str = [x.strip().upper() for x in transition.split("->")]
-    pattern = re.compile(r"(HOMO|LUMO)(?:([+-])(\d+))?")
-
-    def _parse_specifier(spec: str, name: str) -> int:
-        if spec.isdigit():
-            idx = int(spec)
-            if idx <= 0:
-                raise ValidationError(f"{name.capitalize()} orbital index must be positive, got '{spec}'")
-            return idx
-
-        match = pattern.fullmatch(spec)
-        # This should ideally not happen due to validation in set_mom_transition, but check defensively
-        if not match:
-            raise ValidationError(f"Invalid {name} orbital format: '{spec}'")
-
-        base = match.group(1)
-        op = match.group(2)
-        offset = int(match.group(3)) if match.group(3) else 0
-
-        if base == "HOMO":
-            idx = homo_idx
-            if op == "-":
-                idx -= offset
-            # op == "+" case already caught by set_mom_transition validation
-        else:  # LUMO
-            idx = lumo_idx
-            if op == "+":
-                idx += offset
-            # op == "-" case already caught by set_mom_transition validation
-
-        if idx <= 0:
-            raise ValidationError(f"Calculated {name} orbital index must be positive, got {idx} from '{spec}'")
-        return idx
-
-    source_idx = _parse_specifier(source_str, "source")
-    target_idx = _parse_specifier(target_str, "target")
-
-    # --- Validate Transition Physics --- #
-    if source_idx > homo_idx:
+    # Check if solution would give integer electron counts
+    if (alpha_plus_beta + alpha_minus_beta) % 2 != 0:
         raise ValidationError(
-            f"Source orbital must be occupied (index <= HOMO={homo_idx}), got {source_idx} from '{source_str}'"
-        )
-    if target_idx <= homo_idx:
-        raise ValidationError(
-            f"Target orbital must be unoccupied (index > HOMO={homo_idx}), got {target_idx} from '{target_str}'"
+            f"Cannot achieve spin multiplicity {multiplicity} with {n_electrons} total electrons: "
+            "would require fractional electrons"
         )
 
-    # --- Generate Occupation Strings --- #
-    # (Existing logic for generating occ string based on source_idx/target_idx follows)
-    # Get source orbital index
-    # source_base = source_match.group(1)
-    # ... (old logic removed) ...
+    n_alpha = (alpha_plus_beta + alpha_minus_beta) // 2
+    n_beta = (alpha_plus_beta - alpha_minus_beta) // 2
 
-    # Get target orbital index
-    # target_base = target_match.group(1)
-    # ... (old logic removed) ...
+    if n_alpha < 0 or n_beta < 0:
+        raise ValidationError(
+            f"Cannot achieve spin multiplicity {multiplicity} with {n_electrons} total electrons: "
+            "would require negative electron count"
+        )
 
-    # Generate Q-Chem occupation string for alpha
-    if source_idx == homo_idx and target_idx == lumo_idx:
-        if homo_idx == 1:
-            occ = str(lumo_idx)  # Special case for 1-electron per spin (HOMO=1)
-        else:
-            occ = f"1:{homo_idx - 1} {lumo_idx}"
-    else:
-        # For more complex transitions, we need to build the string carefully
-        occupied = set(range(1, homo_idx + 1))
-        occupied.remove(source_idx)
-        occupied.add(target_idx)
-        occupied_list = sorted(list(occupied))
-
-        if not occupied_list:
-            occ = ""  # Handle case with zero occupied orbitals if it ever occurs
-        else:
-            parts = []
-            start = occupied_list[0]
-            end = start
-            for i in range(1, len(occupied_list)):
-                if occupied_list[i] == end + 1:
-                    end = occupied_list[i]
-                else:
-                    if start == end:
-                        parts.append(str(start))
-                    else:
-                        parts.append(f"{start}:{end}")
-                    start = occupied_list[i]
-                    end = start
-            # Append the last range/number
-            if start == end:
-                parts.append(str(start))
-            else:
-                parts.append(f"{start}:{end}")
-            occ = " ".join(parts)
-
-    # Alpha occupation is modified, beta remains ground state
-    alpha_occ = occ
-
-    return alpha_occ, beta_occ
+    return n_alpha, n_beta
