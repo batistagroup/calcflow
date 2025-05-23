@@ -524,3 +524,211 @@ def test_export_input_file_mom_ground_state(h2o_geometry: Geometry, unrestricted
     assert "1:5" in job2  # For H2O ground state alpha and beta
     # More specific check for alpha and beta lines
     assert "\n1:5\n1:5\n" in job2  # Alpha occ \n Beta occ
+
+
+# --- Tests for set_mom_job2_charge ---
+
+
+def test_set_mom_job2_charge_success(mom_enabled_input: QchemInput) -> None:
+    """Test setting specific charge for second MOM job."""
+    inp = mom_enabled_input.set_mom_job2_charge(1)
+    assert inp.mom_job2_charge == 1
+    assert inp is not mom_enabled_input
+
+
+def test_set_mom_job2_charge_before_enable(default_qchem_input: QchemInput) -> None:
+    """Test calling set_mom_job2_charge before enable_mom raises ConfigurationError."""
+    with pytest.raises(
+        ConfigurationError,
+        match=r"MOM must be enabled \(run_mom=True\) via enable_mom\(\) before setting a specific charge for the second MOM job\.",
+    ):
+        default_qchem_input.set_mom_job2_charge(1)
+
+
+# --- Tests for set_mom_job2_spin_multiplicity ---
+
+
+def test_set_mom_job2_spin_multiplicity_success(mom_enabled_input: QchemInput) -> None:
+    """Test setting specific spin multiplicity for second MOM job."""
+    inp = mom_enabled_input.set_mom_job2_spin_multiplicity(2)
+    assert inp.mom_job2_spin_multiplicity == 2
+    assert inp is not mom_enabled_input
+
+
+def test_set_mom_job2_spin_multiplicity_before_enable(default_qchem_input: QchemInput) -> None:
+    """Test calling set_mom_job2_spin_multiplicity before enable_mom raises ConfigurationError."""
+    with pytest.raises(
+        ConfigurationError,
+        match=r"MOM must be enabled \(run_mom=True\) via enable_mom\(\) before setting a specific spin multiplicity for the second MOM job\.",
+    ):
+        default_qchem_input.set_mom_job2_spin_multiplicity(2)
+
+
+def test_set_mom_job2_spin_multiplicity_invalid(mom_enabled_input: QchemInput) -> None:
+    """Test setting invalid spin multiplicity raises ValidationError."""
+    with pytest.raises(ValidationError, match="Spin multiplicity must be a positive integer"):
+        mom_enabled_input.set_mom_job2_spin_multiplicity(0)
+    
+    with pytest.raises(ValidationError, match="Spin multiplicity must be a positive integer"):
+        mom_enabled_input.set_mom_job2_spin_multiplicity(-1)
+
+
+# --- Tests for MOM occupation validation ---
+
+
+def test_mom_occupation_validation_valid_cases(unrestricted_input: QchemInput, h2o_geometry: Geometry) -> None:
+    """Test that valid occupation strings pass validation."""
+    # H2O: 10 electrons, charge=0, mult=1 -> 5 alpha, 5 beta
+    inp = unrestricted_input.enable_mom().set_mom_occupation(alpha_occ="1:5", beta_occ="1:5")
+    # Should not raise any exceptions
+    inp._generate_occupied_block(h2o_geometry)
+    
+    # Core ionization example: charge=+1, mult=2 -> 4.5 alpha, 4.5 beta (rounds to 5 alpha, 4 beta)
+    inp_ionized = replace(unrestricted_input, charge=1, spin_multiplicity=2)
+    inp_ionized = inp_ionized.enable_mom().set_mom_occupation(alpha_occ="1:5", beta_occ="1:4")
+    inp_ionized._generate_occupied_block(h2o_geometry)
+
+
+def test_mom_occupation_validation_wrong_total_electrons(unrestricted_input: QchemInput, h2o_geometry: Geometry) -> None:
+    """Test that wrong total electron count fails validation."""
+    # H2O: 10 electrons, but specifying 11 electrons (6 alpha + 5 beta)
+    inp = unrestricted_input.enable_mom().set_mom_occupation(alpha_occ="1:6", beta_occ="1:5")
+    with pytest.raises(
+        ValidationError, 
+        match="Total electrons in occupation .* does not match expected .* from geometry and charge"
+    ):
+        inp._generate_occupied_block(h2o_geometry)
+
+
+def test_mom_occupation_validation_wrong_spin_multiplicity(unrestricted_input: QchemInput, h2o_geometry: Geometry) -> None:
+    """Test that inconsistent spin multiplicity fails validation."""
+    # H2O: 10 electrons, mult=1 (should have equal alpha/beta), but 6 alpha + 4 beta
+    inp = unrestricted_input.enable_mom().set_mom_occupation(alpha_occ="1:6", beta_occ="1:4")
+    with pytest.raises(
+        ValidationError,
+        match="Spin multiplicity .* inconsistent with alpha/beta electron counts"
+    ):
+        inp._generate_occupied_block(h2o_geometry)
+
+
+def test_mom_occupation_validation_fractional_electrons(unrestricted_input: QchemInput, h2o_geometry: Geometry) -> None:
+    """Test that configurations requiring fractional electrons fail validation."""
+    # H2O: 10 electrons, mult=4 -> would need 6.5 alpha, 3.5 beta (impossible)
+    inp = replace(unrestricted_input, spin_multiplicity=4)
+    inp = inp.enable_mom().set_mom_occupation(alpha_occ="1:6", beta_occ="1:4")
+    with pytest.raises(
+        ValidationError,
+        match="Cannot achieve spin multiplicity .* with .* total electrons"
+    ):
+        inp._generate_occupied_block(h2o_geometry)
+
+
+def test_core_ionization_beta_hole_example(unrestricted_input: QchemInput, h2o_geometry: Geometry) -> None:
+    """Test core ionization with proper beta hole setup."""
+    # Simulate removing core electron from beta channel
+    # H2O: 10 electrons -> 9 electrons (charge +1), mult=2
+    # Expected: 5 alpha, 4 beta electrons
+    inp = replace(unrestricted_input, charge=1, spin_multiplicity=2)
+    inp = inp.enable_mom().set_mom_occupation(
+        alpha_occ="1:5",      # Keep all alpha electrons 
+        beta_occ="1:4"        # Remove one beta electron (core hole)
+    )
+    
+    block = inp._generate_occupied_block(h2o_geometry)
+    expected = """$occupied
+1:5
+1:4
+$end"""
+    assert block == expected
+
+
+def test_core_ionization_alpha_hole_invalid(unrestricted_input: QchemInput, h2o_geometry: Geometry) -> None:
+    """Test that putting core hole in alpha channel with mult=2 fails validation."""
+    # H2O: 10 electrons -> 9 electrons (charge +1), mult=2
+    # Wrong: 4 alpha, 5 beta (would give mult=0, not 2)
+    inp = replace(unrestricted_input, charge=1, spin_multiplicity=2)
+    inp = inp.enable_mom().set_mom_occupation(
+        alpha_occ="1:4",      # Wrong: hole in alpha
+        beta_occ="1:5"        # Wrong: keep all beta
+    )
+    
+    with pytest.raises(
+        ValidationError,
+        match="Spin multiplicity 2 inconsistent with alpha/beta electron counts"
+    ):
+        inp._generate_occupied_block(h2o_geometry)
+
+
+def test_export_input_file_mom_job2_different_charge_and_multiplicity(h2o_geometry: Geometry, unrestricted_input: QchemInput) -> None:
+    """Test exporting MOM input with different charge and spin multiplicity for job2."""
+    # Job 1: neutral H2O (charge=0, mult=1)
+    # Job 2: cation radical H2O+ (charge=+1, mult=2) with beta hole
+    inp = unrestricted_input.enable_mom()
+    inp = inp.set_mom_job2_charge(1).set_mom_job2_spin_multiplicity(2)
+    inp = inp.set_mom_occupation(alpha_occ="1:5", beta_occ="1:4")
+    
+    output = inp.export_input_file(h2o_geometry)
+    jobs = output.split("\n\n@@@\n\n")
+    assert len(jobs) == 2
+    job1, job2 = jobs
+    
+    # Job 1: neutral system
+    assert "0 1" in job1  # charge=0, mult=1
+    
+    # Job 2: ionized system  
+    assert "1 2" in job2  # charge=+1, mult=2
+    assert "$occupied" in job2
+    assert "1:5" in job2  # alpha electrons
+    assert "1:4" in job2  # beta electrons (one less due to hole)
+
+
+def test_count_electrons_in_occupation_string() -> None:
+    """Test the helper function for counting electrons in Q-Chem occupation strings."""
+    from calcflow.inputs.qchem import _count_electrons_in_qchem_occupation
+    
+    assert _count_electrons_in_qchem_occupation("1:5") == 5
+    assert _count_electrons_in_qchem_occupation("1:4 6") == 5
+    assert _count_electrons_in_qchem_occupation("1:3 5:7 9") == 7
+    assert _count_electrons_in_qchem_occupation("1") == 1
+    assert _count_electrons_in_qchem_occupation("5 7 9") == 3
+    assert _count_electrons_in_qchem_occupation("") == 0
+
+
+@pytest.mark.parametrize(
+    "n_electrons, multiplicity, expected_alpha, expected_beta, should_fail",
+    [
+        # Valid cases
+        (10, 1, 5, 5, False),    # Closed shell singlet
+        (9, 2, 5, 4, False),     # Doublet (one unpaired electron)
+        (8, 1, 4, 4, False),     # Closed shell singlet
+        (8, 3, 5, 3, False),     # Triplet (two unpaired electrons)
+        (11, 2, 6, 5, False),    # Doublet
+        (11, 4, 7, 4, False),    # Quartet (three unpaired electrons)
+        (9, 4, 6, 3, False),     # Quartet with 9 electrons
+        (5, 6, 5, 0, False),     # Sextet with 5 electrons
+        
+        # Invalid cases (fractional electrons)
+        (9, 1, None, None, True),   # Odd electrons can't be singlet
+        (8, 2, None, None, True),   # Even electrons with doublet impossible
+        (10, 6, None, None, True),  # Would need fractional electrons
+    ],
+)
+def test_calculate_expected_electron_distribution(
+    n_electrons: int, 
+    multiplicity: int, 
+    expected_alpha: int | None, 
+    expected_beta: int | None, 
+    should_fail: bool
+) -> None:
+    """Test calculation of expected alpha/beta electron distribution."""
+    from calcflow.inputs.qchem import _calculate_expected_electron_distribution
+    
+    if should_fail:
+        with pytest.raises(ValidationError):
+            _calculate_expected_electron_distribution(n_electrons, multiplicity)
+    else:
+        alpha, beta = _calculate_expected_electron_distribution(n_electrons, multiplicity)
+        assert alpha == expected_alpha
+        assert beta == expected_beta
+        assert alpha + beta == n_electrons
+        assert alpha - beta == multiplicity - 1

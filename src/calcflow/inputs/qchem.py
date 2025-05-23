@@ -49,6 +49,7 @@ class QchemInput(CalculationInput):
         reduced_excitation_space: Flag to enable reduced excitation space for TDDFT calculations.
         initial_orbitals: List of molecular orbitals from which excitations are allowed when TRNSS is enabled.
         mom_job2_charge: Charge for the second job in a MOM calculation
+        mom_job2_spin_multiplicity: Spin multiplicity for the second job in a MOM calculation
     """
 
     program: ClassVar[str] = "qchem"
@@ -74,6 +75,7 @@ class QchemInput(CalculationInput):
     mom_beta_occ: str | None = None
     mom_transition: str | None = None  # Stores symbolic transition if using that mode
     mom_job2_charge: int | None = None  # Charge for the second job in a MOM calculation
+    mom_job2_spin_multiplicity: int | None = None  # Spin multiplicity for the second job in a MOM calculation
 
     implicit_solvation_model: QCHEM_ALLOWED_SOLVATION_MODELS | None = None
     solvent: str | None = None
@@ -306,19 +308,23 @@ class QchemInput(CalculationInput):
         if not self.unrestricted:
             raise ConfigurationError("MOM requires unrestricted=True")
 
-        # Determine the charge to use for electron counting in this block
-        # If mom_job2_charge is set, it means we are generating the $occupied block
-        # for the *second* job of a MOM calculation, which might have a different charge.
+        # Determine the charge and spin multiplicity to use for electron counting in this block
+        # If mom_job2_charge or mom_job2_spin_multiplicity are set, it means we are generating
+        # the $occupied block for the *second* job of a MOM calculation, which might have
+        # different charge and/or spin multiplicity.
         effective_charge = self.mom_job2_charge if self.mom_job2_charge is not None else self.charge
+        effective_multiplicity = (
+            self.mom_job2_spin_multiplicity if self.mom_job2_spin_multiplicity is not None else self.spin_multiplicity
+        )
 
         # For MOM targeting ground state or excited states, we currently only support
         # closed-shell singlet reference states for determining occupations.
-        # This validation now uses the effective_charge for the current job.
-        if self.mom_transition is not None and (effective_charge != 0 or self.spin_multiplicity != 1):
+        # This validation now uses the effective_charge and effective_multiplicity for the current job.
+        if self.mom_transition is not None and (effective_charge != 0 or effective_multiplicity != 1):
             raise NotSupportedError(
                 "MOM occupation determination via symbolic transition or 'GROUND_STATE' marker "
                 f"currently only supports a closed-shell singlet reference state for the job where occupations are determined. "
-                f"Effective charge for this job = {effective_charge}, multiplicity = {self.spin_multiplicity}."
+                f"Effective charge for this job = {effective_charge}, multiplicity = {effective_multiplicity}."
             )
 
         total_electrons = geometry.total_nuclear_charge - effective_charge
@@ -356,6 +362,9 @@ class QchemInput(CalculationInput):
             alpha_occ = self.mom_alpha_occ
             beta_occ = self.mom_beta_occ
 
+        # Validate occupation strings against expected electron count and spin multiplicity
+        self._validate_mom_occupations(alpha_occ, beta_occ, total_electrons, effective_multiplicity)
+
         # Format the block
         lines = [
             "$occupied",
@@ -364,6 +373,46 @@ class QchemInput(CalculationInput):
             "$end",
         ]
         return "\n".join(lines)
+
+    def _validate_mom_occupations(self, alpha_occ: str, beta_occ: str, total_electrons: int, multiplicity: int) -> None:
+        """Validate that occupation strings are consistent with expected electron count and spin.
+
+        Args:
+            alpha_occ: Alpha electron occupation string
+            beta_occ: Beta electron occupation string
+            total_electrons: Expected total number of electrons
+            multiplicity: Expected spin multiplicity
+
+        Raises:
+            ValidationError: If occupation strings are inconsistent with expectations
+        """
+        # Count electrons in occupation strings
+        n_alpha = _count_electrons_in_qchem_occupation(alpha_occ)
+        n_beta = _count_electrons_in_qchem_occupation(beta_occ)
+        total_specified = n_alpha + n_beta
+
+        # Validate total electron count
+        if total_specified != total_electrons:
+            raise ValidationError(
+                f"Total electrons in occupation ({total_specified} = {n_alpha} alpha + {n_beta} beta) "
+                f"does not match expected {total_electrons} from geometry and charge"
+            )
+
+        # Calculate expected electron distribution for this multiplicity
+        try:
+            expected_alpha, expected_beta = _calculate_expected_electron_distribution(total_electrons, multiplicity)
+        except ValidationError as e:
+            # Re-raise with more context about MOM calculation
+            raise ValidationError(
+                f"Cannot achieve spin multiplicity {multiplicity} with {total_electrons} total electrons: {e}"
+            ) from e
+
+        # Validate spin consistency
+        if n_alpha != expected_alpha or n_beta != expected_beta:
+            raise ValidationError(
+                f"Spin multiplicity {multiplicity} inconsistent with alpha/beta electron counts "
+                f"({n_alpha} alpha, {n_beta} beta). Expected ({expected_alpha} alpha, {expected_beta} beta)"
+            )
 
     def set_solvation(self: T_QchemInput, model: str | None, solvent: str | None) -> T_QchemInput:
         """
@@ -507,20 +556,24 @@ class QchemInput(CalculationInput):
         logger.debug(f"Setting basis set to: {basis}")
         return replace(self, basis_set=basis)
 
-    def _get_molecule_block(self, geom: str, charge_override: int | None = None) -> str:
+    def _get_molecule_block(
+        self, geom: str, charge_override: int | None = None, multiplicity_override: int | None = None
+    ) -> str:
         """Generates the $molecule block.
 
         Args:
             geom: Molecular geometry in XYZ format (multiline string, excluding header lines).
             charge_override: Optional integer to override the instance's charge for this block.
+            multiplicity_override: Optional integer to override the instance's spin multiplicity for this block.
 
         Returns:
             String containing the formatted $molecule block.
         """
         charge_to_use = charge_override if charge_override is not None else self.charge
+        multiplicity_to_use = multiplicity_override if multiplicity_override is not None else self.spin_multiplicity
         lines = [
             "$molecule",
-            f"{charge_to_use} {self.spin_multiplicity}",
+            f"{charge_to_use} {multiplicity_to_use}",
             geom.strip(),
             "$end",
         ]
@@ -735,11 +788,20 @@ class QchemInput(CalculationInput):
 
         # For MOM, add second job
         second_job_molecule_block: str
-        if self.mom_job2_charge is not None:
-            # If a specific charge is set for job 2, generate a full $molecule block
-            logger.info(f"Generating $molecule block for MOM job 2 with charge: {self.mom_job2_charge}")
+        if self.mom_job2_charge is not None or self.mom_job2_spin_multiplicity is not None:
+            # If a specific charge or spin multiplicity is set for job 2, generate a full $molecule block
+            charge_override = self.mom_job2_charge
+            multiplicity_override = self.mom_job2_spin_multiplicity
+
+            if charge_override is not None:
+                logger.info(f"Generating $molecule block for MOM job 2 with charge: {charge_override}")
+            if multiplicity_override is not None:
+                logger.info(f"Generating $molecule block for MOM job 2 with spin multiplicity: {multiplicity_override}")
+
             second_job_molecule_block = self._get_molecule_block(
-                geometry.get_coordinate_block(), charge_override=self.mom_job2_charge
+                geometry.get_coordinate_block(),
+                charge_override=charge_override,
+                multiplicity_override=multiplicity_override,
             )
         else:
             # Default behavior: read geometry from the first job
@@ -787,6 +849,107 @@ class QchemInput(CalculationInput):
             f"Setting charge for second MOM job to: {charge}. This will affect the $molecule block and electron count for job 2."
         )
         return replace(self, mom_job2_charge=charge)
+
+    def set_mom_job2_spin_multiplicity(self: T_QchemInput, multiplicity: int) -> T_QchemInput:
+        """Set a specific spin multiplicity for the second job in a MOM calculation.
+
+        This spin multiplicity will be used in the $molecule block of the second job,
+        allowing it to differ from the primary spin multiplicity of the QchemInput object.
+        The charge remains the same as the primary setting unless also overridden.
+
+        Args:
+            multiplicity: The integer spin multiplicity for the second MOM job.
+
+        Returns:
+            A new QchemInput instance with the second job spin multiplicity set.
+
+        Raises:
+            ConfigurationError: If MOM is not enabled (run_mom=False).
+            ValidationError: If multiplicity is not a positive integer.
+        """
+        if not self.run_mom:
+            raise ConfigurationError(
+                "MOM must be enabled (run_mom=True) via enable_mom() before setting a specific spin multiplicity for the second MOM job."
+            )
+        if multiplicity < 1:
+            raise ValidationError("Spin multiplicity must be a positive integer")
+
+        logger.info(
+            f"Setting spin multiplicity for second MOM job to: {multiplicity}. This will affect the $molecule block and electron count validation for job 2."
+        )
+        return replace(self, mom_job2_spin_multiplicity=multiplicity)
+
+
+def _count_electrons_in_qchem_occupation(occupation_string: str) -> int:
+    """Count the number of electrons specified in a Q-Chem occupation string.
+
+    Args:
+        occupation_string: Q-Chem occupation string (e.g., "1:5", "1:4 6", "1:3 5:7 9")
+
+    Returns:
+        Total number of electrons specified in the occupation string.
+    """
+    if not occupation_string.strip():
+        return 0
+
+    total_electrons = 0
+    parts = occupation_string.strip().split()
+
+    for part in parts:
+        if ":" in part:
+            # Range notation (e.g., "1:5")
+            start_str, end_str = part.split(":")
+            start, end = int(start_str), int(end_str)
+            total_electrons += end - start + 1
+        else:
+            # Single orbital (e.g., "6")
+            total_electrons += 1
+
+    return total_electrons
+
+
+def _calculate_expected_electron_distribution(n_electrons: int, multiplicity: int) -> tuple[int, int]:
+    """Calculate expected alpha and beta electron counts for given total electrons and multiplicity.
+
+    Args:
+        n_electrons: Total number of electrons
+        multiplicity: Spin multiplicity (2S + 1)
+
+    Returns:
+        Tuple of (n_alpha, n_beta) electron counts
+
+    Raises:
+        ValidationError: If the multiplicity cannot be achieved with the given electron count
+    """
+    # Multiplicity = 2S + 1, where S = (N_alpha - N_beta) / 2
+    # So N_alpha - N_beta = multiplicity - 1
+    # And N_alpha + N_beta = n_electrons
+    # Solving: N_alpha = (n_electrons + multiplicity - 1) / 2
+    #          N_beta = (n_electrons - multiplicity + 1) / 2
+
+    if multiplicity < 1:
+        raise ValidationError(f"Spin multiplicity must be positive, got {multiplicity}")
+
+    alpha_plus_beta = n_electrons
+    alpha_minus_beta = multiplicity - 1
+
+    # Check if solution would give integer electron counts
+    if (alpha_plus_beta + alpha_minus_beta) % 2 != 0:
+        raise ValidationError(
+            f"Cannot achieve spin multiplicity {multiplicity} with {n_electrons} total electrons: "
+            "would require fractional electrons"
+        )
+
+    n_alpha = (alpha_plus_beta + alpha_minus_beta) // 2
+    n_beta = (alpha_plus_beta - alpha_minus_beta) // 2
+
+    if n_alpha < 0 or n_beta < 0:
+        raise ValidationError(
+            f"Cannot achieve spin multiplicity {multiplicity} with {n_electrons} total electrons: "
+            "would require negative electron count"
+        )
+
+    return n_alpha, n_beta
 
 
 def _convert_transition_to_occupations(transition: str, n_electrons: int) -> tuple[str, str]:
