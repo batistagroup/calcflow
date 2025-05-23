@@ -119,6 +119,14 @@ def test_set_mom_transition_before_enable(default_qchem_input: QchemInput) -> No
         default_qchem_input.set_mom_transition("HOMO->LUMO")
 
 
+def test_set_mom_transitions_before_enable(default_qchem_input: QchemInput) -> None:
+    """Test setting multiple MOM transitions before enabling MOM raises ConfigurationError."""
+    with pytest.raises(
+        ConfigurationError, match="MOM must be enabled first. Call enable_mom\\(\\) before set_mom_transitions\\(\\)."
+    ):
+        default_qchem_input.set_mom_transitions(["HOMO->LUMO", "5->vac"])
+
+
 @pytest.mark.parametrize(
     "transition_str, error_msg",
     [
@@ -749,3 +757,96 @@ def test_ionization_validation_physics(unrestricted_input: QchemInput, h2o_geome
     inp = inp.set_mom_job2_charge(1).set_mom_job2_spin_multiplicity(2)  # +1 charge, doublet after ionization
     block = inp._generate_occupied_block(h2o_geometry)
     assert "$occupied" in block
+
+
+def test_generate_occupied_block_job2_charge_exceeds_nuclear(unrestricted_input: QchemInput, h2o_geometry: Geometry) -> None:
+    """Test _generate_occupied_block when job2 charge makes electron count negative (exceeds nuclear)."""
+    # H2O has nuclear charge 10. Setting charge to 11 means 10 - 11 = -1 electrons.
+    inp = unrestricted_input.enable_mom().set_mom_ground_state() # Use ground state to trigger occupation generation
+    inp = inp.set_mom_job2_charge(11)
+
+    with pytest.raises(ConfigurationError, match=r"Invalid total electron count \(-1\) for 'GROUND_STATE' MOM"):
+        inp._generate_occupied_block(h2o_geometry)
+
+
+def test_apply_ionization_unoccupied_beta(unrestricted_input: QchemInput, h2o_geometry: Geometry) -> None:
+    """Test that _apply_ionization raises error if trying to ionize unoccupied beta orbital."""
+    # H2O has 10 electrons, HOMO=5. Orbital 7 is unoccupied.
+    inp = unrestricted_input.enable_mom().set_mom_transition("7(beta)->vac") # Try to ionize unoccupied beta 7
+    
+    # _generate_occupied_block calls _convert_extended_transitions_to_occupations which calls _apply_single_operation
+    # which calls _apply_ionization, so we test via the block generation.
+    with pytest.raises(ValidationError, match="Cannot ionize from unoccupied beta orbital 7"):
+        inp._generate_occupied_block(h2o_geometry)
+
+
+def test_apply_excitation_unoccupied_beta_source(unrestricted_input: QchemInput, h2o_geometry: Geometry) -> None:
+    """Test that _apply_excitation raises error if source beta orbital is unoccupied."""
+    # H2O has 10 electrons, HOMO=5. Orbital 6 is LUMO.
+    # Exciting from occupied alpha 5 to unoccupied alpha 6 is fine (tested elsewhere).
+    # Exciting from unoccupied beta 6 to unoccupied beta 7 should fail.
+    inp = unrestricted_input.enable_mom().set_mom_transition("6(beta)->7(beta)") # Try to excite from unoccupied beta 6
+
+    # _generate_occupied_block calls _convert_extended_transitions_to_occupations which calls _apply_single_operation
+    # which calls _apply_excitation, so we test via the block generation.
+    with pytest.raises(ValidationError, match="Source orbital 6 must be occupied \(HOMO=5\)"):
+        inp._generate_occupied_block(h2o_geometry)
+
+
+def test_apply_excitation_unoccupied_beta_source_sequential(unrestricted_input: QchemInput, h2o_geometry: Geometry) -> None:
+    """Test _apply_excitation for beta channel when source orbital becomes unoccupied mid-transition.
+    This test targets the internal validation within _apply_excitation, not the
+    primary validation in _validate_mom_occupations based on initial state.
+    """
+    # H2O: 5 beta electrons (1,2,3,4,5). Orbitals 6+ are initially unoccupied.
+    # 1(b)->vac makes orbital 1(b) empty.
+    # Then 1(b)->6(b) attempts to excite from the now-empty 1(b) to an initially empty 6(b).
+    inp = unrestricted_input.enable_mom().set_mom_transition("1(beta)->vac; 1(beta)->6(beta)")
+    # Must adjust charge/multiplicity for the ionization part to be valid overall,
+    # so the error we are testing is not preempted by total electron count issues.
+    inp = inp.set_mom_job2_charge(1).set_mom_job2_spin_multiplicity(2)
+
+    # This error comes from _apply_excitation's internal check.
+    with pytest.raises(ValidationError, match="Cannot excite from unoccupied beta orbital 1"):
+        inp._generate_occupied_block(h2o_geometry)
+
+
+def test_apply_excitation_unoccupied_alpha_source_sequential(unrestricted_input: QchemInput, h2o_geometry: Geometry) -> None:
+    """Test _apply_excitation for alpha channel when source orbital becomes unoccupied mid-transition."""
+    # H2O: 5 alpha electrons (1,2,3,4,5). Orbitals 6+ are initially unoccupied.
+    # 1(a)->vac makes orbital 1(a) empty.
+    # Then 1(a)->6(a) attempts to excite from the now-empty 1(a) to an initially empty 6(a).
+    inp = unrestricted_input.enable_mom().set_mom_transition("1(alpha)->vac; 1(alpha)->6(alpha)")
+    inp = inp.set_mom_job2_charge(1).set_mom_job2_spin_multiplicity(2) # Accommodate ionization
+
+    with pytest.raises(ValidationError, match="Cannot excite from unoccupied alpha orbital 1"):
+        inp._generate_occupied_block(h2o_geometry)
+
+
+def test_apply_ionization_unoccupied_alpha_source_sequential(unrestricted_input: QchemInput, h2o_geometry: Geometry) -> None:
+    """Test _apply_ionization for alpha channel when source orbital becomes unoccupied mid-transition."""
+    # H2O: 5 alpha electrons (1,2,3,4,5). Orbitals 6+ are initially unoccupied.
+    # 1(a)->vac makes orbital 1(a) empty.
+    # Then 1(a)->vac attempts to ionize again from the now-empty 1(a).
+    inp = unrestricted_input.enable_mom().set_mom_transition("1(alpha)->vac; 1(alpha)->vac")
+    # Charge and multiplicity for two ionizations from H2O (10e) -> H2O++ (8e)
+    # If singlet, 8e -> mult=1. If triplet, mult=3.
+    # The first 1(a)->vac leads to 9e system (mult=2, e.g. 5a, 4b or 4a, 5b).
+    # The second 1(a)->vac would lead to 8e system.
+    # Let's set target for two ionizations leading to a singlet.
+    inp = inp.set_mom_job2_charge(2).set_mom_job2_spin_multiplicity(1)
+
+
+    with pytest.raises(ValidationError, match="Cannot ionize from unoccupied alpha orbital 1"):
+        inp._generate_occupied_block(h2o_geometry)
+
+
+def test_apply_excitation_unoccupied_beta_source_previously_emptied(unrestricted_input: QchemInput, h2o_geometry: Geometry) -> None:
+    """Test excitation from beta orbital that was emptied by a previous operation."""
+    # Initial state: H2O, 5 beta electrons (1,2,3,4,5). Orbital 6 is initially unoccupied.
+    # Operation 1: Ionize from beta orbital 1 (1(beta)->vac). Beta occupied: {2,3,4,5}
+    # Operation 2: Attempt to excite from beta orbital 1 (now empty) to beta orbital 6.
+    inp = unrestricted_input.enable_mom().set_mom_transition("1(beta)->vac; 1(beta)->6(beta)")
+    inp = inp.set_mom_job2_charge(1).set_mom_job2_spin_multiplicity(2) # For the single ionization
+    with pytest.raises(ValidationError, match="Cannot excite from unoccupied beta orbital 1"):
+        inp._generate_occupied_block(h2o_geometry)
