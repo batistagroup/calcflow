@@ -237,8 +237,9 @@ and then in a very similar manner you can create custom configs:
 nersc_args = NerscSlurmArgs(
     exec_fname="mom-sp", time="01:00:00", n_cores=16,
     constraint="cpu", account="mxxxx", queue="regular")
+nersc_args = nersc_args.set_parallelism('openmp')
 with (clc_folder / "submit.sh").open("w") as f:
-    f.write(base_args.set_software("qchem").create_submit_script(f"{name}-{state}-{mom_type}"))
+    f.write(nersc_args.set_software("qchem").create_submit_script(f"{name}-{state}-{mom_type}"))
 ```
 
 where `.set_software` dictates which modules/temp variables will be printed, and arg to `create_submit_script` is the job name.

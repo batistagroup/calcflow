@@ -192,6 +192,10 @@ class SlurmArgs:
             elif self.parallelism == "openmp":
                 return f"qchem -nt {self.n_cores} {self.exec_fname}.in {self.exec_fname}.out"
             else:
+                logger.warning(
+                    "QChem will run on single process/thread. "
+                    "Use set_parallelism('mpi') for -np or set_parallelism('openmp') for -nt to utilize multiple cores."
+                )
                 return f"qchem {self.exec_fname}.in {self.exec_fname}.out"
         else:
             raise ValueError(f"Software {self.software} not supported")
