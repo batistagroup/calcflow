@@ -121,6 +121,45 @@ def test_set_rpa(default_qchem_input: QchemInput) -> None:
     assert inp_false is not inp_true
 
 
+def test_enable_tda(default_qchem_input: QchemInput) -> None:
+    """Test enabling TDA (Tamm-Dancoff Approximation)."""
+    # First enable full TDDFT
+    inp_full = default_qchem_input.enable_full_tddft()
+    assert inp_full.rpa
+
+    # Then enable TDA
+    inp_tda = inp_full.enable_tda()
+    assert not inp_tda.rpa
+    assert inp_tda is not inp_full
+    assert inp_tda is not default_qchem_input
+
+
+def test_enable_full_tddft(default_qchem_input: QchemInput) -> None:
+    """Test enabling full TDDFT with RPA."""
+    assert not default_qchem_input.rpa  # Default is False
+
+    inp_full = default_qchem_input.enable_full_tddft()
+    assert inp_full.rpa
+    assert inp_full is not default_qchem_input
+
+
+def test_tda_full_tddft_roundtrip(default_qchem_input: QchemInput) -> None:
+    """Test switching between TDA and full TDDFT."""
+    # Start with TDA
+    inp1 = default_qchem_input.enable_tda()
+    assert not inp1.rpa
+
+    # Switch to full TDDFT
+    inp2 = inp1.enable_full_tddft()
+    assert inp2.rpa
+    assert inp2 is not inp1
+
+    # Switch back to TDA
+    inp3 = inp2.enable_tda()
+    assert not inp3.rpa
+    assert inp3 is not inp2
+
+
 def test_set_basis_string(default_qchem_input: QchemInput) -> None:
     """Test setting basis set using a string."""
     inp = default_qchem_input.set_basis("def2-svp")

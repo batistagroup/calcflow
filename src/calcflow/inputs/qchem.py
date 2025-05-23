@@ -457,6 +457,32 @@ class QchemInput(CalculationInput):
         logger.debug(f"Setting RPA keyword to: {enable}")
         return replace(self, rpa=enable)
 
+    def enable_tda(self: T_QchemInput) -> T_QchemInput:
+        """Enable Tamm-Dancoff Approximation (TDA) for TDDFT calculations.
+
+        TDA is a simplified version of TDDFT that neglects de-excitation contributions,
+        making it computationally faster but less accurate than full TDDFT.
+        This sets the internal rpa flag to False.
+
+        Returns:
+            A new QchemInput instance with TDA enabled (rpa=False).
+        """
+        logger.debug("Enabling TDA (Tamm-Dancoff Approximation) for TDDFT")
+        return replace(self, rpa=False)
+
+    def enable_full_tddft(self: T_QchemInput) -> T_QchemInput:
+        """Enable full TDDFT with Random Phase Approximation (RPA).
+
+        Full TDDFT includes both excitation and de-excitation contributions,
+        providing more accurate results than TDA at higher computational cost.
+        This sets the internal rpa flag to True.
+
+        Returns:
+            A new QchemInput instance with full TDDFT enabled (rpa=True).
+        """
+        logger.debug("Enabling full TDDFT with RPA (Random Phase Approximation)")
+        return replace(self, rpa=True)
+
     def set_reduced_excitation_space(self: T_QchemInput, initial_orbitals: list[int]) -> T_QchemInput:
         """Configure a reduced excitation space for TDDFT calculations.
 
