@@ -328,6 +328,22 @@ class TestOrcaInputInitValidation:
                 optimize_hydrogens_only=True,
             )
 
+    # --- Frequency Calculation Validation Tests ---
+    def test_init_frequency_task_with_run_frequency_flag_error(self) -> None:
+        """Test __post_init__ validation fails when both task='frequency' and run_frequency=True."""
+        with pytest.raises(
+            ValidationError,
+            match="Cannot set both task='frequency' and run_frequency=True. Use either task='frequency' for frequency-only calculations or run_frequency=True to combine with other tasks.",
+        ):
+            OrcaInput(
+                task="frequency",
+                level_of_theory="hf",
+                basis_set="sto-3g",
+                charge=0,
+                spin_multiplicity=1,
+                run_frequency=True,
+            )
+
 
 class TestOrcaInputMethods:
     """Tests for methods modifying OrcaInput instances."""
@@ -453,6 +469,34 @@ class TestOrcaInputMethods:
         assert modified_input is not minimal_orca_input
         assert modified_input.ri_approx == "RIJCOSX"
         assert modified_input.aux_basis == "def2/J"
+
+    def test_enable_ri_invalid_approximation_error(self, minimal_orca_input: OrcaInput) -> None:
+        """Test enable_ri raises ValidationError for unrecognized RI approximation."""
+        with pytest.raises(ValidationError, match="RI approximation 'INVALID_RI' not recognized for ORCA. Allowed:"):
+            minimal_orca_input.enable_ri(approx="INVALID_RI", aux_basis="def2/J")
+
+    def test_enable_frequency_valid(self, minimal_orca_input: OrcaInput) -> None:
+        """Test enable_frequency method with valid task."""
+        modified_input = minimal_orca_input.enable_frequency()
+        assert modified_input is not minimal_orca_input
+        assert modified_input.run_frequency
+        assert modified_input.task == minimal_orca_input.task  # Original task preserved
+        assert not minimal_orca_input.run_frequency  # Original unchanged
+
+    def test_enable_frequency_with_geometry_task(self, minimal_orca_input: OrcaInput) -> None:
+        """Test enable_frequency with geometry task."""
+        geom_input = replace(minimal_orca_input, task="geometry")
+        modified_input = geom_input.enable_frequency()
+        assert modified_input.run_frequency
+        assert modified_input.task == "geometry"
+
+    def test_enable_frequency_already_frequency_task_error(self, minimal_orca_input: OrcaInput) -> None:
+        """Test enable_frequency raises error when task is already 'frequency'."""
+        freq_input = replace(minimal_orca_input, task="frequency")
+        with pytest.raises(
+            ValidationError, match="Task is already 'frequency'. Use task='frequency' for frequency-only calculations."
+        ):
+            freq_input.enable_frequency()
 
 
 class TestOrcaInputSetSolvation:
@@ -686,6 +730,18 @@ class TestOrcaInputExport:
         with pytest.raises(ValidationError, match=error_match):
             test_input.export_input_file(default_geom)
 
+    def test_export_unrecognized_hf_method_error(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
+        """Test export raises ValidationError for unrecognized HF method variants."""
+        test_input = replace(minimal_orca_input, level_of_theory="invalid_hf")
+        with pytest.raises(ValidationError, match="Unrecognized HF method: invalid_hf"):
+            test_input.export_input_file(default_geom)
+
+    def test_export_unrecognized_mp2_method_error(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
+        """Test export raises ValidationError for unrecognized MP2 method variants."""
+        test_input = replace(minimal_orca_input, level_of_theory="invalid_mp2")
+        with pytest.raises(ValidationError, match="Unrecognized MP2 method: invalid_mp2"):
+            test_input.export_input_file(default_geom)
+
     def test_export_ccsd_unrestricted_error(
         self,
         minimal_orca_input: OrcaInput,
@@ -699,6 +755,53 @@ class TestOrcaInputExport:
         )
         with pytest.raises(ValidationError, match="Requested method CCSD but unrestricted was set to True."):
             test_input.export_input_file(default_geom)
+
+    def test_export_frequency_only_task(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
+        """Test export for frequency-only calculation."""
+        freq_input = replace(minimal_orca_input, task="frequency")
+        output = freq_input.export_input_file(default_geom)
+        expected_keywords_set = {"!", "RHF", "sto-3g", "Freq"}
+        self._assert_keywords_match(output, expected_keywords_set)
+        assert "* xyz 0 1" in output
+
+    def test_export_geometry_with_frequency(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
+        """Test export for geometry optimization with frequency calculation."""
+        geom_freq_input = replace(minimal_orca_input, task="geometry").enable_frequency()
+        output = geom_freq_input.export_input_file(default_geom)
+        expected_keywords_set = {"!", "RHF", "sto-3g", "Opt", "Freq"}
+        self._assert_keywords_match(output, expected_keywords_set)
+        assert "* xyz 0 1" in output
+
+    def test_export_energy_with_frequency(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
+        """Test export for single-point energy with frequency calculation."""
+        energy_freq_input = minimal_orca_input.enable_frequency()
+        output = energy_freq_input.export_input_file(default_geom)
+        expected_keywords_set = {"!", "RHF", "sto-3g", "SP", "Freq"}
+        self._assert_keywords_match(output, expected_keywords_set)
+        assert "* xyz 0 1" in output
+
+    @pytest.mark.parametrize(
+        "task, run_frequency, expected_keywords",
+        [
+            ("energy", False, {"!", "RHF", "sto-3g", "SP"}),
+            ("energy", True, {"!", "RHF", "sto-3g", "SP", "Freq"}),
+            ("geometry", False, {"!", "RHF", "sto-3g", "Opt"}),
+            ("geometry", True, {"!", "RHF", "sto-3g", "Opt", "Freq"}),
+            ("frequency", False, {"!", "RHF", "sto-3g", "Freq"}),
+        ],
+    )
+    def test_export_frequency_combinations(
+        self,
+        minimal_orca_input: OrcaInput,
+        default_geom: Geometry,
+        task: str,
+        run_frequency: bool,
+        expected_keywords: set[str],
+    ) -> None:
+        """Test various combinations of task and run_frequency flag."""
+        test_input = replace(minimal_orca_input, task=task, run_frequency=run_frequency)  # type: ignore[arg-type]
+        output = test_input.export_input_file(default_geom)
+        self._assert_keywords_match(output, expected_keywords)
 
     def test_export_with_ri(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
         """Test export with RI approximation enabled."""
@@ -841,6 +944,16 @@ end"""
                 spin_multiplicity=1,
             )
             dict_basis_input.export_input_file(default_geom)
+
+    def test_export_unsupported_basis_set_type_error(
+        self, minimal_orca_input: OrcaInput, default_geom: Geometry
+    ) -> None:
+        """Test export raises InputGenerationError for unsupported basis_set types."""
+        from calcflow.exceptions import InputGenerationError
+
+        invalid_basis_input = replace(minimal_orca_input, basis_set=123)  # type: ignore
+        with pytest.raises(InputGenerationError, match="Unsupported basis_set type:"):
+            invalid_basis_input.export_input_file(default_geom)
 
     def test_export_tddft_validation_error_in_block(
         self, minimal_orca_input: OrcaInput, default_geom: Geometry
