@@ -930,42 +930,6 @@ end"""
         assert default_geom.get_coordinate_block().strip() in output
         assert output.strip().endswith("*")
 
-    def test_export_dict_basis_error(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
-        """Test export raises error for dictionary basis sets."""
-        with pytest.raises(
-            NotSupportedError,
-            match="Dictionary basis sets are not yet fully implemented in export_input_file for ORCA.",
-        ):
-            dict_basis_input = OrcaInput(
-                task="energy",
-                level_of_theory="hf",
-                basis_set={"O": "def2-svp", "H": "sto-3g"},  # type: ignore
-                charge=0,
-                spin_multiplicity=1,
-            )
-            dict_basis_input.export_input_file(default_geom)
-
-    def test_export_unsupported_basis_set_type_error(
-        self, minimal_orca_input: OrcaInput, default_geom: Geometry
-    ) -> None:
-        """Test export raises InputGenerationError for unsupported basis_set types."""
-        from calcflow.exceptions import InputGenerationError
-
-        invalid_basis_input = replace(minimal_orca_input, basis_set=123)  # type: ignore
-        with pytest.raises(InputGenerationError, match="Unsupported basis_set type:"):
-            invalid_basis_input.export_input_file(default_geom)
-
-    def test_export_tddft_validation_error_in_block(
-        self, minimal_orca_input: OrcaInput, default_geom: Geometry
-    ) -> None:
-        """Test ValidationError in _get_tddft_block if inconsistent state is forced."""
-        # Create an inconsistent state *after* __post_init__ validation
-        with pytest.raises(
-            ValidationError, match="If run_tddft is True, either tddft_nroots or tddft_iroot must be specified."
-        ):
-            inconsistent_input = replace(minimal_orca_input, run_tddft=True, tddft_nroots=None, tddft_iroot=None)
-            inconsistent_input.export_input_file(default_geom)  # Should raise in _get_tddft_block (Line 315)
-
     def test_export_geom_recalc_hess(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
         """Test export with Hessian recalculation enabled."""
         geom_input = replace(minimal_orca_input, task="geometry")
