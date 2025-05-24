@@ -344,6 +344,30 @@ class TestOrcaInputInitValidation:
                 run_frequency=True,
             )
 
+    def test_init_invalid_basis_set_type_error(self) -> None:
+        """Test __post_init__ validation fails for non-string basis_set types."""
+        with pytest.raises(ValidationError, match="basis_set must be a string, got"):
+            OrcaInput(
+                task="energy",
+                level_of_theory="hf",
+                basis_set=123,  # type: ignore[arg-type]
+                charge=0,
+                spin_multiplicity=1,
+            )
+
+    def test_init_invalid_aux_basis_type_error(self) -> None:
+        """Test __post_init__ validation fails for non-string aux_basis when ri_approx is set."""
+        with pytest.raises(ValidationError, match="aux_basis must be a string when ri_approx is set, got"):
+            OrcaInput(
+                task="energy",
+                level_of_theory="hf",
+                basis_set="sto-3g",
+                charge=0,
+                spin_multiplicity=1,
+                ri_approx="RIJCOSX",
+                aux_basis=456,  # type: ignore[arg-type]
+            )
+
 
 class TestOrcaInputMethods:
     """Tests for methods modifying OrcaInput instances."""

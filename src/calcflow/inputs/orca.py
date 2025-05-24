@@ -90,10 +90,13 @@ class OrcaInput(CalculationInput):
                 "Consider using def2-tzvp or larger basis sets for final geometries."
             )
 
-        if isinstance(self.basis_set, dict):
-            raise NotSupportedError(
-                "Dictionary basis sets are not yet fully implemented in export_input_file for ORCA."
-            )
+        if not isinstance(self.basis_set, str):
+            if isinstance(self.basis_set, dict):
+                raise NotSupportedError(
+                    "Dictionary basis sets are not yet fully implemented in export_input_file for ORCA."
+                )
+            else:
+                raise ValidationError(f"basis_set must be a string, got {type(self.basis_set)}")
 
         if self.implicit_solvation_model and self.implicit_solvation_model not in get_args(
             ORCA_ALLOWED_SOLVATION_MODELS
@@ -110,6 +113,8 @@ class OrcaInput(CalculationInput):
             raise ValidationError(
                 "An auxiliary basis set (aux_basis) must be provided when using an RI approximation (ri_approx)."
             )
+        if self.ri_approx and not isinstance(self.aux_basis, str):
+            raise ValidationError(f"aux_basis must be a string when ri_approx is set, got {type(self.aux_basis)}")
         if not self.ri_approx and self.aux_basis:
             logger.warning(
                 "An auxiliary basis set (aux_basis) was provided, but no RI approximation (ri_approx) was specified."
@@ -178,7 +183,7 @@ class OrcaInput(CalculationInput):
             )
         casted = cast(ORCA_ALLOWED_SOLVATION_MODELS, model_lower)
 
-        return replace(self, implicit_solvation_model=casted, solvent=solvent_lower)  # type: ignore
+        return replace(self, implicit_solvation_model=casted, solvent=solvent_lower)
 
     def enable_ri(self: T_OrcaInput, approx: str, aux_basis: str) -> T_OrcaInput:
         """Enable RI approximation with a given auxiliary basis set.
@@ -392,12 +397,12 @@ class OrcaInput(CalculationInput):
         keywords.extend(self._handle_level_of_theory())
 
         # Basis set is guaranteed to be str by __post_init__ validation
-        keywords.append(self.basis_set)  # type: ignore[arg-type]
+        keywords.append(self.basis_set)
 
         if self.ri_approx:
             keywords.append(self.ri_approx)
-            # aux_basis is guaranteed to exist when ri_approx is set by __post_init__ validation
-            keywords.append(self.aux_basis)  # type: ignore[arg-type]
+            # aux_basis is guaranteed to exist and be str when ri_approx is set by __post_init__ validation
+            keywords.append(self.aux_basis)
 
         if self.implicit_solvation_model:
             solvent_str = f'("{self.solvent}")' if self.solvent else ""
