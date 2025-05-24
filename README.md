@@ -1,4 +1,4 @@
-# CalcFlow
+# CalcFlow: Quantum Chemistry Calculation I/O Done Right
 
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
@@ -8,11 +8,10 @@
 [![codecov](https://codecov.io/gh/batistagroup/calcflow/graph/badge.svg?token=bO5X75J8li)](https://codecov.io/gh/batistagroup/calcflow)
 ![codequal](https://github.com/batistagroup/calcflow/actions/workflows/quality.yml/badge.svg)
 
-**CalcFlow: Quantum Chemistry Calculation I/O. Done Right.**
-
 CalcFlow provides a robust, Pythonic interface for preparing inputs and parsing outputs for quantum chemistry software like Q-Chem and ORCA. It has **zero external dependencies** and is built for clarity and reliability. Get your calculations set up and results processed without the usual boilerplate.
 
-WARNING: Package is in pre-release alpha stage. May introduce backwards-incompatible changes. Contributions & suggestions & advice are welcome.
+> [!WARNING]  
+> Package is in pre-release alpha stage. May introduce backwards-incompatible changes. Contributions & suggestions & advice are welcome.
 
 ## Key Features
 
@@ -247,6 +246,17 @@ where `.set_software` dictates which modules/temp variables will be printed, and
 ## Contributing
 
 Direct, effective contributions are welcome. Fork, modify, test, and pull request. Adhere to existing quality standards.
+
+## Related Works
+
+> How is it different from [QCEngine](https://github.com/MolSSI/QCEngine)?
+
+- QCEngine requires [QCElemental](https://github.com/MolSSI/QCElemental), a dep that is supposed to give you constants and periodic table, but for some reason requires numpy
+- afaict, it also tries to solve a much more difficult and much less relevant problem - automating execution of QC calculations. I don't see how one could anticipate all possible variations in configs of internal clusters. Most importantly, I don't see it as a main problem.
+
+> How is it different from qc suite ([qcio](https://github.com/coltonbh/qcio), [qccodec](https://github.com/coltonbh/qccodec), [qcop](https://github.com/coltonbh/qcop)) by coltonbh?
+
+honestly, qc suite is great and as of now has greater variety of supported QC software and tasks. unfortunately, as is, qcio depends on numpy and qcio/qccodec (which is a direct alternative to calcflow) seem to be too geared for automation with BigChem, which might be a plus for some, but might be too much for people who don't want/need to change their routine and just need easy input prep and output parsing
 
 ## License
 

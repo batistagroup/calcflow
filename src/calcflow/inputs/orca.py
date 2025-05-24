@@ -3,7 +3,7 @@ from dataclasses import dataclass, replace
 from typing import ClassVar, Literal, TypeVar, cast, get_args
 
 from calcflow.core import CalculationInput
-from calcflow.exceptions import InputGenerationError, NotSupportedError, ValidationError
+from calcflow.exceptions import NotSupportedError, ValidationError
 from calcflow.geometry.static import Geometry
 from calcflow.utils import logger
 
@@ -43,6 +43,7 @@ class OrcaInput(CalculationInput):
             Defaults to False.
         recalc_hess_freq: Frequency for Hessian recalculation. Defaults to None.
         optimize_hydrogens_only: Flag to optimize only hydrogens in geometry optimization. Defaults to False.
+        run_frequency: Flag to enable frequency calculations in combination with other tasks. Defaults to False.
     """
 
     program: ClassVar[str] = "orca"
@@ -58,6 +59,8 @@ class OrcaInput(CalculationInput):
     tddft_iroot: int | None = None
     tddft_triplets: bool = False
     tddft_use_tda: bool = True
+
+    run_frequency: bool = False
 
     implicit_solvation_model: ORCA_ALLOWED_SOLVATION_MODELS | None = None
     solvent: str | None = None
@@ -87,10 +90,13 @@ class OrcaInput(CalculationInput):
                 "Consider using def2-tzvp or larger basis sets for final geometries."
             )
 
-        if isinstance(self.basis_set, dict):
-            raise NotSupportedError(
-                "Dictionary basis sets are not yet fully implemented in export_input_file for ORCA."
-            )
+        if not isinstance(self.basis_set, str):
+            if isinstance(self.basis_set, dict):
+                raise NotSupportedError(
+                    "Dictionary basis sets are not yet fully implemented in export_input_file for ORCA."
+                )
+            else:
+                raise ValidationError(f"basis_set must be a string, got {type(self.basis_set)}")
 
         if self.implicit_solvation_model and self.implicit_solvation_model not in get_args(
             ORCA_ALLOWED_SOLVATION_MODELS
@@ -107,6 +113,8 @@ class OrcaInput(CalculationInput):
             raise ValidationError(
                 "An auxiliary basis set (aux_basis) must be provided when using an RI approximation (ri_approx)."
             )
+        if self.ri_approx and not isinstance(self.aux_basis, str):
+            raise ValidationError(f"aux_basis must be a string when ri_approx is set, got {type(self.aux_basis)}")
         if not self.ri_approx and self.aux_basis:
             logger.warning(
                 "An auxiliary basis set (aux_basis) was provided, but no RI approximation (ri_approx) was specified."
@@ -140,6 +148,11 @@ class OrcaInput(CalculationInput):
         if self.optimize_hydrogens_only and self.task != "geometry":
             raise ValidationError("Optimizing only hydrogens is only applicable for 'geometry' tasks.")
 
+        if self.task == "frequency" and self.run_frequency:
+            raise ValidationError(
+                "Cannot set both task='frequency' and run_frequency=True. Use either task='frequency' for frequency-only calculations or run_frequency=True to combine with other tasks."
+            )
+
     def set_solvation(self: T_OrcaInput, model: str | None, solvent: str | None) -> T_OrcaInput:
         """
         Set the implicit solvation model and solvent.
@@ -170,7 +183,7 @@ class OrcaInput(CalculationInput):
             )
         casted = cast(ORCA_ALLOWED_SOLVATION_MODELS, model_lower)
 
-        return replace(self, implicit_solvation_model=casted, solvent=solvent_lower)  # type: ignore
+        return replace(self, implicit_solvation_model=casted, solvent=solvent_lower)
 
     def enable_ri(self: T_OrcaInput, approx: str, aux_basis: str) -> T_OrcaInput:
         """Enable RI approximation with a given auxiliary basis set.
@@ -236,6 +249,24 @@ class OrcaInput(CalculationInput):
             tddft_triplets=triplets,
             tddft_use_tda=use_tda,
         )
+
+    def enable_frequency(self: T_OrcaInput) -> T_OrcaInput:
+        """Enable frequency calculations in combination with the current task.
+
+        Returns:
+            A new OrcaInput instance with frequency calculations enabled
+
+        Raises:
+            ValidationError: If the current task is already 'frequency'
+
+        Notes:
+            Use task='frequency' for frequency-only calculations, or this method to combine
+            frequency calculations with geometry optimization or single-point energy.
+        """
+        if self.task == "frequency":
+            raise ValidationError("Task is already 'frequency'. Use task='frequency' for frequency-only calculations.")
+        logger.info(f"Enabling frequency calculations in combination with {self.task} task.")
+        return replace(self, run_frequency=True)
 
     def set_hessian_recalculation(self: T_OrcaInput, frequency: int) -> T_OrcaInput:
         """Enable and configure Hessian recalculation during geometry optimization.
@@ -357,22 +388,25 @@ class OrcaInput(CalculationInput):
             keywords.append("Opt")
         elif self.task == "energy":
             keywords.append("SP")
+        elif self.task == "frequency":
+            keywords.append("Freq")
+
+        if self.run_frequency and self.task != "frequency":
+            keywords.append("Freq")
 
         keywords.extend(self._handle_level_of_theory())
 
-        if isinstance(self.basis_set, str):
-            keywords.append(self.basis_set)
-        elif isinstance(self.basis_set, dict):
-            raise InputGenerationError("Dictionary basis sets require a %basis block, not yet implemented.")
-        else:
-            raise InputGenerationError(f"Unsupported basis_set type: {type(self.basis_set)}")
+        # Basis set is guaranteed to be str by __post_init__ validation
+        assert isinstance(self.basis_set, str), "basis_set must be str for ORCA (validated in __post_init__)"
+        keywords.append(self.basis_set)
 
         if self.ri_approx:
             keywords.append(self.ri_approx)
-            if self.aux_basis:
-                keywords.append(self.aux_basis)
-            else:
-                raise ValidationError("RI approximation specified without auxiliary basis set.")
+            # aux_basis is guaranteed to exist and be str when ri_approx is set by __post_init__ validation
+            assert isinstance(self.aux_basis, str), (
+                "aux_basis must be str when ri_approx is set (validated in __post_init__)"
+            )
+            keywords.append(self.aux_basis)
 
         if self.implicit_solvation_model:
             solvent_str = f'("{self.solvent}")' if self.solvent else ""

@@ -21,7 +21,7 @@ class CalculationInput(ABC):
     Attributes:
         charge (int): Molecular charge.
         spin_multiplicity (int): Spin multiplicity (1 for singlet, 2 for doublet, etc.). Must be a positive integer.
-        task (Literal["energy", "geometry"]): Type of calculation to perform.
+        task (Literal["energy", "geometry", "frequency"]): Type of calculation to perform.
         level_of_theory (str): Electronic structure method/functional (e.g., "B3LYP", "CCSD(T)").
         basis_set (str | dict[str, str]): Basis set to use. Can be a string for standard basis sets
             or a dictionary for program-specific basis set specifications.
@@ -34,7 +34,7 @@ class CalculationInput(ABC):
 
     charge: int
     spin_multiplicity: int
-    task: Literal["energy", "geometry"]
+    task: Literal["energy", "geometry", "frequency"]
     level_of_theory: str
     basis_set: str | dict[str, str]
 
