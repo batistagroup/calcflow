@@ -1,4 +1,4 @@
-# CalcFlow
+# CalcFlow: Quantum Chemistry Calculation I/O Done Right
 
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
@@ -8,11 +8,10 @@
 [![codecov](https://codecov.io/gh/batistagroup/calcflow/graph/badge.svg?token=bO5X75J8li)](https://codecov.io/gh/batistagroup/calcflow)
 ![codequal](https://github.com/batistagroup/calcflow/actions/workflows/quality.yml/badge.svg)
 
-**CalcFlow: Quantum Chemistry Calculation I/O. Done Right.**
-
 CalcFlow provides a robust, Pythonic interface for preparing inputs and parsing outputs for quantum chemistry software like Q-Chem and ORCA. It has **zero external dependencies** and is built for clarity and reliability. Get your calculations set up and results processed without the usual boilerplate.
 
-WARNING: Package is in pre-release alpha stage. May introduce backwards-incompatible changes. Contributions & suggestions & advice are welcome.
+> [!WARNING]  
+> Package is in pre-release alpha stage. May introduce backwards-incompatible changes. Contributions & suggestions & advice are welcome.
 
 ## Key Features
 
