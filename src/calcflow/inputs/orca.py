@@ -397,11 +397,15 @@ class OrcaInput(CalculationInput):
         keywords.extend(self._handle_level_of_theory())
 
         # Basis set is guaranteed to be str by __post_init__ validation
+        assert isinstance(self.basis_set, str), "basis_set must be str for ORCA (validated in __post_init__)"
         keywords.append(self.basis_set)
 
         if self.ri_approx:
             keywords.append(self.ri_approx)
             # aux_basis is guaranteed to exist and be str when ri_approx is set by __post_init__ validation
+            assert isinstance(self.aux_basis, str), (
+                "aux_basis must be str when ri_approx is set (validated in __post_init__)"
+            )
             keywords.append(self.aux_basis)
 
         if self.implicit_solvation_model:
