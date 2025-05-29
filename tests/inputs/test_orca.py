@@ -431,7 +431,7 @@ class TestOrcaInputMethods:
     def test_set_hessian_recalculation_valid(self, minimal_orca_input: OrcaInput) -> None:
         """Test set_hessian_recalculation with valid frequency on a geometry task."""
         geom_input = replace(minimal_orca_input, task="geometry")
-        modified_input = geom_input.set_hessian_recalculation(frequency=10)
+        modified_input = geom_input.recalculate_hessian_every_n_steps(frequency=10)
         assert modified_input is not geom_input
         assert modified_input.recalc_hess_freq == 10
         assert modified_input.task == "geometry"
@@ -440,7 +440,7 @@ class TestOrcaInputMethods:
         """Test set_hessian_recalculation raises error if task is not geometry."""
         assert minimal_orca_input.task == "energy"  # Precondition
         with pytest.raises(ValidationError, match="Hessian recalculation is only applicable for 'geometry' tasks"):
-            minimal_orca_input.set_hessian_recalculation(frequency=10)
+            minimal_orca_input.recalculate_hessian_every_n_steps(frequency=10)
 
     @pytest.mark.parametrize("invalid_freq", [0, -5])
     def test_set_hessian_recalculation_invalid_frequency(
@@ -449,7 +449,7 @@ class TestOrcaInputMethods:
         """Test set_hessian_recalculation raises error for non-positive frequency."""
         geom_input = replace(minimal_orca_input, task="geometry")
         with pytest.raises(ValidationError, match="Hessian recalculation frequency must be a positive integer"):
-            geom_input.set_hessian_recalculation(frequency=invalid_freq)
+            geom_input.recalculate_hessian_every_n_steps(frequency=invalid_freq)
 
     def test_enable_optimize_hydrogens_only_valid(self, minimal_orca_input: OrcaInput) -> None:
         """Test enable_optimize_hydrogens_only on a geometry task."""
@@ -957,7 +957,7 @@ end"""
     def test_export_geom_recalc_hess(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
         """Test export with Hessian recalculation enabled."""
         geom_input = replace(minimal_orca_input, task="geometry")
-        hess_input = geom_input.set_hessian_recalculation(frequency=15)
+        hess_input = geom_input.recalculate_hessian_every_n_steps(frequency=15)
         output = hess_input.export_input_file(default_geom)
         expected_geom_block = """%geom
     Calc_Hess true
@@ -986,7 +986,7 @@ end"""
     ) -> None:
         """Test export with both Hessian recalculation and optimize_hydrogens_only enabled."""
         geom_input = replace(minimal_orca_input, task="geometry")
-        combined_input = geom_input.set_hessian_recalculation(frequency=20).enable_optimize_hydrogens_only()
+        combined_input = geom_input.recalculate_hessian_every_n_steps(frequency=20).enable_optimize_hydrogens_only()
         output = combined_input.export_input_file(default_geom)
         # Order within the block might vary if not enforced, but content should be there.
         # For now, let's check for individual lines if order is not guaranteed by _get_geom_block for multiple options.
@@ -1002,3 +1002,285 @@ end"""
 
 
 # --- Add more test classes below ---
+
+
+class TestOrcaInputHessianMethods:
+    """Tests for the new Hessian calculation methods."""
+
+    def test_calculate_hessian_valid(self, minimal_orca_input: OrcaInput) -> None:
+        """Test calculate_hessian method with valid geometry task."""
+        geom_input = replace(minimal_orca_input, task="geometry")
+        hess_input = geom_input.calculate_hessian()
+        assert hess_input is not geom_input
+        assert hess_input.calc_hess
+        assert hess_input.task == "geometry"
+
+    def test_calculate_hessian_wrong_task(self, minimal_orca_input: OrcaInput) -> None:
+        """Test calculate_hessian raises error if task is not geometry."""
+        assert minimal_orca_input.task == "energy"  # Precondition
+        with pytest.raises(ValidationError, match="Hessian calculation is only applicable for 'geometry' tasks"):
+            minimal_orca_input.calculate_hessian()
+
+    def test_recalculate_hessian_every_n_steps_valid(self, minimal_orca_input: OrcaInput) -> None:
+        """Test recalculate_hessian_every_n_steps method with valid parameters."""
+        geom_input = replace(minimal_orca_input, task="geometry")
+        hess_input = geom_input.recalculate_hessian_every_n_steps(frequency=10)
+        assert hess_input is not geom_input
+        assert hess_input.calc_hess
+        assert hess_input.recalc_hess_freq == 10
+        assert hess_input.task == "geometry"
+
+    def test_recalculate_hessian_every_n_steps_wrong_task(self, minimal_orca_input: OrcaInput) -> None:
+        """Test recalculate_hessian_every_n_steps raises error if task is not geometry."""
+        assert minimal_orca_input.task == "energy"  # Precondition
+        with pytest.raises(ValidationError, match="Hessian recalculation is only applicable for 'geometry' tasks"):
+            minimal_orca_input.recalculate_hessian_every_n_steps(frequency=10)
+
+    @pytest.mark.parametrize("invalid_freq", [0, -5])
+    def test_recalculate_hessian_every_n_steps_invalid_frequency(
+        self, minimal_orca_input: OrcaInput, invalid_freq: int
+    ) -> None:
+        """Test recalculate_hessian_every_n_steps raises error for non-positive frequency."""
+        geom_input = replace(minimal_orca_input, task="geometry")
+        with pytest.raises(ValidationError, match="Hessian recalculation frequency must be a positive integer"):
+            geom_input.recalculate_hessian_every_n_steps(frequency=invalid_freq)
+
+    @pytest.mark.parametrize(
+        "atoms_input, expected_atoms",
+        [
+            ([0, 1, 5, 6], (0, 1, 5, 6)),
+            ((2, 4, 8), (2, 4, 8)),
+            ({3, 7, 1}, (1, 3, 7)),  # Set gets sorted
+            ([5, 1, 5, 3], (1, 3, 5)),  # Duplicates removed and sorted
+        ],
+    )
+    def test_calculate_hybrid_hessian_for_atoms_valid(
+        self,
+        minimal_orca_input: OrcaInput,
+        atoms_input: list[int] | tuple[int, ...] | set[int],
+        expected_atoms: tuple[int, ...],
+    ) -> None:
+        """Test calculate_hybrid_hessian_for_atoms method with various atom collections."""
+        geom_input = replace(minimal_orca_input, task="geometry")
+        hybrid_input = geom_input.specify_atoms_for_full_hessian(atoms_input)
+        assert hybrid_input is not geom_input
+        assert hybrid_input.hybrid_hess_atoms == expected_atoms
+        assert hybrid_input.task == "geometry"
+
+    def test_calculate_hybrid_hessian_for_atoms_wrong_task(self, minimal_orca_input: OrcaInput) -> None:
+        """Test calculate_hybrid_hessian_for_atoms raises error if task is not geometry."""
+        assert minimal_orca_input.task == "energy"  # Precondition
+        with pytest.raises(ValidationError, match="Hybrid Hessian calculation is only applicable for 'geometry' tasks"):
+            minimal_orca_input.specify_atoms_for_full_hessian([0, 1, 2])
+
+    def test_calculate_hybrid_hessian_for_atoms_empty_sequence(self, minimal_orca_input: OrcaInput) -> None:
+        """Test calculate_hybrid_hessian_for_atoms raises error for empty atom sequence."""
+        geom_input = replace(minimal_orca_input, task="geometry")
+        with pytest.raises(ValidationError, match="Atom sequence cannot be empty for hybrid Hessian calculation"):
+            geom_input.specify_atoms_for_full_hessian([])
+
+    def test_calculate_hybrid_hessian_for_atoms_negative_indices(self, minimal_orca_input: OrcaInput) -> None:
+        """Test calculate_hybrid_hessian_for_atoms raises error for negative atom indices."""
+        geom_input = replace(minimal_orca_input, task="geometry")
+        with pytest.raises(ValidationError, match="All atom indices must be non-negative"):
+            geom_input.specify_atoms_for_full_hessian([0, 1, -2])
+
+    def test_chaining_hessian_methods(self, minimal_orca_input: OrcaInput) -> None:
+        """Test chaining different hessian methods."""
+        geom_input = replace(minimal_orca_input, task="geometry")
+
+        # Test calc_hess + recalc_hess
+        combined = geom_input.calculate_hessian().recalculate_hessian_every_n_steps(15)
+        assert combined.calc_hess
+        assert combined.recalc_hess_freq == 15
+
+        # Test hybrid hessian with others
+        hybrid_combined = combined.specify_atoms_for_full_hessian([0, 2, 4])
+        assert hybrid_combined.calc_hess
+        assert hybrid_combined.recalc_hess_freq == 15
+        assert hybrid_combined.hybrid_hess_atoms == (0, 2, 4)
+
+
+class TestOrcaInputHessianValidation:
+    """Tests for validation of Hessian-related fields during initialization."""
+
+    def test_init_calc_hess_wrong_task(self) -> None:
+        """Test __post_init__ validation for calc_hess with non-geometry task."""
+        with pytest.raises(ValidationError, match="Hessian calculation .* only applicable for 'geometry' tasks"):
+            OrcaInput(
+                task="energy",  # Non-geometry task
+                level_of_theory="hf",
+                basis_set="sto-3g",
+                charge=0,
+                spin_multiplicity=1,
+                calc_hess=True,
+            )
+
+    def test_init_hybrid_hess_atoms_wrong_task(self) -> None:
+        """Test __post_init__ validation for hybrid_hess_atoms with non-geometry task."""
+        with pytest.raises(ValidationError, match="Hybrid Hessian calculation is only applicable for 'geometry' tasks"):
+            OrcaInput(
+                task="energy",  # Non-geometry task
+                level_of_theory="hf",
+                basis_set="sto-3g",
+                charge=0,
+                spin_multiplicity=1,
+                hybrid_hess_atoms=(0, 1, 2),
+            )
+
+    def test_init_hybrid_hess_atoms_empty(self) -> None:
+        """Test __post_init__ validation for empty hybrid_hess_atoms."""
+        with pytest.raises(ValidationError, match="hybrid_hess_atoms cannot be empty"):
+            OrcaInput(
+                task="geometry",
+                level_of_theory="hf",
+                basis_set="sto-3g",
+                charge=0,
+                spin_multiplicity=1,
+                hybrid_hess_atoms=(),
+            )
+
+    def test_init_hybrid_hess_atoms_negative_indices(self) -> None:
+        """Test __post_init__ validation for negative indices in hybrid_hess_atoms."""
+        with pytest.raises(ValidationError, match="All atom indices in hybrid_hess_atoms must be non-negative"):
+            OrcaInput(
+                task="geometry",
+                level_of_theory="hf",
+                basis_set="sto-3g",
+                charge=0,
+                spin_multiplicity=1,
+                hybrid_hess_atoms=(0, 1, -2),
+            )
+
+    def test_init_valid_hessian_combinations(self) -> None:
+        """Test successful initialization with various valid hessian combinations."""
+        # calc_hess only
+        calc_only = OrcaInput(
+            task="geometry",
+            level_of_theory="hf",
+            basis_set="sto-3g",
+            charge=0,
+            spin_multiplicity=1,
+            calc_hess=True,
+        )
+        assert calc_only.calc_hess
+        assert calc_only.recalc_hess_freq is None
+        assert calc_only.hybrid_hess_atoms is None
+
+        # calc_hess + recalc_hess_freq
+        calc_recalc = OrcaInput(
+            task="geometry",
+            level_of_theory="hf",
+            basis_set="sto-3g",
+            charge=0,
+            spin_multiplicity=1,
+            calc_hess=True,
+            recalc_hess_freq=10,
+        )
+        assert calc_recalc.calc_hess
+        assert calc_recalc.recalc_hess_freq == 10
+
+        # hybrid_hess_atoms only
+        hybrid_only = OrcaInput(
+            task="geometry",
+            level_of_theory="hf",
+            basis_set="sto-3g",
+            charge=0,
+            spin_multiplicity=1,
+            hybrid_hess_atoms=(0, 1, 5),
+        )
+        assert hybrid_only.hybrid_hess_atoms == (0, 1, 5)
+
+
+class TestOrcaInputHessianExport:
+    """Tests for export functionality with Hessian settings."""
+
+    def test_export_calc_hess_only(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
+        """Test export with only calc_hess enabled."""
+        geom_input = replace(minimal_orca_input, task="geometry")
+        hess_input = geom_input.calculate_hessian()
+        output = hess_input.export_input_file(default_geom)
+
+        expected_geom_block = """%geom
+    Calc_Hess true
+end"""
+        assert expected_geom_block in output
+        # Ensure Opt keyword is still present
+        expected_keywords_set = {"!", "RHF", "sto-3g", "Opt"}
+        assert self._keywords_match(output, expected_keywords_set)
+
+    def test_export_recalc_hess_with_calc_hess(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
+        """Test export with recalc_hess_freq (should also include calc_hess)."""
+        geom_input = replace(minimal_orca_input, task="geometry")
+        hess_input = geom_input.recalculate_hessian_every_n_steps(frequency=15)
+        output = hess_input.export_input_file(default_geom)
+
+        expected_geom_block = """%geom
+    Calc_Hess true
+    Recalc_Hess 15
+end"""
+        assert expected_geom_block in output
+
+    def test_export_hybrid_hessian(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
+        """Test export with hybrid Hessian atoms."""
+        geom_input = replace(minimal_orca_input, task="geometry")
+        hybrid_input = geom_input.specify_atoms_for_full_hessian([0, 1, 5, 6])
+        output = hybrid_input.export_input_file(default_geom)
+
+        expected_geom_block = """%geom
+    Hybrid_Hess {0 1 5 6} end
+end"""
+        assert expected_geom_block in output
+
+    def test_export_all_hessian_features_combined(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
+        """Test export with all hessian features and other geometry settings."""
+        geom_input = replace(minimal_orca_input, task="geometry")
+        combined_input = (
+            geom_input.calculate_hessian()
+            .recalculate_hessian_every_n_steps(frequency=20)
+            .specify_atoms_for_full_hessian([2, 4, 8])
+            .enable_optimize_hydrogens_only()
+        )
+        output = combined_input.export_input_file(default_geom)
+
+        # Check that all settings appear in the correct order
+        expected_geom_block = """%geom
+    Calc_Hess true
+    Recalc_Hess 20
+    Hybrid_Hess {2 4 8} end
+    OptimizeHydrogens true
+end"""
+        assert expected_geom_block in output
+
+    def test_export_deprecated_method_still_works(self, minimal_orca_input: OrcaInput, default_geom: Geometry) -> None:
+        """Test that the deprecated set_hessian_recalculation method still exports correctly."""
+        geom_input = replace(minimal_orca_input, task="geometry")
+        # Suppress the deprecation warning for this test
+        import logging
+
+        logging.getLogger("calcflow.utils").setLevel(logging.ERROR)
+
+        hess_input = geom_input.recalculate_hessian_every_n_steps(frequency=25)
+        output = hess_input.export_input_file(default_geom)
+
+        expected_geom_block = """%geom
+    Calc_Hess true
+    Recalc_Hess 25
+end"""
+        assert expected_geom_block in output
+
+        # Reset logging level
+        logging.getLogger("calcflow.utils").setLevel(logging.INFO)
+
+    def _keywords_match(self, output: str, expected_keywords_set: set[str]) -> bool:
+        """Helper to check if the keyword line matches the expected set (order independent)."""
+        actual_lines = [line.strip() for line in output.strip().split("\n") if line.strip()]
+        actual_keywords_line = ""
+        for line in actual_lines:
+            if line.startswith("!"):
+                actual_keywords_line = line
+                break
+        if not actual_keywords_line:
+            return False
+        actual_keywords_set = set(actual_keywords_line.split())
+        return actual_keywords_set == expected_keywords_set
