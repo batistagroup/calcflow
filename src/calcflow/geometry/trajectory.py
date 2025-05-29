@@ -7,26 +7,30 @@ from calcflow.geometry.static import Geometry, _parse_atom_line, _parse_energy_f
 from calcflow.typing import AtomCoords
 
 
-def _parse_single_frame(
-    num_atoms: int, comment_line: str, atom_lines: list[str], file_path: Path, frame_start_line: int
-) -> Geometry:
-    """Parses a single geometry frame from pre-split lines."""
+def _parse_single_frame(num_atoms: int, comment_line: str, atom_lines: list[str]) -> Geometry:
+    """Parses a single geometry frame from pre-split lines.
+
+    Args:
+        num_atoms: Expected number of atoms.
+        comment_line: The comment line for this frame.
+        atom_lines: List of atom coordinate lines.
+
+    Returns:
+        Geometry object for this frame.
+
+    Raises:
+        ValueError: If the frame format is invalid.
+    """
     if len(atom_lines) != num_atoms:
-        raise ValueError(
-            f"Invalid frame in '{file_path}' starting near line {frame_start_line}: "
-            f"Expected {num_atoms} atom lines based on header, found {len(atom_lines)}."
-        )
+        raise ValueError(f"Expected {num_atoms} atom lines based on header, found {len(atom_lines)}")
 
     atoms: list[AtomCoords] = []
     for i, line in enumerate(atom_lines):
-        # Line number within the context of the *entire* file
-        line_number_in_file = frame_start_line + 2 + i
         try:
-            atom_data = _parse_atom_line(line, line_number_in_file, file_path)
+            atom_data = _parse_atom_line(line)
             atoms.append(atom_data)
         except ValueError as e:
-            # Re-raise with context
-            raise ValueError(f"Error parsing frame in '{file_path}' starting near line {frame_start_line}: {e}") from e
+            raise ValueError(f"Error parsing atom line {i + 1}: {e}") from e
 
     energy = _parse_energy_from_comment(comment_line)
     return Geometry(num_atoms=num_atoms, comment=comment_line, atoms=atoms, energy=energy)
@@ -79,7 +83,10 @@ def _iter_xyz_trajectory_frames(f: TextIO, file_path: Path) -> Iterator[Geometry
             atom_lines.append(atom_line.strip())
 
         # 4. Parse and yield the frame
-        yield _parse_single_frame(num_atoms, comment, atom_lines, file_path, frame_start_line)
+        try:
+            yield _parse_single_frame(num_atoms, comment, atom_lines)
+        except ValueError as e:
+            raise ValueError(f"Invalid frame in '{file_path}' starting near line {frame_start_line}: {e}") from e
 
 
 @dataclass(frozen=True)

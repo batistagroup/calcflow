@@ -35,21 +35,28 @@ def _parse_energy_from_comment(comment: str) -> float | None:
     return None
 
 
-def _parse_atom_line(line: str, line_num: int, file_path: Path) -> AtomCoords:
-    """Parses a single atom line from an XYZ file."""
+def _parse_atom_line(line: str) -> AtomCoords:
+    """Parses a single atom line from an XYZ file.
+
+    Args:
+        line: The atom line to parse (format: "Symbol X Y Z").
+
+    Returns:
+        Tuple of (symbol, (x, y, z)) coordinates.
+
+    Raises:
+        ValueError: If the line format is invalid.
+    """
     parts = line.split()
     if len(parts) != 4:
-        raise ValueError(
-            f"Invalid XYZ file '{file_path}' at line {line_num}: "
-            f"Expected 4 columns (Symbol X Y Z), found {len(parts)}. Line: '{line}'"
-        )
+        raise ValueError(f"Expected 4 columns (Symbol X Y Z), found {len(parts)}. Line: '{line}'")
+
     symbol = parts[0]
     try:
         coords = (float(parts[1]), float(parts[2]), float(parts[3]))
     except ValueError as e:
-        raise ValueError(
-            f"Invalid XYZ file '{file_path}' at line {line_num}: Could not parse coordinates. {e}. Line: '{line}'"
-        ) from e
+        raise ValueError(f"Could not parse coordinates: {e}. Line: '{line}'") from e
+
     return symbol, coords
 
 
@@ -105,11 +112,10 @@ def parse_xyz(file: Path | str) -> tuple[int, str, list[AtomCoords]]:
         # Line number in the original file context (add 3: count, comment, 1-based index)
         line_number_in_file = i + 3
         try:
-            atom_data = _parse_atom_line(line, line_number_in_file, file_path)
+            atom_data = _parse_atom_line(line)
             atoms.append(atom_data)
         except ValueError as e:
-            # Re-raise with context if needed, or handle differently
-            raise e
+            raise ValueError(f"Invalid XYZ file '{file_path}' at line {line_number_in_file}: {e}") from e
 
     return num_atoms, comment, atoms
 

@@ -492,15 +492,13 @@ def test_parse_single_frame_atom_count_mismatch() -> None:
     num_atoms = 3
     comment_line = "Test frame"
     atom_lines = ["H 0.0 0.0 0.0", "O 0.0 0.0 1.0"]  # Only 2 lines, but num_atoms says 3
-    file_path = Path("/fake/path/test.xyz")
-    frame_start_line = 1
 
     # Act & Assert
     with pytest.raises(
         ValueError,
-        match=r"Invalid frame in '/fake/path/test\.xyz' starting near line 1: Expected 3 atom lines based on header, found 2\.",
+        match=r"Expected 3 atom lines based on header, found 2",
     ):
-        _parse_single_frame(num_atoms, comment_line, atom_lines, file_path, frame_start_line)
+        _parse_single_frame(num_atoms, comment_line, atom_lines)
 
 
 def test_parse_single_frame_too_many_atom_lines() -> None:
@@ -509,12 +507,10 @@ def test_parse_single_frame_too_many_atom_lines() -> None:
     num_atoms = 2
     comment_line = "Test frame"
     atom_lines = ["H 0.0 0.0 0.0", "O 0.0 0.0 1.0", "C 1.0 1.0 1.0"]  # 3 lines, but num_atoms says 2
-    file_path = Path("/fake/path/test.xyz")
-    frame_start_line = 5
 
     # Act & Assert
     with pytest.raises(
         ValueError,
-        match=r"Invalid frame in '/fake/path/test\.xyz' starting near line 5: Expected 2 atom lines based on header, found 3\.",
+        match=r"Expected 2 atom lines based on header, found 3",
     ):
-        _parse_single_frame(num_atoms, comment_line, atom_lines, file_path, frame_start_line)
+        _parse_single_frame(num_atoms, comment_line, atom_lines)
