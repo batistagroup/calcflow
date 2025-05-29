@@ -178,7 +178,7 @@ class Geometry:
     def __repr__(self) -> str:
         """Returns a concise representation of the Geometry object."""
         energy_str = f", energy={self.energy}" if self.energy is not None else ""
-        return f"{self.__class__.__name__}(num_atoms={self.num_atoms}, comment='{self.comment}'{energy_str})"
+        return f"{self.__class__.__name__}(num_atoms={self.num_atoms}{energy_str})"
 
     def __str__(self) -> str:
         """Returns the geometry in XYZ file format."""
