@@ -1,3 +1,4 @@
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from functools import cached_property
@@ -5,6 +6,33 @@ from pathlib import Path
 
 from calcflow.constants.ptable import ELEMENT_DATA
 from calcflow.typing import AtomCoords
+
+
+def _parse_energy_from_comment(comment: str) -> float | None:
+    """Extracts energy value from comment line if present.
+
+    Supports ORCA optimization trajectory format:
+    'Coordinates from ORCA-job opt E -981.614502119079'
+
+    Args:
+        comment: The comment line to parse.
+
+    Returns:
+        Energy value if found, None otherwise.
+    """
+    # ORCA optimization trajectory pattern
+    orca_pattern = r"Coordinates from ORCA-job opt E\s+([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)"
+    match = re.search(orca_pattern, comment)
+    if match:
+        return float(match.group(1))
+
+    # Generic energy pattern - matches "E=" or "energy=" followed by a number
+    generic_pattern = r"(?:E|energy)\s*[=:]\s*([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)"
+    match = re.search(generic_pattern, comment, re.IGNORECASE)
+    if match:
+        return float(match.group(1))
+
+    return None
 
 
 def _parse_atom_line(line: str, line_num: int, file_path: Path) -> AtomCoords:
@@ -96,11 +124,13 @@ class Geometry:
         atoms: A sequence of tuples, each containing the atom symbol (str)
                and its coordinates (tuple[float, float, float]).
                The order matches the input file.
+        energy: The energy value if present in the comment line, None otherwise.
     """
 
     num_atoms: int
     comment: str
     atoms: Sequence[AtomCoords]
+    energy: float | None = None
 
     @classmethod
     def from_xyz_file(cls, file: Path | str) -> "Geometry":
@@ -113,7 +143,8 @@ class Geometry:
             Geometry instance with coordinates from the file.
         """
         num_atoms, comment, atoms = parse_xyz(file)
-        return cls(num_atoms=num_atoms, comment=comment, atoms=atoms)
+        energy = _parse_energy_from_comment(comment)
+        return cls(num_atoms=num_atoms, comment=comment, atoms=atoms, energy=energy)
 
     @property
     def unique_elements(self) -> set[str]:
@@ -137,7 +168,7 @@ class Geometry:
             element_symbol_upper = symbol.upper()
             try:
                 charge += ELEMENT_DATA[element_symbol_upper].atomic_number
-            except KeyError as e:
+            except KeyError as e:  # pragma: no cover
                 raise KeyError(
                     f"Element symbol '{symbol}' (uppercase: '{element_symbol_upper}') found in geometry "
                     f"but not defined in ELEMENT_DATA in src/calcflow/constants/ptable.py."
@@ -146,8 +177,8 @@ class Geometry:
 
     def __repr__(self) -> str:
         """Returns a concise representation of the Geometry object."""
-        # Avoid printing potentially very long atoms list
-        return f"{self.__class__.__name__}(num_atoms={self.num_atoms}, comment='{self.comment}')"
+        energy_str = f", energy={self.energy}" if self.energy is not None else ""
+        return f"{self.__class__.__name__}(num_atoms={self.num_atoms}, comment='{self.comment}'{energy_str})"
 
     def __str__(self) -> str:
         """Returns the geometry in XYZ file format."""

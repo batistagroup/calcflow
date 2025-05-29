@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from calcflow.geometry.static import Geometry
-from calcflow.geometry.trajectory import Trajectory
+from calcflow.geometry.trajectory import Trajectory, _parse_single_frame
 
 # --- Test Data and Fixtures ---
 
@@ -24,6 +24,28 @@ def geom2() -> Geometry:
 def geom3() -> Geometry:
     """Fixture for a sample Geometry object (Frame 3)."""
     return Geometry(num_atoms=2, comment="Frame 3", atoms=[("H", (0.2, 0.0, 0.0)), ("O", (0.2, 0.0, 1.2))])
+
+
+@pytest.fixture
+def geom_with_orca_energy() -> Geometry:
+    """Fixture for a Geometry with ORCA energy format."""
+    return Geometry(
+        num_atoms=2,
+        comment="Coordinates from ORCA-job opt E -981.614502119079",
+        atoms=[("H", (0.0, 0.0, 0.0)), ("O", (0.0, 0.0, 1.0))],
+        energy=-981.614502119079,
+    )
+
+
+@pytest.fixture
+def geom_with_generic_energy() -> Geometry:
+    """Fixture for a Geometry with generic energy format."""
+    return Geometry(
+        num_atoms=2,
+        comment="Energy = -100.5 Hartree",
+        atoms=[("H", (0.0, 0.0, 0.0)), ("O", (0.0, 0.0, 1.0))],
+        energy=-100.5,
+    )
 
 
 @pytest.fixture
@@ -287,3 +309,212 @@ def test_trajectory_repr_with_frames(geom1: Geometry, geom2: Geometry) -> None:
 
     # Assert
     assert repr_str == expected_repr
+
+
+# Test Energy Parsing in Trajectory Files
+
+
+def test_from_xyz_trj_file_with_orca_energy_format(tmp_path: Path) -> None:
+    """Test parsing trajectory file with ORCA energy format in comment lines."""
+    # Arrange
+    file_content = """\
+2
+Coordinates from ORCA-job opt E -981.614502119079
+H 0.0 0.0 0.0
+O 0.0 0.0 1.0
+2
+Coordinates from ORCA-job opt E -981.614197297592
+H 0.1 0.0 0.0
+O 0.1 0.0 1.1
+"""
+    trj_file = tmp_path / "orca_energy.xyz"
+    trj_file.write_text(file_content)
+
+    # Act
+    trajectory = Trajectory.from_xyz_trj_file(trj_file)
+
+    # Assert
+    assert len(trajectory) == 2
+    assert trajectory[0].energy == -981.614502119079
+    assert trajectory[1].energy == -981.614197297592
+    assert trajectory[0].comment == "Coordinates from ORCA-job opt E -981.614502119079"
+    assert trajectory[1].comment == "Coordinates from ORCA-job opt E -981.614197297592"
+
+
+def test_from_xyz_trj_file_with_generic_energy_formats(tmp_path: Path) -> None:
+    """Test parsing trajectory file with various generic energy formats."""
+    # Arrange
+    file_content = """\
+2
+Energy = -100.5 Hartree
+H 0.0 0.0 0.0
+O 0.0 0.0 1.0
+2
+E: -200.123456
+H 0.1 0.0 0.0
+O 0.1 0.0 1.1
+2
+energy=-300.789e-2
+H 0.2 0.0 0.0
+O 0.2 0.0 1.2
+"""
+    trj_file = tmp_path / "generic_energy.xyz"
+    trj_file.write_text(file_content)
+
+    # Act
+    trajectory = Trajectory.from_xyz_trj_file(trj_file)
+
+    # Assert
+    assert len(trajectory) == 3
+    assert trajectory[0].energy == -100.5
+    assert trajectory[1].energy == -200.123456
+    assert trajectory[2].energy == -3.00789  # -300.789e-2
+
+
+def test_from_xyz_trj_file_without_energy_backward_compatibility(tmp_path: Path) -> None:
+    """Test that trajectory files without energy still work (backward compatibility)."""
+    # Arrange
+    file_content = """\
+2
+Frame 1 - no energy here
+H 0.0 0.0 0.0
+O 0.0 0.0 1.0
+2
+Just a regular comment
+H 0.1 0.0 0.0
+O 0.1 0.0 1.1
+"""
+    trj_file = tmp_path / "no_energy.xyz"
+    trj_file.write_text(file_content)
+
+    # Act
+    trajectory = Trajectory.from_xyz_trj_file(trj_file)
+
+    # Assert
+    assert len(trajectory) == 2
+    assert trajectory[0].energy is None
+    assert trajectory[1].energy is None
+    assert trajectory[0].comment == "Frame 1 - no energy here"
+    assert trajectory[1].comment == "Just a regular comment"
+
+
+def test_from_xyz_trj_file_mixed_energy_and_no_energy(tmp_path: Path) -> None:
+    """Test trajectory file with some frames having energy and others not."""
+    # Arrange
+    file_content = """\
+2
+Coordinates from ORCA-job opt E -981.614502119079
+H 0.0 0.0 0.0
+O 0.0 0.0 1.0
+2
+Frame without energy
+H 0.1 0.0 0.0
+O 0.1 0.0 1.1
+2
+Energy = -500.25
+H 0.2 0.0 0.0
+O 0.2 0.0 1.2
+"""
+    trj_file = tmp_path / "mixed_energy.xyz"
+    trj_file.write_text(file_content)
+
+    # Act
+    trajectory = Trajectory.from_xyz_trj_file(trj_file)
+
+    # Assert
+    assert len(trajectory) == 3
+    assert trajectory[0].energy == -981.614502119079
+    assert trajectory[1].energy is None
+    assert trajectory[2].energy == -500.25
+
+
+def test_from_xyz_trj_file_scientific_notation_energy(tmp_path: Path) -> None:
+    """Test parsing energy values in scientific notation."""
+    # Arrange
+    file_content = """\
+2
+Coordinates from ORCA-job opt E -9.81614502119079e+2
+H 0.0 0.0 0.0
+O 0.0 0.0 1.0
+2
+Energy = 1.5E-4
+H 0.1 0.0 0.0
+O 0.1 0.0 1.1
+"""
+    trj_file = tmp_path / "scientific_energy.xyz"
+    trj_file.write_text(file_content)
+
+    # Act
+    trajectory = Trajectory.from_xyz_trj_file(trj_file)
+
+    # Assert
+    assert len(trajectory) == 2
+    assert trajectory[0].energy == -981.614502119079  # -9.81614502119079e+2
+    assert trajectory[1].energy == 0.00015  # 1.5E-4
+
+
+def test_from_xyz_trj_file_invalid_energy_format_ignored(tmp_path: Path) -> None:
+    """Test that invalid energy formats are gracefully ignored (energy set to None)."""
+    # Arrange
+    file_content = """\
+2
+Energy = not_a_number
+H 0.0 0.0 0.0
+O 0.0 0.0 1.0
+2
+E = 
+H 0.1 0.0 0.0
+O 0.1 0.0 1.1
+2
+Multiple E = 100 E = 200 values
+H 0.2 0.0 0.0
+O 0.2 0.0 1.2
+"""
+    trj_file = tmp_path / "invalid_energy.xyz"
+    trj_file.write_text(file_content)
+
+    # Act
+    trajectory = Trajectory.from_xyz_trj_file(trj_file)
+
+    # Assert
+    assert len(trajectory) == 3
+    assert trajectory[0].energy is None  # Invalid format ignored
+    assert trajectory[1].energy is None  # Empty value ignored
+    assert trajectory[2].energy == 100.0  # First valid match found
+
+
+# Test _parse_single_frame Function Directly
+
+
+def test_parse_single_frame_atom_count_mismatch() -> None:
+    """Test _parse_single_frame raises ValueError when atom line count doesn't match expected."""
+    # Arrange
+    num_atoms = 3
+    comment_line = "Test frame"
+    atom_lines = ["H 0.0 0.0 0.0", "O 0.0 0.0 1.0"]  # Only 2 lines, but num_atoms says 3
+    file_path = Path("/fake/path/test.xyz")
+    frame_start_line = 1
+
+    # Act & Assert
+    with pytest.raises(
+        ValueError,
+        match=r"Invalid frame in '/fake/path/test\.xyz' starting near line 1: Expected 3 atom lines based on header, found 2\.",
+    ):
+        _parse_single_frame(num_atoms, comment_line, atom_lines, file_path, frame_start_line)
+
+
+def test_parse_single_frame_too_many_atom_lines() -> None:
+    """Test _parse_single_frame raises ValueError when more atom lines than expected."""
+    # Arrange
+    num_atoms = 2
+    comment_line = "Test frame"
+    atom_lines = ["H 0.0 0.0 0.0", "O 0.0 0.0 1.0", "C 1.0 1.0 1.0"]  # 3 lines, but num_atoms says 2
+    file_path = Path("/fake/path/test.xyz")
+    frame_start_line = 5
+
+    # Act & Assert
+    with pytest.raises(
+        ValueError,
+        match=r"Invalid frame in '/fake/path/test\.xyz' starting near line 5: Expected 2 atom lines based on header, found 3\.",
+    ):
+        _parse_single_frame(num_atoms, comment_line, atom_lines, file_path, frame_start_line)

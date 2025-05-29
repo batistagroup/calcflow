@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TextIO
 
-from calcflow.geometry.static import Geometry, _parse_atom_line
+from calcflow.geometry.static import Geometry, _parse_atom_line, _parse_energy_from_comment
 from calcflow.typing import AtomCoords
 
 
@@ -28,7 +28,8 @@ def _parse_single_frame(
             # Re-raise with context
             raise ValueError(f"Error parsing frame in '{file_path}' starting near line {frame_start_line}: {e}") from e
 
-    return Geometry(num_atoms=num_atoms, comment=comment_line, atoms=atoms)
+    energy = _parse_energy_from_comment(comment_line)
+    return Geometry(num_atoms=num_atoms, comment=comment_line, atoms=atoms, energy=energy)
 
 
 def _iter_xyz_trajectory_frames(f: TextIO, file_path: Path) -> Iterator[Geometry]:
