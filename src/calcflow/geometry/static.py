@@ -13,6 +13,7 @@ def _parse_energy_from_comment(comment: str) -> float | None:
 
     Supports ORCA optimization trajectory format:
     'Coordinates from ORCA-job opt E -981.614502119079'
+    'Coordinates from ORCA-job freq E -863.785941254139'
 
     Args:
         comment: The comment line to parse.
@@ -20,8 +21,8 @@ def _parse_energy_from_comment(comment: str) -> float | None:
     Returns:
         Energy value if found, None otherwise.
     """
-    # ORCA optimization trajectory pattern
-    orca_pattern = r"Coordinates from ORCA-job opt E\s+([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)"
+    # ORCA trajectory pattern - matches any job type (opt, freq, etc.)
+    orca_pattern = r"Coordinates from ORCA-job \w+ E\s+([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)"
     match = re.search(orca_pattern, comment)
     if match:
         return float(match.group(1))

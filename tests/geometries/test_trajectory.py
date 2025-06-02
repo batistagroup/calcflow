@@ -341,6 +341,36 @@ O 0.1 0.0 1.1
     assert trajectory[1].comment == "Coordinates from ORCA-job opt E -981.614197297592"
 
 
+def test_from_xyz_trj_file_with_orca_different_job_types(tmp_path: Path) -> None:
+    """Test parsing ORCA trajectory files with different job types (opt, freq, etc.)."""
+    # Arrange
+    file_content = """\
+2
+Coordinates from ORCA-job opt E -981.614502119079
+H 0.0 0.0 0.0
+O 0.0 0.0 1.0
+2
+Coordinates from ORCA-job freq E -863.785941254139
+H 0.1 0.0 0.0
+O 0.1 0.0 1.1
+2
+Coordinates from ORCA-job sp E -500.123456789
+H 0.2 0.0 0.0
+O 0.2 0.0 1.2
+"""
+    trj_file = tmp_path / "orca_job_types.xyz"
+    trj_file.write_text(file_content)
+
+    # Act
+    trajectory = Trajectory.from_xyz_trj_file(trj_file)
+
+    # Assert
+    assert len(trajectory) == 3
+    assert trajectory[0].energy == -981.614502119079  # opt job
+    assert trajectory[1].energy == -863.785941254139  # freq job
+    assert trajectory[2].energy == -500.123456789  # sp job
+
+
 def test_from_xyz_trj_file_with_generic_energy_formats(tmp_path: Path) -> None:
     """Test parsing trajectory file with various generic energy formats."""
     # Arrange
