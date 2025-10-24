@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from copy import deepcopy
 from dataclasses import dataclass, replace
 from typing import ClassVar, Literal, TypeVar, cast, get_args
@@ -41,7 +42,9 @@ class OrcaInput(CalculationInput):
         output_verbosity: Level of output verbosity. Defaults to "Normal".
         print_mos: Flag to control printing of Molecular Orbitals (MOs) and Overlap matrix.
             Defaults to False.
+        calc_hess: Flag to enable one-time Hessian calculation. Defaults to False.
         recalc_hess_freq: Frequency for Hessian recalculation. Defaults to None.
+        hybrid_hess_atoms: Atom indices for hybrid Hessian calculation. Defaults to None.
         optimize_hydrogens_only: Flag to optimize only hydrogens in geometry optimization. Defaults to False.
         run_frequency: Flag to enable frequency calculations in combination with other tasks. Defaults to False.
     """
@@ -67,7 +70,9 @@ class OrcaInput(CalculationInput):
 
     output_verbosity: Literal["Normal", "Verbose", "Mini"] = "Normal"
     print_mos: bool = False
+    calc_hess: bool = False
     recalc_hess_freq: int | None = None
+    hybrid_hess_atoms: tuple[int, ...] | None = None
     optimize_hydrogens_only: bool = False
 
     def __post_init__(self) -> None:
@@ -137,6 +142,9 @@ class OrcaInput(CalculationInput):
                 "Both `implicit_solvation_model` and `solvent` must be provided together, or neither."
             )
 
+        if self.calc_hess and self.task != "geometry":
+            raise ValidationError("Hessian calculation (calc_hess) is only applicable for 'geometry' tasks.")
+
         if self.recalc_hess_freq is not None:
             if self.task != "geometry":
                 raise ValidationError(
@@ -144,6 +152,14 @@ class OrcaInput(CalculationInput):
                 )
             if self.recalc_hess_freq < 1:
                 raise ValidationError("recalc_hess_freq must be a positive integer.")
+
+        if self.hybrid_hess_atoms is not None:
+            if self.task != "geometry":
+                raise ValidationError("Hybrid Hessian calculation is only applicable for 'geometry' tasks.")
+            if len(self.hybrid_hess_atoms) == 0:
+                raise ValidationError("hybrid_hess_atoms cannot be empty.")
+            if any(atom_idx < 0 for atom_idx in self.hybrid_hess_atoms):
+                raise ValidationError("All atom indices in hybrid_hess_atoms must be non-negative.")
 
         if self.optimize_hydrogens_only and self.task != "geometry":
             raise ValidationError("Optimizing only hydrogens is only applicable for 'geometry' tasks.")
@@ -268,14 +284,29 @@ class OrcaInput(CalculationInput):
         logger.info(f"Enabling frequency calculations in combination with {self.task} task.")
         return replace(self, run_frequency=True)
 
-    def set_hessian_recalculation(self: T_OrcaInput, frequency: int) -> T_OrcaInput:
-        """Enable and configure Hessian recalculation during geometry optimization.
+    def calculate_hessian(self: T_OrcaInput) -> T_OrcaInput:
+        """Enable one-time Hessian calculation during geometry optimization.
+
+        Returns:
+            A new OrcaInput instance with Hessian calculation enabled.
+
+        Raises:
+            ValidationError: If the task is not 'geometry'.
+        """
+        if self.task != "geometry":
+            raise ValidationError("Hessian calculation is only applicable for 'geometry' tasks.")
+
+        logger.info("Enabling one-time Hessian calculation.")
+        return replace(self, calc_hess=True)
+
+    def recalculate_hessian_every_n_steps(self: T_OrcaInput, frequency: int) -> T_OrcaInput:
+        """Enable Hessian calculation and recalculation during geometry optimization.
 
         Args:
             frequency: The frequency (number of steps) at which to recalculate the Hessian.
 
         Returns:
-            A new OrcaInput instance with Hessian recalculation configured.
+            A new OrcaInput instance with Hessian calculation and recalculation configured.
 
         Raises:
             ValidationError: If the task is not 'geometry' or frequency is not positive.
@@ -285,8 +316,35 @@ class OrcaInput(CalculationInput):
         if frequency < 1:
             raise ValidationError("Hessian recalculation frequency must be a positive integer.")
 
-        logger.info(f"Setting Hessian recalculation frequency to every {frequency} steps.")
-        return replace(self, recalc_hess_freq=frequency)
+        logger.info(f"Enabling Hessian calculation and recalculation every {frequency} steps.")
+        return replace(self, calc_hess=True, recalc_hess_freq=frequency)
+
+    def specify_atoms_for_full_hessian(self: T_OrcaInput, atoms: Sequence[int]) -> T_OrcaInput:
+        """Enable hybrid Hessian calculation for specific atoms during geometry optimization.
+
+        Args:
+            atoms: Sequence of atom indices for which exact Hessian should be calculated.
+                   Can be a list, tuple, or set of integers.
+
+        Returns:
+            A new OrcaInput instance with hybrid Hessian calculation configured.
+
+        Raises:
+            ValidationError: If the task is not 'geometry', atoms sequence is empty,
+                           or contains negative indices.
+        """
+        if self.task != "geometry":
+            raise ValidationError("Hybrid Hessian calculation is only applicable for 'geometry' tasks.")
+
+        atoms_tuple = tuple(sorted(set(atoms)))
+
+        if len(atoms_tuple) == 0:
+            raise ValidationError("Atom sequence cannot be empty for hybrid Hessian calculation.")
+        if any(atom_idx < 0 for atom_idx in atoms_tuple):
+            raise ValidationError("All atom indices must be non-negative.")
+
+        logger.info(f"Enabling hybrid Hessian calculation for atoms: {atoms_tuple}")
+        return replace(self, hybrid_hess_atoms=atoms_tuple)
 
     def enable_optimize_hydrogens_only(self: T_OrcaInput) -> T_OrcaInput:
         """Enable optimizing only hydrogen atoms during geometry optimization.
@@ -505,21 +563,41 @@ class OrcaInput(CalculationInput):
         return "\n".join(lines)
 
     def _get_geom_block(self) -> str:
-        """Generates the %geom block for Hessian recalculation during geometry optimization.
+        """Generates the %geom block for geometry optimization settings.
 
         Returns:
-            String containing %geom block if recalc_hess_freq is set or optimize_hydrogens_only is true, empty string otherwise.
+            String containing %geom block if any geometry-specific settings are enabled, empty string otherwise.
         """
-        if self.task == "geometry" and (self.recalc_hess_freq is not None or self.optimize_hydrogens_only):
-            lines = ["%geom"]
-            if self.recalc_hess_freq is not None:
-                lines.append("    Calc_Hess true")
-                lines.append(f"    Recalc_Hess {self.recalc_hess_freq}")
-            if self.optimize_hydrogens_only:
-                lines.append("    OptimizeHydrogens true")
-            lines.append("end")
-            return "\n".join(lines)
-        return ""
+        if self.task != "geometry":
+            return ""
+
+        has_geom_settings = (
+            self.calc_hess
+            or self.recalc_hess_freq is not None
+            or self.hybrid_hess_atoms is not None
+            or self.optimize_hydrogens_only
+        )
+
+        if not has_geom_settings:
+            return ""
+
+        lines = ["%geom"]
+
+        if self.calc_hess:
+            lines.append("    Calc_Hess true")
+
+        if self.recalc_hess_freq is not None:
+            lines.append(f"    Recalc_Hess {self.recalc_hess_freq}")
+
+        if self.hybrid_hess_atoms is not None:
+            atom_indices = " ".join(str(idx) for idx in self.hybrid_hess_atoms)
+            lines.append(f"    Hybrid_Hess {{{atom_indices}}} end")
+
+        if self.optimize_hydrogens_only:
+            lines.append("    OptimizeHydrogens true")
+
+        lines.append("end")
+        return "\n".join(lines)
 
     def export_input_file(self, geometry: "Geometry") -> str:
         """Generates the ORCA input file content.
